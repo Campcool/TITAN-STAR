@@ -6,8 +6,7 @@
 <title>TITAN-STAR · 維修分析 & RMA 管理</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<style id="s-main">
-/* ════════════════════════════════════════════════════════════════════
+<style>/* ════════════════════════════════════════════════════════════════════
    電子工廠維修分析報表 — 視覺系統
    - Dark, professional, generous spacing
    - Hierarchy: 顯眼數字 + 持續脈絡（% / 分母）
@@ -1330,10 +1329,8 @@ button, input, select { font-family: inherit; }
   .dd-row { grid-template-columns: 1fr auto; }
   .dd-row-bar-wrap { display: none; }
 }
-
 </style>
-<style id="s-rma">
-/* ════════════════════════════════════════════════════════════════════
+<style>/* ════════════════════════════════════════════════════════════════════
    RMA Module Styles + Mode Bar
    ════════════════════════════════════════════════════════════════════ */
 
@@ -1765,7 +1762,6 @@ button, input, select { font-family: inherit; }
   .rma-pipeline-bar { height: 36px; }
   .rma-pipe-seg-name { display: none; }
 }
-
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -2134,8 +2130,7 @@ button, input, select { font-family: inherit; }
 <!-- RMA Modal container -->
 <div id="rmaModal" style="display:none;position:fixed;inset:0;z-index:600;align-items:center;justify-content:center"></div>
 
-<script>
-// ════════════════════════════════════════════════════════════════════
+<script>// ════════════════════════════════════════════════════════════════════
 // Repair Report Parser
 // Reads monthly Excel files. Normalizes parts. Stores per-month.
 // ════════════════════════════════════════════════════════════════════
@@ -2508,10 +2503,8 @@ button, input, select { font-family: inherit; }
     STORAGE_KEY,
   };
 })();
-
 </script>
-<script>
-// ════════════════════════════════════════════════════════════════════
+<script>// ════════════════════════════════════════════════════════════════════
 // Repair Analyzer
 // Cross-month aggregation, anomaly detection, KPI computation.
 // ════════════════════════════════════════════════════════════════════
@@ -3126,10 +3119,8 @@ button, input, select { font-family: inherit; }
     detectAnomalies,
   };
 })();
-
 </script>
-<script>
-// ════════════════════════════════════════════════════════════════════
+<script>// ════════════════════════════════════════════════════════════════════
 // App — state, rendering, charts
 // ════════════════════════════════════════════════════════════════════
 
@@ -4909,10 +4900,8 @@ window.App = (function () {
     closeDrawer,
   };
 })();
-
 </script>
-<script>
-// ════════════════════════════════════════════════════════════════════
+<script>// ════════════════════════════════════════════════════════════════════
 // Executive Summary Report Generator
 // Builds a print-ready HTML document and opens it in a new tab.
 // User presses Cmd+P / Ctrl+P to save as PDF.
@@ -5492,10 +5481,8 @@ window.App = (function () {
   // Expose
   window.RepairReport = { generate };
 })();
-
 </script>
-<script>
-// ════════════════════════════════════════════════════════════════════
+<script>// ════════════════════════════════════════════════════════════════════
 // RMA Management Module
 // Create / track / resolve return merchandise authorization cases.
 // Storage: localStorage keyed by rma_db_v1
@@ -6832,7 +6819,6 @@ window.RMA = (function () {
     stats, listCases, getCase,
   };
 })();
-
 </script>
 <script>
 // ─── Mode switching ───
