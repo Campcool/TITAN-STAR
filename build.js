@@ -21,13 +21,16 @@ const reportJs    = safeInline(fs.readFileSync('report.js', 'utf8'));
 const rmaJs       = safeInline(fs.readFileSync('rma.js', 'utf8'));
 
 let html = indexHTML;
-html = html.replace('<link rel="stylesheet" href="styles.css">',     '<style>\n' + stylesCss + '\n</style>');
-html = html.replace('<link rel="stylesheet" href="rma-styles.css">', '<style>\n' + rmaStylesCss + '\n</style>');
-html = html.replace('<script src="parser.js"></script>',   '<script>\n' + parserJs   + '\n</script>');
-html = html.replace('<script src="analyzer.js"></script>', '<script>\n' + analyzerJs + '\n</script>');
-html = html.replace('<script src="report.js"></script>',   '<script>\n' + reportJs   + '\n</script>');
-html = html.replace('<script src="rma.js"></script>',      '<script>\n' + rmaJs      + '\n</script>');
-html = html.replace('<script src="app.js"></script>',      '<script>\n' + appJs      + '\n</script>');
+// 使用「函式型 replacement」避免 String.replace 把內容中的 $`、$'、$& 當成特殊樣式而重複插入。
+const inlineStyle  = (css)  => () => '<style>\n'  + css  + '\n</style>';
+const inlineScript = (code) => () => '<script>\n' + code + '\n</script>';
+html = html.replace('<link rel="stylesheet" href="styles.css">',     inlineStyle(stylesCss));
+html = html.replace('<link rel="stylesheet" href="rma-styles.css">', inlineStyle(rmaStylesCss));
+html = html.replace('<script src="parser.js"></script>',   inlineScript(parserJs));
+html = html.replace('<script src="analyzer.js"></script>', inlineScript(analyzerJs));
+html = html.replace('<script src="report.js"></script>',   inlineScript(reportJs));
+html = html.replace('<script src="rma.js"></script>',      inlineScript(rmaJs));
+html = html.replace('<script src="app.js"></script>',      inlineScript(appJs));
 
 fs.writeFileSync('TITAN-STAR.html', html, 'utf8');
 

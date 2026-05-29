@@ -1708,6 +1708,39 @@ button, input, select { font-family: inherit; }
   .ar-bar { padding: 10px 12px; }
 }
 
+/* ════════════════ 使用說明 (page help) ════════════════ */
+.page-help {
+  margin-bottom: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.ph-toggle {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 12px 18px;
+  background: none; border: none; cursor: pointer;
+  color: var(--text2); font-size: 14px; font-weight: 600;
+  text-align: left;
+}
+.ph-toggle:hover { color: var(--accent); }
+.ph-ico { color: var(--accent); font-size: 16px; }
+.ph-chev { margin-left: auto; transition: transform .2s; color: var(--text3); }
+.page-help.collapsed .ph-chev { transform: rotate(-90deg); }
+.page-help.collapsed .ph-body { display: none; }
+.ph-body { padding: 4px 18px 18px; display: flex; flex-direction: column; gap: 12px; }
+.ph-item { display: flex; gap: 14px; align-items: flex-start; }
+.ph-k {
+  flex-shrink: 0; width: 130px; font-size: 13px; font-weight: 700;
+  color: var(--text); padding-top: 1px;
+}
+.ph-v { font-size: 13.5px; color: var(--text2); line-height: 1.6; }
+@media (max-width: 680px) {
+  .ph-item { flex-direction: column; gap: 4px; }
+  .ph-k { width: auto; }
+}
+
 /* ════════════════ Quality / SPC ════════════════ */
 .spc-note { margin-top: 14px; font-size: 13px; color: var(--text2); line-height: 1.6; }
 

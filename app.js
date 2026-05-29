@@ -52,6 +52,8 @@ window.App = (function () {
     repair:   { label:'維修主管', short:'維修',   icon:'✦', color:'#f59e0b', desc:'技術效率 · 故障模式 · 報廢決策' },
     hw:       { label:'硬體研發', short:'硬體',   icon:'◁', color:'#818cf8', desc:'設計缺陷 · ECO候選 · 元件可靠性' },
     fw:       { label:'韌體研發', short:'韌體',   icon:'▷', color:'#22d3ee', desc:'韌體關鍵字故障 · OTA候選 · 系統穩定性' },
+    finance:  { label:'財務主管', short:'財務',   icon:'$', color:'#4ade80', desc:'品質成本 COPQ · 報廢金額 · 改善 ROI' },
+    sales:    { label:'業務主管', short:'業務',   icon:'◐', color:'#fbbf24', desc:'產品口碑 · 客戶信心 · 可推廣機種' },
   };
 
   // ─────────────── State ───────────────
@@ -596,6 +598,8 @@ window.App = (function () {
       repair:   anoms,
       hw:       anoms.filter(a => a.severity === 'critical'),
       fw:       anoms.filter(a => (a.title||'').includes('零件') || (a.title||'').includes('重複')),
+      finance:  anoms.filter(a => (a.title||'').includes('報廢') || a.severity === 'critical'),
+      sales:    anoms.filter(a => (a.title||'').includes('故障率') || (a.title||'').includes('重複') || a.severity === 'critical'),
     };
     const roleAnoms = (roleAnomMap[role] || anoms).slice(0, 3);
 
@@ -696,6 +700,34 @@ window.App = (function () {
         if (crossSerial.length > 0) addCard('⇄','var(--info)','潛在韌體根因',`${crossSerial.length} 台跨月重複，若排除硬體因素，需確認韌體 OTA 是否成功落版`,'追蹤');
         addCard('♺','var(--info)','重複維修洞察',`重複進廠 ${repeatedList.length} 台，建議比對維修紀錄中的韌體版本欄位，排查特定版本集中問題`,'分析');
         break;
+
+      case 'finance': {
+        const cfg = (function(){ try { return JSON.parse(localStorage.getItem('titan_cost_cfg_v1')||'null'); } catch { return null; } })();
+        const cost = RepairAnalyzer.costAnalysis(records, cfg || {});
+        if (cost.configured) {
+          const money = (n)=>'NT$ '+Math.round(n).toLocaleString('en');
+          addCard('$','var(--critical)','品質成本 COPQ',`本期總損失 <strong>${money(cost.totalCost)}</strong>（報廢 ${money(cost.scrapCost)} + 工時 ${money(cost.laborCost)}）`,'成本');
+          if (cost.byCategory.length) addCard('▤','var(--warn)','損失最高類別',`<strong>${cost.byCategory[0].cat}</strong>：${money(cost.byCategory[0].total)}，是成本改善的第一優先`,'ROI');
+        } else {
+          addCard('$','var(--info)','尚未設定單價','請至「成本量化」頁面點「⚙ 單價設定」輸入機種單價與工時成本，才能換算金額損失','設定');
+        }
+        if (kpis.scrap > 0) addCard('✕','var(--critical)','報廢件數',`本期報廢 <strong>${kpis.scrap}</strong> 件，每一件都是直接物料損失，高單價機種尤須關注`,'損失');
+        const fc = RepairAnalyzer.forecastNextMonth(state.db, {});
+        if (fc.ready) addCard('↗','var(--accent)','下月成本預估',`預估下月維修 <strong>${fc.forecast}</strong> 件（${fc.deltaPct>=0?'+':''}${fc.deltaPct.toFixed(0)}%），可據此估算下月品質成本`,'預測');
+        break;
+      }
+
+      case 'sales': {
+        // 產品口碑紅黃綠燈
+        const ranks = RepairAnalyzer.modelRank(records, RepairAnalyzer.getDenominators(state.db, currentFilter()), state.db, state.selectedMonths);
+        const risky = ranks.filter(r => (r.faultRate||0) >= 0.1 || r.scrap > 0).slice(0,3);
+        const stable = ranks.filter(r => (r.faultRate!=null) && r.faultRate < 0.05).slice(0,3);
+        if (risky.length) addCard('●','var(--critical)','需謹慎銷售（紅燈）',`${risky.map(r=>r.model).join('、')} 故障率偏高或有報廢，對外溝通宜保守`,'口碑');
+        if (stable.length) addCard('●','var(--ok)','可安心主推（綠燈）',`${stable.map(r=>r.model).join('、')} 故障率低且穩定，適合作為主力推廣機種`,'推廣');
+        if (crossSerial.length > 0) addCard('⇄','var(--critical)','客戶信心風險',`<strong>${crossSerial.length}</strong> 台跨月重複故障，這是客戶實際感受到的「不可靠」，恐影響續單`,'客戶');
+        if (topModel) addCard('⚙','var(--warn)','主訴機種',`${topModel[0]} 維修量最高（${topModel[1]}件），業務應準備對應客戶說明`,'溝通');
+        break;
+      }
     }
 
     return { insights, roleAnoms };
@@ -795,11 +827,100 @@ window.App = (function () {
     $('crossMonthBadge').style.display = 'none';
   }
 
+  // ─────────────── 使用說明 (per-page help) ───────────────
+  const HELP = {
+    overview: {
+      what: '一眼掌握本期維修總量、報廢、重複維修、機種故障率排名與最常更換零件。上方可切換 13 種主管視角，系統會自動提煉該角色關心的洞察卡。',
+      meaning: '故障率 = 維修數 ÷ 整新數。報廢率高代表良率或來料問題；重複維修多代表「治標未治本」。機種排名紅色（≥10%）為高風險。',
+      who: '全體主管的起點。董事長看總量與趨勢，廠長看異常，各部門再切到自己視角深入。',
+    },
+    alerts: {
+      what: '系統自動偵測 7 種異常：新出現零件、用量暴增、高故障率機種、高報廢率、跨機種共用料缺陷、重複進廠序號、故障原因過度集中。',
+      meaning: '這些是「資料自己跳出來的警訊」，不需人工翻找。嚴重（紅）代表需立即開會處理，警告（黃）代表觀察。',
+      who: '廠長與品檢主管每期必看；採購看零件類異常；研發看高故障率與集中原因。',
+    },
+    parts: {
+      what: '所有更換零件依使用量排序（Pareto 80/20），顯示累計佔比與「一個零件影響幾個機種」。',
+      meaning: '前 20% 的零件通常佔 80% 的用量 —— 這些就是備料與改善的重點。跨多機種的零件若出問題，會多條產線同時停修。',
+      who: '採購主管（備料、供應商議價）、維修主管（備料優先序）、硬體研發（共用料設計問題）。',
+    },
+    cross: {
+      what: '矩陣呈現「同一零件 × 多個機種」的分布，找出共用料件的系統性缺陷。可匯出 Excel。',
+      meaning: '若一個零件在多個機種都頻繁故障，問題多半出在零件本身（來料/設計），而非單一機種。',
+      who: '採購主管（鎖定問題供應商）、硬體研發（共用料改版）、品檢（批次追溯）。',
+    },
+    trend: {
+      what: '跨所有月份的維修量、報廢量、故障率走勢，以及主要零件的月度趨勢折線。',
+      meaning: '看的是「方向」而非單月數字。持續上升代表問題惡化或出貨成長；零件趨勢可預判備料。',
+      who: '董事長（大方向）、生產主管（製程是否改善）、採購（備料規劃）、業務（產品口碑走向）。',
+    },
+    reason: {
+      what: '故障大類分布圓餅圖 + 故障內容 TOP 10 排行。',
+      meaning: '呈現「壞在哪裡、為什麼壞」。某一原因佔比過高，代表有集中的根本問題值得專案改善。',
+      who: '品檢主管（CAPA 題目）、研發（設計/韌體缺陷）、維修主管（技術研討）。',
+    },
+    quality: {
+      what: 'DPPM（每百萬基數缺陷數）、報廢 DPPM、FPY 直通率、重工率，以及 SPC 故障率管制圖（CL/UCL/LCL）。',
+      meaning: 'DPPM 是國際通用的品質語言（消費電子 <500 為佳）。SPC 管制圖中超出紅色 UCL 線的月份代表「製程失控」，不是正常波動，必須查原因。',
+      who: '品檢主管（核心戰場）、生產主管（良率）、董事長/財務（對標業界水準）。',
+    },
+    risk: {
+      what: '下月維修量預測 + FMEA 風險矩陣（S 嚴重度 × O 發生度 × D 偵測度 = RPN）+ 故障根因樹（8 大部位分類）。',
+      meaning: 'RPN 越高代表越該優先處理。預測幫你提前備料/備援。根因樹把雜亂的故障描述自動歸類成「電源/PCB/螢幕…」等部位。',
+      who: '品檢主管（RPN 排優先序）、研發（設計改善）、採購/財務（依預測規劃）。',
+    },
+    capa: {
+      what: '矯正預防措施追蹤清單：問題 → 負責人 → 截止日 → 狀態（待處理/進行中/驗證中/已結案）。逾期自動標紅，可關聯 RMA 單號。',
+      meaning: '把「發現問題」變成「有人負責、有期限、會結案」的閉環管理。沒有 CAPA，異常偵測就只是看看而已。',
+      who: '品檢主管（開立與追蹤）、廠長（跨部門督導）、各責任部門（執行）。',
+    },
+    cost: {
+      what: '把件數換算成金額：報廢成本、維修工時成本、總損失，以及各類別的成本分布。需先在「⚙ 單價設定」輸入單價。',
+      meaning: '這是品質成本 COPQ。報廢一台高單價機種 ≠ 報廢十台低單價，金額才是管理層真正在意的語言。',
+      who: '財務主管（COPQ 管控）、董事長（損益衝擊）、廠長（改善 ROI 評估）。',
+    },
+    scrap: {
+      what: '跨月份重複維修序號、本期重修清單、報廢機種紀錄集中呈現。',
+      meaning: '同一台機器反覆進廠，是品質未閉環最直接的證據；報廢紀錄是損失與根因分析的來源。',
+      who: '品檢主管（重複故障根因）、客服/業務（客戶信心風險）、維修主管（首修品質）。',
+    },
+    detail: {
+      what: '原始維修記錄逐筆瀏覽（前 500 筆），含日期、機種、序號、故障原因/內容、更換零件。',
+      meaning: '所有分析的最底層資料來源，用於查證個案、追溯特定序號或機種的完整歷史。',
+      who: '需要查個案的所有人員；維修主管核對紀錄、品檢追溯。',
+    },
+  };
+
+  function injectHelp(pageName) {
+    const help = HELP[pageName];
+    const pageEl = $(`page${pageName.charAt(0).toUpperCase() + pageName.slice(1)}`);
+    if (!pageEl) return;
+    let box = pageEl.querySelector(':scope > .page-help');
+    if (!help) { if (box) box.remove(); return; }
+    if (!box) {
+      box = document.createElement('div');
+      box.className = 'page-help collapsed';
+      const header = pageEl.querySelector(':scope > .page-h');
+      if (header && header.nextSibling) pageEl.insertBefore(box, header.nextSibling);
+      else pageEl.appendChild(box);
+    }
+    box.innerHTML = `
+      <button class="ph-toggle" onclick="this.parentElement.classList.toggle('collapsed')">
+        <span class="ph-ico">ⓘ</span> 使用說明 <span class="ph-chev">▾</span>
+      </button>
+      <div class="ph-body">
+        <div class="ph-item"><span class="ph-k">📊 能看出什麼</span><span class="ph-v">${help.what}</span></div>
+        <div class="ph-item"><span class="ph-k">💡 代表什麼</span><span class="ph-v">${help.meaning}</span></div>
+        <div class="ph-item"><span class="ph-k">👥 哪些單位要注意</span><span class="ph-v">${help.who}</span></div>
+      </div>`;
+  }
+
   function renderPage() {
     // Destroy any existing charts on the page
     for (const k of Object.keys(state.charts)) {
       if (state.charts[k]) { state.charts[k].destroy(); state.charts[k] = null; }
     }
+    injectHelp(state.currentPage);
     switch (state.currentPage) {
       case 'overview': renderOverview(); break;
       case 'alerts':   renderAlerts(); break;
