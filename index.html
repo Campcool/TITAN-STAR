@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TITAN-STAR · 維修分析 & RMA 管理</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="rma-styles.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<!-- ═══════════════ Loading Overlay ═══════════════ -->
+<div class="load-ov" id="loadOv" style="display:none">
+  <div class="load-sp"></div>
+  <div class="load-m" id="loadM">處理中…</div>
+  <div class="load-s" id="loadS"></div>
+</div>
+
+<!-- ═══════════════ Mode Switcher Header ═══════════════ -->
+<div class="mode-bar" id="modeBar" style="display:none">
+  <div class="mode-bar-l">
+    <div class="hdr-mark">TS</div>
+    <span class="mode-bar-brand">TITAN-STAR</span>
+  </div>
+  <div class="mode-tabs">
+    <button class="mode-tab active" id="modeAnalysis" onclick="switchMode('analysis')">
+      <span class="mode-tab-ico">◈</span> 維修分析報表
+    </button>
+    <button class="mode-tab" id="modeRma" onclick="switchMode('rma')">
+      <span class="mode-tab-ico">◎</span> RMA 管理
+      <span class="mode-badge" id="rmaBadge" style="display:none">0</span>
+    </button>
+  </div>
+  <div class="mode-bar-r" id="modeBtns"></div>
+</div>
+
+<!-- ═══════════════ UPLOAD ZONE ═══════════════ -->
+<div class="uz" id="uploadZone">
+  <div class="uz-wrap">
+    <div class="uz-brand">
+      <div class="uz-mark">TS</div>
+      <div class="uz-title"><strong>TITAN-STAR</strong> · 維修分析 &amp; RMA 管理</div>
+    </div>
+
+    <!-- Mode selection before upload -->
+    <div class="uz-mode-row">
+      <div class="uz-mode-card active" id="uzModeA" onclick="uzSelectMode('analysis')">
+        <div class="uz-mode-ico">◈</div>
+        <div class="uz-mode-t">維修分析報表</div>
+        <div class="uz-mode-d">上傳月度 Excel 報表，進行跨月分析、異常偵測、KPI 計算</div>
+      </div>
+      <div class="uz-mode-card" id="uzModeR" onclick="uzSelectMode('rma')">
+        <div class="uz-mode-ico">◎</div>
+        <div class="uz-mode-t">RMA 管理系統</div>
+        <div class="uz-mode-d">建立與追蹤故障品退修案件，無需上傳檔案即可使用</div>
+      </div>
+    </div>
+
+    <!-- Analysis upload card -->
+    <div id="uzAnalysisSection">
+      <div class="uz-card" id="dropZone">
+        <input type="file" id="fileInput" accept=".xlsx,.xls" multiple>
+        <div class="uz-icon">📊</div>
+        <div class="uz-heading">拖曳或點擊上傳月度報表</div>
+        <div class="uz-sub">支援 <span class="k">.xlsx</span> / <span class="k">.xls</span>　可一次上傳多個月份　資料存於本機瀏覽器</div>
+        <div class="uz-btn">選擇檔案</div>
+      </div>
+
+      <div class="uz-months" id="uzMonths" style="display:none">
+        <div class="uz-months-h">
+          <span class="uz-months-t">已載入月份</span>
+          <button class="uz-months-clear" onclick="App.clearAll()">清除全部</button>
+        </div>
+        <div id="uzMonthList"></div>
+        <div class="uz-cta" onclick="App.openDashboard()">
+          進入分析報表 →
+        </div>
+      </div>
+    </div>
+
+    <!-- RMA quick start -->
+    <div id="uzRmaSection" style="display:none">
+      <div class="uz-card" style="cursor:default;border-style:solid">
+        <div class="uz-icon">◎</div>
+        <div class="uz-heading">RMA 管理系統</div>
+        <div class="uz-sub">不需上傳任何檔案。建立退修案件、追蹤狀態、匯出報表。<br>資料存於本機瀏覽器，下次開啟即可繼續。</div>
+        <div style="margin-top:28px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+          <button class="btn primary" onclick="openRmaMode()" style="font-size:14px;padding:12px 28px">進入 RMA 管理 →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ ANALYSIS DASHBOARD ═══════════════ -->
+<div class="dash" id="dash">
+
+  <!-- Header -->
+  <div class="hdr">
+    <div class="hdr-l">
+      <div class="hdr-mark">TS</div>
+      <div class="hdr-t">TITAN-STAR <span class="sub" id="hdrSub"></span></div>
+    </div>
+    <div class="hdr-r">
+      <button class="btn" onclick="RepairReport.generate(RepairDB.load())">⤓ 生成報告</button>
+      <button class="btn" onclick="switchMode('rma')">◎ RMA管理</button>
+      <button class="btn danger" onclick="App.openUpload()">上傳 / 管理</button>
+    </div>
+  </div>
+
+  <!-- Sub-bar: month + category chips -->
+  <div class="subbar">
+    <div class="subbar-row" id="monthChips"></div>
+    <div class="subbar-row" id="catChips"></div>
+    <div class="subbar-row" id="modelChips" style="display:none"></div>
+  </div>
+
+  <!-- Layout: sidebar + content -->
+  <div class="layout">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="snav">
+        <div class="snav-h">分析</div>
+        <button class="snav-item active" data-page="overview" onclick="App.switchPage('overview')">
+          <div class="snav-l"><span class="snav-ico">◈</span> 總覽</div>
+        </button>
+        <button class="snav-item" data-page="alerts" onclick="App.switchPage('alerts')">
+          <div class="snav-l"><span class="snav-ico">!</span> 異常偵測</div>
+          <span class="snav-badge" id="alertBadge" style="display:none">0</span>
+        </button>
+        <button class="snav-item" data-page="parts" onclick="App.switchPage('parts')">
+          <div class="snav-l"><span class="snav-ico">▤</span> 零件 Pareto</div>
+        </button>
+        <button class="snav-item" data-page="cross" onclick="App.switchPage('cross')">
+          <div class="snav-l"><span class="snav-ico">⇄</span> 跨機種矩陣</div>
+        </button>
+        <button class="snav-item" data-page="trend" onclick="App.switchPage('trend')">
+          <div class="snav-l"><span class="snav-ico">↗</span> 月份趨勢</div>
+        </button>
+        <button class="snav-item" data-page="reason" onclick="App.switchPage('reason')">
+          <div class="snav-l"><span class="snav-ico">◎</span> 故障原因</div>
+        </button>
+        <div class="snav-sep"></div>
+        <div class="snav-h">追蹤</div>
+        <button class="snav-item" data-page="scrap" onclick="App.switchPage('scrap')">
+          <div class="snav-l"><span class="snav-ico">↻</span> 報廢 &amp; 重修</div>
+          <span class="snav-badge" id="crossMonthBadge" style="display:none">0</span>
+        </button>
+        <button class="snav-item" data-page="detail" onclick="App.switchPage('detail')">
+          <div class="snav-l"><span class="snav-ico">≡</span> 明細資料</div>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Content -->
+    <main class="content">
+      <div class="content-inner">
+
+        <!-- Overview -->
+        <div class="page active" id="pageOverview">
+          <div class="page-h">
+            <div>
+              <div class="page-t">總覽</div>
+              <div class="page-d">跨月份維修 KPI · 機種故障率排名 · 最常更換零件</div>
+            </div>
+            <div class="page-meta" id="overviewMeta"></div>
+          </div>
+          <div class="kpi-grid" id="kpiGrid"></div>
+          <div class="sec" style="margin-top:28px">
+            <div class="sec-h">
+              <span class="sec-t"><span class="strong">異常警示</span> 本期最新</span>
+            </div>
+            <div class="alert-strip" id="alertStrip"></div>
+          </div>
+          <div class="sec">
+            <div class="sec-h">
+              <span class="sec-t"><span class="strong">機種故障排名</span></span>
+              <span class="page-meta" id="rankMeta"></span>
+            </div>
+            <div id="machineRank"></div>
+          </div>
+          <div class="sec">
+            <div class="sec-h"><span class="sec-t"><span class="strong">最常更換零件</span> 前 8</span></div>
+            <div class="card">
+              <div class="barlist" id="topPartsGrid"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alerts -->
+        <div class="page" id="pageAlerts">
+          <div class="page-h">
+            <div>
+              <div class="page-t">異常偵測</div>
+              <div class="page-d">新出現零件 · 用量暴增 · 高故障率機種 · 跨月重複維修</div>
+            </div>
+            <div class="page-meta" id="alertsMeta"></div>
+          </div>
+          <div class="anom-grid" id="anomGrid"></div>
+        </div>
+
+        <!-- Parts -->
+        <div class="page" id="pageParts">
+          <div class="page-h">
+            <div>
+              <div class="page-t">零件 Pareto 分析</div>
+              <div class="page-d">依件數排序 · 累計佔比 · 跨機種分布</div>
+            </div>
+            <div class="page-meta" id="partsMeta"></div>
+          </div>
+          <div class="card sec">
+            <div class="chart-wrap tall"><canvas id="paretoChart"></canvas></div>
+          </div>
+          <div class="tbl-wrap">
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th style="width:36px">#</th>
+                  <th>零件名稱</th>
+                  <th>影響機種</th>
+                  <th class="right" style="width:80px">件數</th>
+                  <th style="width:220px">佔比 / 累計</th>
+                </tr>
+              </thead>
+              <tbody id="paretoBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Cross model -->
+        <div class="page" id="pageCross">
+          <div class="page-h">
+            <div>
+              <div class="page-t">跨機種零件矩陣</div>
+              <div class="page-d">同一零件影響 ≥ 2 個機種 · 可能為共用料件缺陷</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <div class="page-meta" id="crossMeta"></div>
+              <button class="btn" onclick="App.exportCrossMatrix()">⤓ Excel</button>
+            </div>
+          </div>
+          <div class="matrix-wrap" id="crossMatrix"></div>
+        </div>
+
+        <!-- Trend -->
+        <div class="page" id="pageTrend">
+          <div class="page-h">
+            <div>
+              <div class="page-t">月份趨勢</div>
+              <div class="page-d">維修件數 · 故障率 · 主要零件走勢（全月份）</div>
+            </div>
+            <div class="page-meta" id="trendMeta"></div>
+          </div>
+          <div class="grid-2 sec">
+            <div class="card">
+              <div class="card-h"><div class="card-t">維修件數 vs 報廢件數</div></div>
+              <div class="chart-wrap"><canvas id="trendCountChart"></canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-h"><div class="card-t">故障率 (%)</div></div>
+              <div class="chart-wrap"><canvas id="trendRateChart"></canvas></div>
+            </div>
+          </div>
+          <div class="card sec">
+            <div class="card-h"><div class="card-t">主要零件月份趨勢 (前 6)</div></div>
+            <div class="chart-wrap tall"><canvas id="partTrendChart"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Reason -->
+        <div class="page" id="pageReason">
+          <div class="page-h">
+            <div>
+              <div class="page-t">故障原因分析</div>
+              <div class="page-d">故障大類分布 · 故障內容排名</div>
+            </div>
+            <div class="page-meta" id="reasonMeta"></div>
+          </div>
+          <div class="grid-2 sec">
+            <div class="card">
+              <div class="card-h"><div class="card-t">故障大類</div></div>
+              <div class="chart-wrap"><canvas id="reasonChart"></canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-h"><div class="card-t">故障內容 TOP 10</div></div>
+              <div class="chart-wrap"><canvas id="contentChart"></canvas></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scrap -->
+        <div class="page" id="pageScrap">
+          <div class="page-h">
+            <div>
+              <div class="page-t">報廢 &amp; 重複維修</div>
+              <div class="page-d">跨月份重複維修 · 同月重修 · 報廢機種</div>
+            </div>
+            <div class="page-meta" id="scrapMeta"></div>
+          </div>
+          <div class="sec">
+            <div class="sec-h"><span class="sec-t"><span class="strong">跨月份重複維修</span></span></div>
+            <div id="crossMonthSection"></div>
+          </div>
+          <div class="grid-2">
+            <div class="sec">
+              <div class="sec-h"><span class="sec-t"><span class="strong">報廢紀錄</span></span></div>
+              <div id="scrapList"></div>
+            </div>
+            <div class="sec">
+              <div class="sec-h"><span class="sec-t"><span class="strong">本期重複維修</span></span></div>
+              <div id="repeatList"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detail -->
+        <div class="page" id="pageDetail">
+          <div class="page-h">
+            <div>
+              <div class="page-t">維修明細</div>
+              <div class="page-d">原始記錄瀏覽（前 500 筆）</div>
+            </div>
+            <div class="page-meta" id="detailMeta"></div>
+          </div>
+          <div class="tbl-wrap">
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th>月份</th><th>日期</th><th>機種</th><th>序號</th>
+                  <th>故障原因</th><th>故障內容</th><th>零件</th>
+                </tr>
+              </thead>
+              <tbody id="detailBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- content-inner -->
+    </main>
+  </div><!-- layout -->
+
+</div><!-- dash -->
+
+<!-- ═══════════════ RMA MODE ═══════════════ -->
+<div id="rmaDash" style="display:none">
+  <!-- RMA Header -->
+  <div class="hdr">
+    <div class="hdr-l">
+      <div class="hdr-mark">TS</div>
+      <div class="hdr-t">TITAN-STAR <span class="sub">RMA 管理</span></div>
+    </div>
+    <div class="hdr-r">
+      <button class="btn" onclick="switchMode('analysis')">◈ 分析報表</button>
+      <button class="btn primary" onclick="RMA.goNew()">+ 新增 RMA</button>
+    </div>
+  </div>
+  <div style="padding:32px;max-width:1400px;margin:0 auto" id="rmaContent">
+    <!-- RMA module renders here -->
+  </div>
+</div>
+
+<!-- ═══════════════ Drill-down Drawer ═══════════════ -->
+<div class="drawer-mask" id="drawerMask" onclick="App.closeDrawer()"></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-h">
+    <div class="drawer-h-l">
+      <div class="drawer-ico" id="drawerIco">i</div>
+      <div class="drawer-h-t-wrap">
+        <div class="drawer-t" id="drawerT"></div>
+        <div class="drawer-s" id="drawerS"></div>
+      </div>
+    </div>
+    <button class="drawer-close" onclick="App.closeDrawer()">✕</button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+</aside>
+
+<!-- RMA Modal container -->
+<div id="rmaModal" style="display:none;position:fixed;inset:0;z-index:600;align-items:center;justify-content:center"></div>
+
+<script src="parser.js"></script>
+<script src="analyzer.js"></script>
+<script src="app.js"></script>
+<script src="report.js"></script>
+<script src="rma.js"></script>
+<script>
+// ─── Mode switching ───
+let currentMode = 'analysis';
+let uzMode = 'analysis';
+
+function uzSelectMode(mode) {
+  uzMode = mode;
+  document.getElementById('uzModeA').classList.toggle('active', mode === 'analysis');
+  document.getElementById('uzModeR').classList.toggle('active', mode === 'rma');
+  document.getElementById('uzAnalysisSection').style.display = mode === 'analysis' ? '' : 'none';
+  document.getElementById('uzRmaSection').style.display = mode === 'rma' ? '' : 'none';
+}
+
+function openRmaMode() {
+  document.getElementById('uploadZone').style.display = 'none';
+  document.getElementById('modeBar').style.display = 'flex';
+  switchMode('rma');
+}
+
+function switchMode(mode) {
+  currentMode = mode;
+  document.getElementById('modeAnalysis').classList.toggle('active', mode === 'analysis');
+  document.getElementById('modeRma').classList.toggle('active', mode === 'rma');
+
+  const dash = document.getElementById('dash');
+  const rmaDash = document.getElementById('rmaDash');
+  const uploadZone = document.getElementById('uploadZone');
+  const modeBar = document.getElementById('modeBar');
+
+  if (mode === 'analysis') {
+    const db = RepairDB.load();
+    const hasData = Object.keys(db.months).length > 0;
+    if (hasData) {
+      uploadZone.style.display = 'none';
+      dash.classList.add('active');
+      rmaDash.style.display = 'none';
+      modeBar.style.display = 'flex';
+    } else {
+      // No data yet — show upload zone
+      uploadZone.style.display = 'flex';
+      uzSelectMode('analysis');
+      dash.classList.remove('active');
+      rmaDash.style.display = 'none';
+      modeBar.style.display = 'none';
+    }
+  } else {
+    uploadZone.style.display = 'none';
+    dash.classList.remove('active');
+    rmaDash.style.display = 'block';
+    modeBar.style.display = 'flex';
+    // Init RMA content container
+    const rmaContent = document.getElementById('rmaContent');
+    if (rmaContent) {
+      RMA.render();
+    }
+    // Badge
+    updateRmaBadge();
+  }
+}
+
+function updateRmaBadge() {
+  const st = RMA.stats();
+  const badge = document.getElementById('rmaBadge');
+  if (badge) {
+    if (st.open > 0) {
+      badge.textContent = st.open;
+      badge.style.display = '';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+}
+
+// On load, restore last mode
+document.addEventListener('DOMContentLoaded', () => {
+  const db = RepairDB.load();
+  const hasAnalysisData = Object.keys(db.months).length > 0;
+  const rmaDb = RMA.stats();
+
+  // If RMA has data, show mode bar from the start
+  if (rmaDb.total > 0 || hasAnalysisData) {
+    document.getElementById('modeBar').style.display = 'flex';
+    if (hasAnalysisData) {
+      switchMode('analysis');
+    } else {
+      switchMode('rma');
+    }
+  }
+  // else stays on upload zone
+
+  updateRmaBadge();
+});
+</script>
+</body>
+</html>
