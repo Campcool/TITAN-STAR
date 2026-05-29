@@ -5,22 +5,22 @@
    ════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* Surfaces */
-  --bg: #0a0d12;
-  --surface: #131820;
-  --surface2: #1a212c;
-  --surface3: #232b39;
-  --hover: rgba(255,255,255,0.03);
+  /* Surfaces — brightened deep blue-gray (was near-black) */
+  --bg: #161d28;
+  --surface: #1f2835;
+  --surface2: #2a3442;
+  --surface3: #364253;
+  --hover: rgba(255,255,255,0.05);
 
-  /* Borders */
-  --border: rgba(255,255,255,0.06);
-  --border2: rgba(255,255,255,0.12);
+  /* Borders — stronger contrast */
+  --border: rgba(255,255,255,0.10);
+  --border2: rgba(255,255,255,0.20);
 
-  /* Text */
-  --text: #e8edf5;
-  --text2: #94a3b8;
-  --text3: #64748b;
-  --text-mute: #475569;
+  /* Text — brighter */
+  --text: #f5f8fc;
+  --text2: #c0cbda;
+  --text3: #94a2b6;
+  --text-mute: #6f7e93;
 
   /* Semantic */
   --accent: #38bdf8;
@@ -57,7 +57,7 @@ html, body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--sans);
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1.55;
   font-feature-settings: 'cv11', 'ss01';
   text-rendering: optimizeLegibility;
@@ -221,7 +221,7 @@ button, input, select { font-family: inherit; }
 /* ══════════════════════ Loading overlay ══════════════════════ */
 .load-ov {
   position: fixed; inset: 0; z-index: 999;
-  background: rgba(10,13,18,.92);
+  background: rgba(22,29,40,.92);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 14px;
 }
@@ -242,7 +242,7 @@ button, input, select { font-family: inherit; }
 .hdr {
   position: sticky; top: 0; z-index: 100;
   height: var(--header);
-  background: rgba(10,13,18,.85);
+  background: rgba(22,29,40,.82);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
   padding: 0 24px;
@@ -1320,4 +1320,92 @@ button, input, select { font-family: inherit; }
 @media (max-width: 1100px) {
   .dd-row { grid-template-columns: 1fr auto; }
   .dd-row-bar-wrap { display: none; }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   v2 — 大幅放大字體 + 提亮 + RWD（手持/PC 自適應）
+   後載入覆蓋，提升整體可讀性
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── Layout tokens 放大 ── */
+:root {
+  --header: 68px;
+  --subbar: 62px;
+  --sidebar: 264px;
+}
+
+/* ── Header ── */
+.hdr-mark { width: 34px; height: 34px; font-size: 17px; }
+.hdr-t { font-size: 18px; }
+.btn { font-size: 16px; padding: 9px 16px; }
+.btn .ico { font-size: 16px; }
+
+/* ── Sub-bar chips ── */
+.sb-label { font-size: 15px; }
+.chip { font-size: 16px; padding: 8px 16px; }
+.chip .num { font-size: 15px; }
+
+/* ── Sidebar nav ── */
+.snav-item { font-size: 17px; padding: 12px 16px; }
+.snav-ico { font-size: 16px; width: 20px; }
+.snav-h { font-size: 13px; }
+.snav-badge { font-size: 13px; }
+
+/* ── Page headings ── */
+.page-t { font-size: 30px; }
+.page-d { font-size: 17px; }
+.sec-t { font-size: 15px; }
+.card-t { font-size: 15px; }
+
+/* ── KPI cards ── */
+.kpi-l { font-size: 15px; }
+.kpi-v { font-size: 46px; }
+.kpi-d { font-size: 16px; }
+.kpi-ico { width: 32px; height: 32px; font-size: 16px; }
+
+/* ── Tables ── */
+.rank-table { font-size: 16px; }
+.tbl { font-size: 16px; }
+
+/* ── Empty states ── */
+.empty-t { font-size: 18px; }
+
+/* ════════════════ RWD：平板 (≤1100px) ════════════════ */
+@media (max-width: 1100px) {
+  /* 側邊欄改為頂部水平捲動導覽，避免手機無法切換頁面 */
+  .layout { flex-direction: column; }
+  .sidebar {
+    display: block; width: 100%; height: auto;
+    position: static;
+    border-right: none; border-bottom: 1px solid var(--border);
+    padding: 8px 12px;
+    overflow-x: auto; overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+  .snav { flex-direction: row; gap: 6px; }
+  .snav-item { white-space: nowrap; flex-shrink: 0; padding: 10px 14px; }
+  .snav-item .snav-r { display: none; }
+  .snav-sep, .snav-h { display: none; }
+  .content { padding: 20px 16px; }
+}
+
+/* ════════════════ RWD：手機 (≤680px) ════════════════ */
+@media (max-width: 680px) {
+  html, body { font-size: 17px; }
+  .hdr { padding: 0 14px; height: auto; min-height: var(--header); flex-wrap: wrap; gap: 8px; }
+  .hdr-r { flex-wrap: wrap; gap: 6px; }
+  .hdr-r .btn { font-size: 14px; padding: 8px 12px; }
+  .subbar { padding: 10px 14px; }
+  .kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .kpi { padding: 16px 16px; }
+  .kpi-v { font-size: 34px; }
+  .page-t { font-size: 24px; }
+  .content { padding: 16px 12px; }
+  .card { padding: 16px; }
+  .drawer { width: 100vw; }
+}
+
+/* ════════════════ RWD：小手機 (≤420px) ════════════════ */
+@media (max-width: 420px) {
+  .kpi-grid { grid-template-columns: 1fr; }
 }

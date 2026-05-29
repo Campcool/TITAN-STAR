@@ -6,7 +6,7 @@
 .mode-bar {
   position: sticky; top: 0; z-index: 200;
   height: 52px;
-  background: rgba(10,13,18,.95);
+  background: rgba(22,29,40,.92);
   backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--border);
   padding: 0 20px;
@@ -47,9 +47,9 @@
 
 /* Adjust hdr top offset when mode-bar is present */
 .mode-bar ~ .dash .hdr,
-.mode-bar ~ #rmaDash .hdr { top: 52px; }
-.mode-bar ~ .dash .subbar { top: calc(52px + var(--header)); }
-.mode-bar ~ .dash .sidebar { top: calc(52px + var(--header) + var(--subbar)); height: calc(100vh - 52px - var(--header) - var(--subbar)); }
+.mode-bar ~ #rmaDash .hdr { top: 60px; }
+.mode-bar ~ .dash .subbar { top: calc(60px + var(--header)); }
+.mode-bar ~ .dash .sidebar { top: calc(60px + var(--header) + var(--subbar)); height: calc(100vh - 60px - var(--header) - var(--subbar)); }
 
 /* ── Upload zone mode selector ── */
 .uz-mode-row {
@@ -429,4 +429,77 @@
   .rma-col-hint { display: none; }
   .rma-pipeline-bar { height: 36px; }
   .rma-pipe-seg-name { display: none; }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   v2 — RMA 大幅放大字體 + RWD
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── Mode bar (主切換列) ── */
+.mode-bar { height: 60px; }
+.mode-bar-brand { font-size: 16px; }
+.mode-tab { font-size: 15.5px; padding: 9px 20px; }
+.mode-tab .mode-tab-ico { font-size: 15px; }
+
+/* ── Role switcher ── */
+.rma-role-chip { font-size: 15px; padding: 9px 16px; }
+.rma-role-ico { font-size: 15px; }
+
+/* ── Role banner ── */
+.rma-role-banner-t { font-size: 16px; }
+.rma-role-banner-d { font-size: 14px; }
+.rma-role-banner-ico { font-size: 28px; }
+
+/* ── KPI ── */
+.rma-kpi-l { font-size: 14px; }
+.rma-kpi-v { font-size: 44px; }
+.rma-kpi-d { font-size: 14px; }
+
+/* ── Pipeline ── */
+.rma-pipe-seg-lbl { font-size: 14px; }
+.rma-pipe-seg-name { font-size: 13px; }
+
+/* ── Tabs / toolbar ── */
+.rma-tab { font-size: 15.5px; padding: 11px 16px; }
+.rma-tab-n { font-size: 13px; }
+.rma-search { font-size: 16px; }
+.rma-select { font-size: 15px; }
+.rma-search-ico { font-size: 18px; }
+
+/* ── Table ── */
+.rma-table { font-size: 15.5px; }
+.rma-table thead th { font-size: 13px; padding: 14px 16px; }
+.rma-table tbody td { padding: 15px 16px; }
+.rma-id { font-size: 15px; }
+.rma-model { font-size: 16px; }
+.rma-serial { font-size: 13px; }
+.rma-status-badge { font-size: 13.5px; padding: 4px 12px; }
+
+/* ── Forms / detail ── */
+.rma-label { font-size: 13.5px; }
+.rma-input { font-size: 16px; padding: 12px 14px; }
+.rma-info-l { font-size: 13.5px; }
+.rma-info-v { font-size: 15px; }
+
+/* ════════════════ RWD ════════════════ */
+@media (max-width: 1100px) {
+  /* 主切換列務必保留可見（之前被隱藏）*/
+  .mode-tabs { display: flex !important; }
+  .mode-bar { padding: 0 12px; gap: 8px; }
+  .mode-tab { padding: 8px 14px; font-size: 14px; }
+  .rma-detail-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 680px) {
+  .mode-bar-brand { display: none; }
+  .mode-tab { padding: 7px 12px; font-size: 13.5px; }
+  .rma-kpi-row { grid-template-columns: 1fr 1fr !important; }
+  .rma-kpi-v { font-size: 32px; }
+  .rma-kpi { padding: 14px 14px; }
+  .rma-page-h { gap: 10px; }
+  .rma-table { min-width: 520px; }
+}
+
+@media (max-width: 420px) {
+  .rma-kpi-row { grid-template-columns: 1fr !important; }
 }

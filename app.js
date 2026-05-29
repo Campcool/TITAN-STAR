@@ -6,15 +6,15 @@ window.App = (function () {
 
   // ─────────────── Theme / chart defaults ───────────────
   const COLORS = {
-    bg: '#0a0d12',
-    surface: '#131820',
-    surface2: '#1a212c',
-    border: 'rgba(255,255,255,0.06)',
-    border2: 'rgba(255,255,255,0.12)',
-    text: '#e8edf5',
-    text2: '#94a3b8',
-    text3: '#64748b',
-    textMute: '#475569',
+    bg: '#161d28',
+    surface: '#1f2835',
+    surface2: '#2a3442',
+    border: 'rgba(255,255,255,0.10)',
+    border2: 'rgba(255,255,255,0.20)',
+    text: '#f5f8fc',
+    text2: '#c0cbda',
+    text3: '#94a2b6',
+    textMute: '#6f7e93',
     accent: '#38bdf8',
     critical: '#ef4444',
     warn: '#f59e0b',
@@ -35,7 +35,7 @@ window.App = (function () {
   if (window.Chart) {
     Chart.defaults.color = COLORS.text2;
     Chart.defaults.font.family = "'Inter','Noto Sans TC',sans-serif";
-    Chart.defaults.font.size = 11.5;
+    Chart.defaults.font.size = 14;
     Chart.defaults.borderColor = COLORS.border;
   }
 
