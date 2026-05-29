@@ -813,6 +813,85 @@
     };
   }
 
+  // ─── Component-category Pareto (故障零件大類根因)
+  // Rolls the per-month 故障零件總數 catalogue (品號) up into 大類 via RepairParser,
+  // so we can see the NATURE of failures (連接器 / 電源 / IC / 開關 / 機構…).
+  function componentCategoryPareto(db, filter) {
+    const { months } = filter || {};
+    const monthKeys = months && months.length ? months : Object.keys(db.months);
+    const inScope = new Set(getRecords(db, filter).map(r => r.model));
+    const pcat = (typeof window !== 'undefined' && window.RepairParser && window.RepairParser.partCategoryByPno)
+      ? window.RepairParser.partCategoryByPno : (() => null);
+    const cat = new Map();          // 大類 → { count, parts: Map }
+    let uncategorized = 0, total = 0;
+    for (const mk of monthKeys) {
+      const m = db.months[mk];
+      if (!m || !m.partCatalog) continue;
+      for (const [model, parts] of Object.entries(m.partCatalog)) {
+        if (inScope.size && !inScope.has(model)) continue;
+        for (const p of parts) {
+          const q = Number(p.count) || 0;
+          if (!q) continue;
+          total += q;
+          const c = pcat(p.code);
+          if (!c) { uncategorized += q; continue; }
+          if (!cat.has(c)) cat.set(c, { count: 0, parts: new Map() });
+          const e = cat.get(c);
+          e.count += q;
+          const label = String(p.name || p.code || '').trim();
+          if (label) e.parts.set(label, (e.parts.get(label) || 0) + q);
+        }
+      }
+    }
+    const list = Array.from(cat.entries())
+      .map(([name, e]) => ({
+        name, count: e.count, pct: total ? e.count / total : 0,
+        topParts: Array.from(e.parts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5)
+          .map(([n, c]) => ({ name: n, count: c })),
+      }))
+      .sort((a, b) => b.count - a.count);
+    return { list, total, uncategorized };
+  }
+
+  // ─── Manufacture-batch analysis (製造批次分析)
+  // Uses record.mfg (YYYY-MM). Surfaces two systemic-quality signals:
+  //   • 批次集中: one mfg month dominates a model's failures → suspect production lot
+  //   • 新品早夭: mfg month == repair month → units failing the same period they were made
+  function batchAnalysis(records, opts) {
+    const minN = (opts && opts.minN) || 5;
+    const conc = (opts && opts.conc) || 0.4;
+    const byModel = new Map();
+    for (const r of records) {
+      if (!byModel.has(r.model)) byModel.set(r.model, { model: r.model, category: r.category, total: 0, dated: 0, batches: new Map(), earlyFail: 0 });
+      const e = byModel.get(r.model);
+      e.total++;
+      const mfg = (r.mfg && /^\d{4}-\d{2}$/.test(r.mfg)) ? r.mfg : null;
+      if (mfg) {
+        e.dated++;
+        e.batches.set(mfg, (e.batches.get(mfg) || 0) + 1);
+        const rm = String(r.date || '').slice(0, 7);
+        if (rm && mfg === rm) e.earlyFail++;
+      }
+    }
+    const out = [];
+    for (const e of byModel.values()) {
+      const batches = Array.from(e.batches.entries()).map(([m, c]) => ({ month: m, count: c })).sort((a, b) => b.count - a.count);
+      const topBatch = batches[0] || null;
+      const topPct = topBatch && e.dated ? topBatch.count / e.dated : 0;
+      const earlyPct = e.dated ? e.earlyFail / e.dated : 0;
+      const flags = [];
+      if (e.dated >= minN && topPct >= conc) flags.push('批次集中');
+      if (e.dated >= minN && earlyPct >= conc) flags.push('新品早夭');
+      out.push({
+        model: e.model, category: e.category, total: e.total, dated: e.dated,
+        coverage: e.total ? e.dated / e.total : 0,
+        batches: batches.slice(0, 8), topBatch, topPct, earlyFail: e.earlyFail, earlyPct, flags,
+      });
+    }
+    out.sort((a, b) => (b.flags.length - a.flags.length) || (b.total - a.total));
+    return out;
+  }
+
   // Expose
   window.RepairAnalyzer = {
     getRecords,
@@ -839,6 +918,8 @@
     fmeaAnalysis,
     forecastNextMonth,
     costAnalysis,
+    componentCategoryPareto,
+    batchAnalysis,
     FAULT_TAXONOMY,
   };
 })();

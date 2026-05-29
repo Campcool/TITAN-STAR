@@ -10,6 +10,7 @@
   const COL_ALIASES = {
     date:    ['檢修日期', '測試日期', '日期'],
     model:   ['器材品號', '故障品號', '品號', '器材名稱'],
+    mfg:     ['製造日期', '生產日期'],
     batch:   ['製令品號', '製令批號', '批號'],
     serial:  ['機器序號', '產品序號', '序號'],
     reason:  ['故障原因', '報廢內容'],
@@ -35,6 +36,38 @@
     'AED':      ['AED0501','AED4G40','AED4G10','AED4G20','AED4G30'],
     '門禁':     ['OPC003C','OPC002C','OPC0050','OPC1050'],
   };
+
+  // ── 品號大類 (component category) — from master 元件料號 catalogue.
+  // The first 3 digits of a 品號 (e.g. 2170064 → 217) identify the 大類.
+  // Lets us roll fault parts up into component categories for root-cause Pareto.
+  const PART_CATEGORY = {
+    '3':'半成品', '5':'成品', '6':'回收', '7':'測試',
+    '8':'代工', '9':'外包', '101':'電阻', '102':'電晶體',
+    '103':'二極體', '104':'基版', '105':'電容', '106':'線圈',
+    '107':'積體電路', '108':'繼電器', '109':'保險絲', '110':'開關',
+    '111':'顯示器', '112':'端子台', '113':'磁鐵,磁頭', '114':'喇叭蜂鳴器',
+    '115':'電池', '116':'排線', '117':'連接器', '118':'POWER',
+    '119':'突波,避雷器', '120':'石英振盪器', '121':'貼紙類', '122':'壓克力',
+    '123':'面板(PVC)', '124':'隔離柱,墊片,套管', '125':'包裝類', '126':'橡膠類',
+    '127':'塑膠類', '128':'五金類', '129':'鐵類', '130':'螺絲類',
+    '131':'化學類', '132':'外購基板成品', '133':'外購品維修零件', '134':'外購機構料',
+    '139':'虛擬品號', '201':'SMD電阻', '202':'SMD電晶體', '203':'SMD二極體',
+    '205':'SMD電容', '206':'SMD線圈', '207':'SMD積體電路', '209':'SMD 保險絲',
+    '210':'SMD 開關', '211':'SMD顯示器', '217':'SMD連接器', '219':'突波,避雷器',
+    '220':'SMD石英振盪器', '221':'喇叭蜂鳴器麥克風',
+  };
+
+  // Resolve a part 品號 (e.g. "2170064" / "217 0064") to its 大類 name.
+  function partCategoryByPno(pno) {
+    if (!pno) return null;
+    const code = String(pno).trim().split(/\s+/)[0];
+    if (PART_CATEGORY[code]) return PART_CATEGORY[code];          // exact (whole code is a 大類, rare)
+    const m = code.match(/^(\d{3})/);                              // 3-digit prefix
+    if (m && PART_CATEGORY[m[1]]) return PART_CATEGORY[m[1]];
+    const m2 = code.match(/^(\d)/);                                // 1-digit (半成品/成品/回收…)
+    if (m2 && PART_CATEGORY[m2[1]]) return PART_CATEGORY[m2[1]];
+    return null;
+  }
 
   function normModel(s) {
     return String(s || '').toUpperCase().replace(/[\s\-_\.()（）]/g, '');
@@ -93,6 +126,30 @@
       return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
     }
     return null;
+  }
+
+  // Normalize manufacture/production date to YYYY-MM (batch month)
+  // - 115.03 (ROC year 100~150) → 2026-03
+  // - 200111 (AD YYYYMM)          → 2001-11
+  // - 20240715 (AD YYYYMMDD)      → 2024-07
+  // - 2024/7 / 2024-07            → 2024-07
+  // - anything else               → raw (kept so the UI can flag bad data)
+  function parseMfgMonth(s) {
+    if (s == null) return '';
+    const t = String(s).trim();
+    if (!t || t === '0') return '';
+    let m = t.match(/^(\d{3})[.\/-](\d{1,2})$/);          // ROC 115.03
+    if (m) {
+      const y = parseInt(m[1], 10);
+      if (y >= 100 && y <= 150) return `${y + 1911}-${String(parseInt(m[2],10)).padStart(2,'0')}`;
+    }
+    m = t.match(/^(\d{4})(\d{2})$/);                       // AD YYYYMM
+    if (m && +m[2] >= 1 && +m[2] <= 12) return `${m[1]}-${m[2]}`;
+    m = t.match(/^(\d{4})(\d{2})\d{2}$/);                  // AD YYYYMMDD
+    if (m && +m[2] >= 1 && +m[2] <= 12) return `${m[1]}-${m[2]}`;
+    m = t.match(/^(\d{4})[.\/-](\d{1,2})/);                // YYYY-MM…
+    if (m) return `${m[1]}-${String(parseInt(m[2],10)).padStart(2,'0')}`;
+    return t;
   }
 
   function findCol(headers, aliases) {
@@ -230,6 +287,7 @@
           model,
           modelRaw,
           category: getCategory(model),
+          mfg: parseMfgMonth(get(r, cols.mfg)),
           batch: get(r, cols.batch),
           serial: get(r, cols.serial),
           reason,
@@ -357,9 +415,12 @@
     parseWorkbook,
     normalizePart,
     parseDate,
+    parseMfgMonth,
     getCategory,
+    partCategoryByPno,
     cleanCode,
     CATEGORY_MAP,
+    PART_CATEGORY,
   };
 
   window.RepairDB = {

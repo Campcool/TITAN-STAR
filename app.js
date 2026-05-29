@@ -885,12 +885,12 @@ window.App = (function () {
       ],
     },
     parts: {
-      what: '所有更換零件依使用量排序（Pareto 80/20 法則）。顯示：件數、累計佔比折線、影響機種數量。點「詳情」按鈕可查看使用此零件的所有故障記錄（依部位分類）。',
-      meaning: 'Pareto 原則：前 20% 的零件通常佔 80% 的總用量。柱狀圖高度 = 件數；折線 = 累計佔比。跨多機種的零件若出問題，影響面廣、備料壓力大。累計到 80% 的那條線以上就是「重點備料清單」。',
-      who: '採購主管：前 10 大零件就是談判議價與安全庫存的重點。維修主管：備料優先序一目了然。硬體研發：跨多機種的高頻零件是設計審查候選。物流主管：高頻零件的滯留可能影響維修週期。',
+      what: '兩個區塊：① 故障零件大類根因 — 依「元件料號大類」把故障零件歸類（連接器/電源/IC/開關/機構…），看故障的「性質」。② 零件件數 Pareto — 所有更換零件依使用量排序（80/20 法則），含累計佔比折線與影響機種數。點「詳情」可查看使用此零件的所有故障記錄。',
+      meaning: '大類分析回答「壞在哪一類零件」：連接器/排線多→組裝接觸問題；電源/電容多→電性/老化；IC 多→設計/ESD；開關/按鍵多→機構耐用度；面板/塑膠/橡膠多→外觀機構或運輸。Pareto 回答「哪幾顆零件最該管」：前 20% 零件通常佔 80% 用量，累計線 80% 以上就是重點備料清單。',
+      who: '採購主管：大類佔比鎖定該找哪一類供應商；前 10 大零件是議價與安全庫存重點。硬體研發：IC/電源/連接器大類偏高 → 設計審查候選。維修主管：備料優先序一目了然。物流主管：包裝/機構類偏高可能是運輸損傷。',
       kpis: [
         { name:'件數', formula:'選定期間此零件的換件總數量', benchmark:'依機種數量不同，趨勢穩定為正常', tip:'急速上升可能是來料批次問題' },
-        { name:'佔比', formula:'此零件件數 ÷ 所有零件總件數', benchmark:'單一零件佔比 >20% 需特別關注', tip:''' },
+        { name:'佔比', formula:'此零件件數 ÷ 所有零件總件數', benchmark:'單一零件佔比 >20% 需特別關注', tip:'單一零件佔比過高代表故障高度集中，是最優先的改善與備料標的' },
         { name:'影響機種', formula:'有換用此零件的不同機種數', benchmark:'影響 ≥3 機種代表共用料風險', tip:'點詳情可看每個機種的故障描述' },
       ],
       tips: [
@@ -954,6 +954,23 @@ window.App = (function () {
         '重工率高但 DPPM 不高 → 維修品質問題（技師技能）；重工率高且 DPPM 也高 → 零件或設計問題',
         '品檢主管可將每月 DPPM 截圖，作為每月品質績效報告依據',
         '若 SPC 顯示「需至少 2 個月資料」，請繼續上傳月份資料，圖表會自動啟用',
+      ],
+    },
+    batch: {
+      what: '依每筆維修的「製造日期（製造/生產年月）」分群，找出兩種系統性品質訊號：① 批次集中 — 單一製造月份佔某機種「有製造日期」筆數 ≥ 40%（n≥5），疑似特定生產批/來料批不良；② 新品早夭 — 製造月份＝檢修月份 ≥ 40%，代表新品出廠即故障。表格列出每個機種的最大製造批次、新品早夭比例與標記。',
+      meaning: '製造日期是鎖定責任歸屬的關鍵維度。故障若集中在「同一個製造批」→ 製造/來料批問題（責任：製造課＋採購/IQC）；故障若「製造當月就壞」→ 出廠檢驗失效（責任：研發/製造）；故障若製造日期「分散在多年」→ 多半是老機台自然老化或現場使用/環境因素，非製造品質問題。沒有製造日期的機種（如使用製令品號者）無法批次分析。',
+      who: '品檢主管：批次集中或新品早夭的機種應立刻啟動 8D / CAPA，並考慮擋批。製造主管：新品早夭直指出廠檢驗漏洞。採購/IQC：批次集中疑似來料批不良，需追溯供應商批號。研發：新品早夭且零件大類集中（如連接器斷損）為設計強度問題。董事長：新品早夭件數是出廠品質的紅線指標。',
+      kpis: [
+        { name:'批次集中度', formula:'該機種最大製造月份筆數 ÷ 該機種有製造日期筆數', benchmark:'≥40%（n≥5）標記為「批次集中」', tip:'集中度高且製造月份明確 → 拿著該批號追溯產線與來料' },
+        { name:'新品早夭率', formula:'（製造月份＝檢修月份的筆數）÷ 有製造日期筆數', benchmark:'≥40% 標記「新品早夭」；任何 >0 都值得追', tip:'新品早夭是最嚴重訊號：客戶剛收到就壞，殺傷品牌信任' },
+        { name:'製造日期涵蓋率', formula:'有製造日期筆數 ÷ 全部維修筆數', benchmark:'越高分析越可信；偏低代表登錄缺漏', tip:'涵蓋率低的機種請提醒維修單位確實登錄製造日期' },
+      ],
+      tips: [
+        '看到「批次集中」標記 → 抄下該製造月份，到生產記錄找該批的料號批號/產線/作業員',
+        '看到「新品早夭」標記 → 這是出廠檢驗（OQC）的破口，應立即檢討該機種的出廠測試項目',
+        '製造日期分散在多年的機種（如 SCX0051）多為老機回廠，屬正常維護，不必當品質異常處理',
+        '若某機種顯示「無製造日期」，多半是該 sheet 用「製令品號」而非「製造日期」，可請產線補登',
+        '建議把本頁的批次集中機種，與「零件大類根因」一起看 — 批次＋零件大類即可定位根因與責任',
       ],
     },
     risk: {
@@ -1097,6 +1114,7 @@ window.App = (function () {
       case 'scrap':    renderScrap(); break;
       case 'detail':   renderDetail(); break;
       case 'quality':  renderQuality(); break;
+      case 'batch':    renderBatch(); break;
       case 'risk':     renderRisk(); break;
       case 'capa':     renderCapa(); break;
       case 'cost':     renderCost(); break;
@@ -1456,12 +1474,118 @@ window.App = (function () {
   }
 
   // ─────────────── Parts (Pareto) ───────────────
+  // ── Component-category root cause (依元件料號大類分群) ──
+  function renderComponentCategory(f) {
+    const cc = RepairAnalyzer.componentCategoryPareto(state.db, f);
+    const listEl = $('componentCatList');
+    const canvas = $('componentCatChart');
+    if (!cc.list.length) {
+      if (listEl) listEl.innerHTML = `<div class="empty sm"><div class="empty-t">此範圍無可歸類的故障零件（需 故障零件總數 含品號）</div></div>`;
+      return;
+    }
+    const top = cc.list.slice(0, 12);
+    if (canvas) {
+      state.charts.componentCat = new Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: top.map(c => c.name),
+          datasets: [{
+            label: '故障零件數',
+            data: top.map(c => c.count),
+            backgroundColor: top.map((_, i) => PALETTE[i % PALETTE.length] + 'cc'),
+            borderColor: top.map((_, i) => PALETTE[i % PALETTE.length]),
+            borderWidth: 0, borderRadius: 3,
+          }],
+        },
+        options: {
+          indexAxis: 'y',
+          maintainAspectRatio: false, responsive: true,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: c => `${c.parsed.x} 件 · ${(top[c.dataIndex].pct * 100).toFixed(1)}%` } },
+          },
+          scales: {
+            x: { ticks: { color: COLORS.text3 }, grid: { color: COLORS.border } },
+            y: { ticks: { color: COLORS.text2, font: { size: 11 } }, grid: { display: false } },
+          },
+        },
+      });
+    }
+    // breakdown list with top parts per category
+    listEl.innerHTML = cc.list.slice(0, 8).map((c, i) => `
+      <div class="comp-cat-item">
+        <div class="comp-cat-head">
+          <span class="comp-cat-dot" style="background:${PALETTE[i % PALETTE.length]}"></span>
+          <span class="comp-cat-name">${escapeHtml(c.name)}</span>
+          <span class="comp-cat-val">${c.count} 件 · ${(c.pct * 100).toFixed(1)}%</span>
+        </div>
+        <div class="comp-cat-parts">${c.topParts.map(p => `${escapeHtml(p.name)}<span class="ccp-n">×${p.count}</span>`).join(' · ')}</div>
+      </div>
+    `).join('') + (cc.uncategorized ? `<div class="comp-cat-foot">未能歸類 ${cc.uncategorized} 件（品號不在料號表）</div>` : '');
+  }
+
+  // ─────────────── Manufacture batch analysis ───────────────
+  function renderBatch() {
+    const f = currentFilter();
+    const records = RepairAnalyzer.getRecords(state.db, f);
+    const rows = RepairAnalyzer.batchAnalysis(records);
+    const flagged = rows.filter(r => r.flags.length);
+    const datedTotal = rows.reduce((s, r) => s + r.dated, 0);
+    const total = rows.reduce((s, r) => s + r.total, 0);
+    const earlyTotal = rows.reduce((s, r) => s + r.earlyFail, 0);
+    $('batchMeta').textContent = `${rows.length} 機種 · ${datedTotal}/${total} 筆有製造日期`;
+
+    const badge = $('batchBadge');
+    if (badge) { if (flagged.length) { badge.style.display = ''; badge.textContent = flagged.length; } else badge.style.display = 'none'; }
+
+    $('batchKpi').innerHTML = `
+      <div class="kpi k-warn"><div class="kpi-h"><div class="kpi-l">批次風險機種</div><div class="kpi-ico">⊞</div></div>
+        <div class="kpi-v">${flagged.length}</div><div class="kpi-d"><span class="muted">含批次集中 / 新品早夭</span></div></div>
+      <div class="kpi k-red"><div class="kpi-h"><div class="kpi-l">新品早夭件數</div><div class="kpi-ico">⏱</div></div>
+        <div class="kpi-v">${earlyTotal}</div><div class="kpi-d"><span class="muted">製造月 = 檢修月</span></div></div>
+      <div class="kpi k-info"><div class="kpi-h"><div class="kpi-l">製造日期涵蓋率</div><div class="kpi-ico">%</div></div>
+        <div class="kpi-v">${total ? Math.round(datedTotal / total * 100) : 0}%</div><div class="kpi-d"><span class="muted">${datedTotal}/${total} 筆</span></div></div>
+      <div class="kpi k-blue"><div class="kpi-h"><div class="kpi-l">受檢機種</div><div class="kpi-ico">#</div></div>
+        <div class="kpi-v">${rows.length}</div><div class="kpi-d"><span class="muted">本範圍</span></div></div>
+    `;
+
+    const body = $('batchBody');
+    const shown = rows.filter(r => r.dated > 0);
+    body.innerHTML = shown.map((r, i) => {
+      const bt = r.topBatch;
+      const concCls = r.topPct >= 0.4 ? 'bad' : r.topPct >= 0.25 ? 'warn' : '';
+      const earlyCls = r.earlyPct >= 0.4 ? 'bad' : r.earlyPct >= 0.2 ? 'warn' : '';
+      const flagTags = r.flags.map(fl => `<span class="batch-flag ${fl === '新品早夭' ? 'ef' : 'bc'}">${fl}</span>`).join(' ') || '<span class="muted">—</span>';
+      const batchBar = r.batches.slice(0, 5).map(b => `<span class="bb-seg" title="${b.month}: ${b.count}">${b.month.slice(2)}·${b.count}</span>`).join('');
+      return `
+        <tr${r.flags.length ? ' class="row-flag"' : ''}>
+          <td class="num muted">${i + 1}</td>
+          <td><span class="strong">${escapeHtml(r.model)}</span><div class="muted" style="font-size:10.5px">${escapeHtml(r.category)}</div></td>
+          <td class="num" style="text-align:right;font-weight:700">${r.total}</td>
+          <td class="num" style="text-align:right">${r.dated}<div class="muted" style="font-size:10px">${Math.round(r.coverage * 100)}%</div></td>
+          <td>${bt ? `<span class="pct ${concCls}">${bt.month} · ${(r.topPct * 100).toFixed(0)}%</span><div class="batch-bar">${batchBar}</div>` : '<span class="muted">—</span>'}</td>
+          <td class="num" style="text-align:right"><span class="pct ${earlyCls}">${r.earlyFail}</span><div class="muted" style="font-size:10px">${(r.earlyPct * 100).toFixed(0)}%</div></td>
+          <td>${flagTags}</td>
+        </tr>`;
+    }).join('');
+
+    const noMfg = rows.filter(r => r.dated === 0).map(r => r.model);
+    $('batchNote').innerHTML = `
+      <div class="bn-line"><span class="batch-flag bc">批次集中</span> 單一製造月份佔該機種「有製造日期」筆數 ≥ 40%（n≥5）→ 疑似特定生產批/來料問題，責任：製造課 + 採購/IQC。</div>
+      <div class="bn-line"><span class="batch-flag ef">新品早夭</span> 製造月份 = 檢修月份 ≥ 40% → 新品出廠即故障，責任：研發/製造（出廠檢驗）。</div>
+      ${noMfg.length ? `<div class="bn-line muted">無製造日期欄位（無法批次分析）：${noMfg.join('、')}　— 多為使用製令品號的機種或登錄缺漏。</div>` : ''}
+    `;
+  }
+
   function renderParts() {
     const f = currentFilter();
     const records = RepairAnalyzer.getRecords(state.db, f);
     const pareto = RepairAnalyzer.partPareto(records);
     const total = pareto.reduce((s, p) => s + p.count, 0);
     $('partsMeta').textContent = `${pareto.length} 種零件 · 共 ${total.toLocaleString()} 件`;
+
+    // ── Component-category root cause (故障零件大類) ──
+    renderComponentCategory(f);
 
     // Chart: top 20
     const top = pareto.slice(0, 20);
@@ -2690,7 +2814,6 @@ window.App = (function () {
       return;
     }
     const statusMap = { open: { t: '待處理', c: 'var(--critical)' }, progress: { t: '進行中', c: 'var(--warn)' }, verify: { t: '驗證中', c: 'var(--info)' }, closed: { t: '已結案', c: 'var(--ok)' } };
-    const today = new Date().toISOString().slice(0, 10);
     $('capaList').innerHTML = `<div class="capa-grid">${list.map((c, i) => {
       const st = statusMap[c.status] || statusMap.open;
       const overdue = c.due && c.status !== 'closed' && c.due < today;

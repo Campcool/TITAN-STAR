@@ -195,6 +195,10 @@
         <button class="snav-item" data-page="quality" onclick="App.switchPage('quality')">
           <div class="snav-l"><span class="snav-ico">◈</span> 品質指標 / SPC</div>
         </button>
+        <button class="snav-item" data-page="batch" onclick="App.switchPage('batch')">
+          <div class="snav-l"><span class="snav-ico">⊞</span> 製造批次分析</div>
+          <span class="snav-badge" id="batchBadge" style="display:none">0</span>
+        </button>
         <button class="snav-item" data-page="risk" onclick="App.switchPage('risk')">
           <div class="snav-l"><span class="snav-ico">⚠</span> 風險 / 根因 / 預測</div>
         </button>
@@ -278,6 +282,14 @@
             <div class="page-meta" id="partsMeta"></div>
           </div>
           <div class="card sec">
+            <div class="card-h"><div class="card-t">🧩 故障零件大類根因</div><div class="card-sub">依元件料號大類歸類 · 看故障性質（連接器 / 電源 / IC / 開關 / 機構…）</div></div>
+            <div class="comp-cat-wrap">
+              <div class="chart-wrap"><canvas id="componentCatChart"></canvas></div>
+              <div class="comp-cat-list" id="componentCatList"></div>
+            </div>
+          </div>
+          <div class="card sec">
+            <div class="card-h"><div class="card-t">📊 零件件數 Pareto</div></div>
             <div class="chart-wrap tall"><canvas id="paretoChart"></canvas></div>
           </div>
           <div class="tbl-wrap">
@@ -401,6 +413,38 @@
             <div class="card-h"><div class="card-t">SPC 故障率管制圖（p-chart）</div></div>
             <div class="chart-wrap tall"><canvas id="spcChart"></canvas></div>
             <div id="spcNote" class="spc-note"></div>
+          </div>
+        </div>
+
+        <!-- Manufacture batch analysis -->
+        <div class="page" id="pageBatch">
+          <div class="page-h">
+            <div>
+              <div class="page-t">製造批次分析</div>
+              <div class="page-d">依製造日期分群 · 偵測批次集中與新品早夭 · 鎖定製造/來料責任</div>
+            </div>
+            <div class="page-meta" id="batchMeta"></div>
+          </div>
+          <div class="kpi-grid" id="batchKpi"></div>
+          <div class="card sec">
+            <div class="card-h"><div class="card-t">⚠ 批次風險機種</div><div class="card-sub">單一製造月份佔比 ≥ 40% = 批次集中；製造月=檢修月 = 新品早夭</div></div>
+            <div class="tbl-wrap">
+              <table class="tbl">
+                <thead>
+                  <tr>
+                    <th style="width:36px">#</th>
+                    <th>機種</th>
+                    <th class="right" style="width:70px">維修</th>
+                    <th class="right" style="width:96px">有製造日</th>
+                    <th>最大製造批次</th>
+                    <th class="right" style="width:90px">新品早夭</th>
+                    <th style="width:120px">標記</th>
+                  </tr>
+                </thead>
+                <tbody id="batchBody"></tbody>
+              </table>
+            </div>
+            <div class="batch-note" id="batchNote"></div>
           </div>
         </div>
 
