@@ -142,6 +142,76 @@ window.App = (function () {
     } catch { return 0; }
   }
 
+  // ─────────────── Cloud sync (read-only shared data via repo data.json) ───────────────
+  const CLOUD_URL = './data.json';
+  const CLOUD_SEEN_KEY = 'repair_cloud_seen';
+
+  // Fetch shared data.json; if it is newer than what this browser last saw,
+  // load it into localStorage so every user auto-syncs the maintainer's publish.
+  async function syncCloud() {
+    try {
+      const res = await fetch(CLOUD_URL, { cache: 'no-store' });
+      if (!res.ok) return null;
+      const cloud = await res.json();
+      if (!cloud || !cloud.months) return null;
+      const monthCount = Object.keys(cloud.months).length;
+      state.cloudMeta = {
+        publishedAt: cloud.publishedAt || null,
+        publishedBy: cloud.publishedBy || '',
+        months: monthCount,
+      };
+      if (!monthCount || !cloud.publishedAt) return cloud;
+
+      const seen = localStorage.getItem(CLOUD_SEEN_KEY);
+      if (cloud.publishedAt !== seen) {
+        // Cloud has a newer publish than this browser last loaded → adopt it.
+        localStorage.setItem('repair_db_v2', JSON.stringify({ months: cloud.months }));
+        localStorage.setItem(CLOUD_SEEN_KEY, cloud.publishedAt);
+        state.cloudJustLoaded = true;
+      }
+      return cloud;
+    } catch (e) {
+      console.warn('Cloud sync skipped:', e.message);
+      return null;
+    }
+  }
+
+  // Maintainer action: produce a data.json to commit to the repo.
+  function publishData() {
+    try {
+      const raw = localStorage.getItem('repair_db_v2');
+      const db = raw ? JSON.parse(raw) : { months: {} };
+      if (!Object.keys(db.months || {}).length) { alert('目前沒有資料可發布,請先上傳報表'); return; }
+      const payload = {
+        months: db.months,
+        publishedAt: new Date().toISOString(),
+        publishedBy: '',
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'data.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      // Mark this publish as seen locally so the maintainer isn't re-prompted.
+      localStorage.setItem(CLOUD_SEEN_KEY, payload.publishedAt);
+      alert('✓ 已產生 data.json\n\n請將此檔上傳/覆蓋到 GitHub repo 根目錄並 commit,\n所有人下次開啟網址就會自動同步看到這份資料。');
+    } catch (e) {
+      alert('發布失敗:' + e.message);
+    }
+  }
+
+  function cloudStatusHtml() {
+    const m = state.cloudMeta;
+    if (!m || !m.publishedAt) {
+      return `<div class="uz-cloud-bar none">☁ 雲端尚無共用資料 — 上傳後按「發布到雲端」即可讓所有人同步</div>`;
+    }
+    const d = new Date(m.publishedAt);
+    const ds = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    return `<div class="uz-cloud-bar ok">☁ 已連動雲端共用資料 · ${m.months} 個月份 · 發布於 ${ds}${state.cloudJustLoaded ? ' <strong>(已載入最新版)</strong>' : ''}</div>`;
+  }
+
   function renderUploadList() {
     const months = Object.values(state.db.months).sort((a, b) => a.monthLabel.localeCompare(b.monthLabel));
     const uzMonths = $('uzMonths');
@@ -156,6 +226,7 @@ window.App = (function () {
     const totalRecords = months.reduce((s, m) => s + m.records.length, 0);
 
     $('uzMonthList').innerHTML = `
+      ${cloudStatusHtml()}
       <!-- Storage bar -->
       <div class="uz-storage-bar">
         <div class="uz-storage-info">
@@ -228,6 +299,7 @@ window.App = (function () {
           共 <strong>${months.length}</strong> 個月份 · <strong>${totalRecords.toLocaleString()}</strong> 筆記錄
         </div>
         <div class="uz-cta-btns">
+          <button class="btn primary" onclick="App.publishData()" title="產生 data.json 上傳到 GitHub,讓所有人同步看到">☁ 發布到雲端</button>
           <button class="btn" onclick="App.exportData()" title="匯出所有資料為 JSON 備份檔">⤓ 備份資料</button>
           <label class="btn" style="cursor:pointer" title="從 JSON 備份檔還原">
             ⤒ 還原備份<input type="file" id="jsonInput" accept=".json" style="display:none" onchange="App.importData(this)">
@@ -2008,7 +2080,7 @@ window.App = (function () {
   }
 
   // ─────────────── Init ───────────────
-  function init() {
+  async function init() {
     setupUpload();
     state.db = RepairDB.load();
     renderUploadList();
@@ -2016,11 +2088,16 @@ window.App = (function () {
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape' && $('drawer').classList.contains('open')) closeDrawer();
     });
+    // Pull shared cloud data (data.json) and auto-sync if maintainer published a newer version.
+    await syncCloud();
+    state.db = RepairDB.load();
+    renderUploadList();
   }
   document.addEventListener('DOMContentLoaded', init);
 
   return {
     handleFiles, removeMonth, clearAll, confirmClear, exportData, importData,
+    publishData,
     openDashboard, openUpload, switchPage,
     setMonth, setCategory, setModel,
     setAnalysisRole,

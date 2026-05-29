@@ -1410,6 +1410,30 @@ button, input, select { font-family: inherit; }
   .kpi-grid { grid-template-columns: 1fr; }
 }
 
+/* ════════════════ Cloud sync bar ════════════════ */
+.uz-cloud-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  margin-bottom: 14px;
+  border: 1px solid var(--border);
+}
+.uz-cloud-bar.ok {
+  background: color-mix(in srgb, var(--ok) 12%, var(--surface));
+  border-color: color-mix(in srgb, var(--ok) 35%, transparent);
+  color: var(--text);
+}
+.uz-cloud-bar.none {
+  background: var(--surface2);
+  color: var(--text3);
+}
+@supports not (color: color-mix(in srgb, red 10%, blue)) {
+  .uz-cloud-bar.ok { background: var(--surface2); }
+}
+
 /* ════════════════ Analysis Role Bar ════════════════ */
 .ar-bar {
   display: flex;
