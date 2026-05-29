@@ -289,6 +289,7 @@
                   <th>影響機種</th>
                   <th class="right" style="width:80px">件數</th>
                   <th style="width:220px">佔比 / 累計</th>
+                  <th style="width:80px">詳情</th>
                 </tr>
               </thead>
               <tbody id="paretoBody"></tbody>
@@ -354,6 +355,10 @@
               <div class="card-h"><div class="card-t">故障內容 TOP 10</div></div>
               <div class="chart-wrap"><canvas id="contentChart"></canvas></div>
             </div>
+          </div>
+          <div class="sec" id="reasonTaxSection">
+            <div class="card-h"><div class="card-t">故障部位分佈（月度對比）</div></div>
+            <div class="chart-wrap"><canvas id="reasonTaxChart"></canvas></div>
           </div>
         </div>
 
@@ -431,6 +436,7 @@
               <button class="btn primary" onclick="App.openCapaForm()">+ 新增 CAPA</button>
             </div>
           </div>
+          <div class="capa-kpi-row" id="capaKpiRow"></div>
           <div id="capaList"></div>
         </div>
 
@@ -456,7 +462,10 @@
               <div class="page-t">維修明細</div>
               <div class="page-d">原始記錄瀏覽（前 500 筆）</div>
             </div>
-            <div class="page-meta" id="detailMeta"></div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input class="detail-search-inp" type="text" id="detailSearch" placeholder="🔍 序號搜尋…" oninput="App.searchDetail(this.value)">
+              <div class="page-meta" id="detailMeta"></div>
+            </div>
           </div>
           <div class="tbl-wrap">
             <table class="tbl">

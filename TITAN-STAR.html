@@ -2601,6 +2601,7 @@ button, input, select { font-family: inherit; }
                   <th>影響機種</th>
                   <th class="right" style="width:80px">件數</th>
                   <th style="width:220px">佔比 / 累計</th>
+                  <th style="width:80px">詳情</th>
                 </tr>
               </thead>
               <tbody id="paretoBody"></tbody>
@@ -2666,6 +2667,10 @@ button, input, select { font-family: inherit; }
               <div class="card-h"><div class="card-t">故障內容 TOP 10</div></div>
               <div class="chart-wrap"><canvas id="contentChart"></canvas></div>
             </div>
+          </div>
+          <div class="sec" id="reasonTaxSection">
+            <div class="card-h"><div class="card-t">故障部位分佈（月度對比）</div></div>
+            <div class="chart-wrap"><canvas id="reasonTaxChart"></canvas></div>
           </div>
         </div>
 
@@ -2743,6 +2748,7 @@ button, input, select { font-family: inherit; }
               <button class="btn primary" onclick="App.openCapaForm()">+ 新增 CAPA</button>
             </div>
           </div>
+          <div class="capa-kpi-row" id="capaKpiRow"></div>
           <div id="capaList"></div>
         </div>
 
@@ -2768,7 +2774,10 @@ button, input, select { font-family: inherit; }
               <div class="page-t">維修明細</div>
               <div class="page-d">原始記錄瀏覽（前 500 筆）</div>
             </div>
-            <div class="page-meta" id="detailMeta"></div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input class="detail-search-inp" type="text" id="detailSearch" placeholder="🔍 序號搜尋…" oninput="App.searchDetail(this.value)">
+              <div class="page-meta" id="detailMeta"></div>
+            </div>
           </div>
           <div class="tbl-wrap">
             <table class="tbl">
@@ -3872,6 +3881,7 @@ button, input, select { font-family: inherit; }
     '儲存/記憶': { kws: ['硬碟','hdd','ssd','記憶','ram','emmc','儲存','flash','sd卡','讀寫'], color:'#a78bfa' },
     '感測/鏡頭': { kws: ['鏡頭','感測','sensor','ccd','cmos','對焦','紅外','ir','pir','收訊'], color:'#34d399' },
     '機構/外觀': { kws: ['外殼','機構','按鍵','卡榫','破裂','變形','刮傷','螺絲','接頭','端子','排線','連接'], color:'#94a2b6' },
+    '運輸損傷': { kws: ['撞傷','摔落','包裝不良','碰損','壓損','包材','運輸損','出貨損','物流損'], color:'#f97316' },
     '通訊/網路': { kws: ['網路','wifi','藍牙','zigbee','rf','天線','訊號','通訊','連線','斷線','lan','poe'], color:'#22d3ee' },
     '韌體/軟體': { kws: ['韌體','軟體','firmware','程式','當機','重啟','異常關機','無回應','升級','版本','設定','系統','ota'], color:'#818cf8' },
   };
@@ -4116,6 +4126,7 @@ window.App = (function () {
     currentPage: 'overview',
     analysisRole: 'all',
     charts: {},               // chart instance refs
+    detailSearch: '',
   };
 
   // ─────────────── Helpers ───────────────
@@ -5731,10 +5742,22 @@ window.App = (function () {
   }
 
   // ─────────────── Detail table ───────────────
+  function searchDetail(q) {
+    state.detailSearch = (q || '').trim();
+    renderDetail();
+  }
+
   function renderDetail() {
     const f = currentFilter();
-    const records = RepairAnalyzer.getRecords(state.db, f);
-    $('detailMeta').textContent = `${records.length.toLocaleString()} 筆`;
+    const allRecords = RepairAnalyzer.getRecords(state.db, f);
+    const sq = state.detailSearch || '';
+    const records = sq
+      ? allRecords.filter(r => (r.serial || '').toLowerCase().includes(sq.toLowerCase()) ||
+          (r.model || '').toLowerCase().includes(sq.toLowerCase()))
+      : allRecords;
+    $('detailMeta').textContent = sq
+      ? `搜尋「${sq}」：${records.length} 筆 / 共 ${allRecords.length.toLocaleString()} 筆`
+      : `${allRecords.length.toLocaleString()} 筆`;
     const rows = records.slice(0, 500);
     $('detailBody').innerHTML = rows.map(r => `
       <tr>
@@ -6370,27 +6393,41 @@ window.App = (function () {
 
     // FMEA
     const fmea = RepairAnalyzer.fmeaAnalysis(records, state.db);
+    const fmeaOv = loadFmeaOverrides();
     $('fmeaTable').innerHTML = fmea.length === 0
       ? '<div class="empty"><div class="empty-t">無資料</div></div>'
       : `<div class="tbl-wrap"><table class="tbl fmea-tbl">
           <thead><tr>
             <th>故障部位</th><th class="right">件數</th>
-            <th class="right" title="嚴重度">S</th><th class="right" title="發生度">O</th><th class="right" title="偵測度">D</th>
+            <th class="right" title="嚴重度 1-10（可點擊編輯）">S ✎</th>
+            <th class="right" title="發生度 1-10（可點擊編輯）">O ✎</th>
+            <th class="right" title="偵測度 1-10（可點擊編輯）">D ✎</th>
             <th class="right">RPN</th><th>風險等級</th>
           </tr></thead>
           <tbody>
-          ${fmea.map(m => `
-            <tr>
-              <td><span class="fmea-dot" style="background:${m.color}"></span>${m.part}</td>
+          ${fmea.map(m => {
+            const ov = fmeaOv[m.part] || {};
+            const s = ov.s ?? m.severity;
+            const o = ov.o ?? m.occurrence;
+            const d = ov.d ?? m.detection;
+            const rpn = s * o * d;
+            const hasOverride = ov.s != null || ov.o != null || ov.d != null;
+            const level = rpn >= 200 ? 'critical' : rpn >= 100 ? 'high' : rpn >= 50 ? 'medium' : 'low';
+            return `
+            <tr class="fmea-row" data-part="${escapeAttr(m.part)}">
+              <td><span class="fmea-dot" style="background:${m.color}"></span>${m.part}
+                <span class="fmea-manual-tag" style="display:${hasOverride?'inline':'none'}">人工調整</span>
+              </td>
               <td class="right">${m.count}${m.scrap > 0 ? ` <span class="muted">(${m.scrap}廢)</span>` : ''}</td>
-              <td class="right">${m.severity}</td>
-              <td class="right">${m.occurrence}</td>
-              <td class="right">${m.detection}</td>
-              <td class="right"><strong>${m.rpn}</strong></td>
-              <td><span class="risk-badge ${m.level}">${({critical:'極高',high:'高',medium:'中',low:'低'})[m.level]}</span></td>
-            </tr>`).join('')}
+              <td class="right fmea-edit-cell"><input type="number" class="fmea-inp fi-s" min="1" max="10" value="${s}" title="嚴重度（1-10）" onchange="App.saveFmeaOverride('${escapeAttr(m.part)}','s',this.value)"></td>
+              <td class="right fmea-edit-cell"><input type="number" class="fmea-inp fi-o" min="1" max="10" value="${o}" title="發生度（1-10）" onchange="App.saveFmeaOverride('${escapeAttr(m.part)}','o',this.value)"></td>
+              <td class="right fmea-edit-cell"><input type="number" class="fmea-inp fi-d" min="1" max="10" value="${d}" title="偵測度（1-10）" onchange="App.saveFmeaOverride('${escapeAttr(m.part)}','d',this.value)"></td>
+              <td class="right fmea-rpn-cell"><strong>${rpn}</strong></td>
+              <td><span class="risk-badge ${level}">${({critical:'極高',high:'高',medium:'中',low:'低'})[level]}</span></td>
+            </tr>`;
+          }).join('')}
           </tbody></table></div>
-          <div class="fmea-legend">S 嚴重度 × O 發生度 × D 偵測度 = RPN 風險優先數 · RPN≥200 極高 · ≥100 高 · ≥50 中</div>`;
+          <div class="fmea-legend">S 嚴重度 × O 發生度 × D 偵測度 = RPN 風險優先數 · RPN≥200 極高 · ≥100 高 · ≥50 中 · <button class="btn sm" onclick="App.resetFmeaOverrides()" style="margin-left:8px">重置手動調整</button></div>`;
 
     // Root cause tree
     const tree = RepairAnalyzer.rootCauseTree(records);
@@ -6484,6 +6521,39 @@ window.App = (function () {
 
   // ═══════════════ Cost analysis + config ═══════════════
   const COST_KEY = 'titan_cost_cfg_v1';
+  const FMEA_OVERRIDES_KEY = 'titan_fmea_overrides_v1';
+  function loadFmeaOverrides() {
+    try { return JSON.parse(localStorage.getItem(FMEA_OVERRIDES_KEY) || '{}'); } catch { return {}; }
+  }
+  function saveFmeaOverride(part, field, value) {
+    const ov = loadFmeaOverrides();
+    if (!ov[part]) ov[part] = {};
+    const n = Math.min(10, Math.max(1, parseInt(value, 10)));
+    if (isNaN(n)) return;
+    ov[part][field] = n;
+    localStorage.setItem(FMEA_OVERRIDES_KEY, JSON.stringify(ov));
+    // Recalculate RPN in the table row
+    const row = document.querySelector(`.fmea-row[data-part="${CSS.escape(part)}"]`);
+    if (row) {
+      const sVal = parseInt(row.querySelector('.fi-s')?.value || 0);
+      const oVal = parseInt(row.querySelector('.fi-o')?.value || 0);
+      const dVal = parseInt(row.querySelector('.fi-d')?.value || 0);
+      const rpn = sVal * oVal * dVal;
+      const rpnCell = row.querySelector('.fmea-rpn-cell');
+      if (rpnCell) rpnCell.innerHTML = `<strong>${rpn}</strong>`;
+      const level = rpn >= 200 ? 'critical' : rpn >= 100 ? 'high' : rpn >= 50 ? 'medium' : 'low';
+      const badge = row.querySelector('.risk-badge');
+      if (badge) { badge.className = `risk-badge ${level}`; badge.textContent = ({critical:'極高',high:'高',medium:'中',low:'低'})[level]; }
+      // Mark as manually adjusted
+      const manualTag = row.querySelector('.fmea-manual-tag');
+      if (manualTag) manualTag.style.display = 'inline';
+    }
+  }
+  function resetFmeaOverrides() {
+    if (!confirm('確定重置所有 FMEA 手動調整？')) return;
+    localStorage.removeItem(FMEA_OVERRIDES_KEY);
+    if (state.currentPage === 'risk') renderRisk();
+  }
   function loadCostCfg() {
     try { return JSON.parse(localStorage.getItem(COST_KEY) || 'null') || { categories: {}, models: {}, laborPerRepair: 0, scrapDefault: 0 }; }
     catch { return { categories: {}, models: {}, laborPerRepair: 0, scrapDefault: 0 }; }
