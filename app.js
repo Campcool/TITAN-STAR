@@ -39,6 +39,21 @@ window.App = (function () {
     Chart.defaults.borderColor = COLORS.border;
   }
 
+  // ─────────────── Analysis Role Definitions ───────────────
+  const ANALYSIS_ROLES = {
+    all:      { label:'綜合視角', short:'綜合',  icon:'⊞', color:'#38bdf8', desc:'全部指標總覽，適合快速掌握全域狀況' },
+    ceo:      { label:'董事長',   short:'董事長', icon:'◈', color:'#a78bfa', desc:'戰略績效 · 風險評估 · 財務影響' },
+    factory:  { label:'廠長',     short:'廠長',   icon:'⊙', color:'#fb923c', desc:'跨部門協調 · 積壓管理 · 資源調配' },
+    procure:  { label:'採購主管', short:'採購',   icon:'◎', color:'#facc15', desc:'零件需求 · 供應商風險 · 採購觸發點' },
+    prod:     { label:'生產主管', short:'生產',   icon:'⚙', color:'#10b981', desc:'良率分析 · 製程缺陷 · 機種表現' },
+    qa:       { label:'品檢主管', short:'品檢',   icon:'◇', color:'#f472b6', desc:'重複維修 · 保固退回率 · CAPA候選' },
+    logistics:{ label:'物流主管', short:'物流',   icon:'↗', color:'#34d399', desc:'報廢率 · 維修週期 · 流量管控' },
+    cs:       { label:'客服主管', short:'客服',   icon:'◉', color:'#60a5fa', desc:'重複投訴 · 保固曝險 · 客戶體驗' },
+    repair:   { label:'維修主管', short:'維修',   icon:'✦', color:'#f59e0b', desc:'技術效率 · 故障模式 · 報廢決策' },
+    hw:       { label:'硬體研發', short:'硬體',   icon:'◁', color:'#818cf8', desc:'設計缺陷 · ECO候選 · 元件可靠性' },
+    fw:       { label:'韌體研發', short:'韌體',   icon:'▷', color:'#22d3ee', desc:'韌體關鍵字故障 · OTA候選 · 系統穩定性' },
+  };
+
   // ─────────────── State ───────────────
   const state = {
     db: { months: {} },
@@ -46,6 +61,7 @@ window.App = (function () {
     selectedCategory: '全部',
     selectedModel: '全部',
     currentPage: 'overview',
+    analysisRole: 'all',
     charts: {},               // chart instance refs
   };
 
@@ -295,6 +311,7 @@ window.App = (function () {
     state.selectedMonths = Object.keys(state.db.months).sort();
     state.selectedCategory = '全部';
     state.selectedModel = '全部';
+    renderAnalysisRoleBar();
     renderAll();
     // Always start at top
     window.scrollTo(0, 0);
@@ -406,8 +423,245 @@ window.App = (function () {
     $('hdrSub').textContent = `${months.length} 個月 · ${recCount.toLocaleString()} 筆紀錄 · 整新數 ${denomTotal.toLocaleString()}`;
 
     renderFilters();
+    renderAnalysisRoleBar();
     updateAlertBadge();
     renderPage();
+  }
+
+  function setAnalysisRole(role) {
+    state.analysisRole = role;
+    renderAnalysisRoleBar();
+    if (state.currentPage === 'overview') renderPage();
+  }
+
+  function renderAnalysisRoleBar() {
+    const bar = $('analysisRoleBar');
+    if (!bar) return;
+    const cur = state.analysisRole;
+    bar.innerHTML = Object.entries(ANALYSIS_ROLES).map(([k, r]) => {
+      const active = k === cur;
+      return `<button class="ar-chip ${active ? 'active' : ''}" style="--rc:${r.color}"
+        onclick="App.setAnalysisRole('${k}')" title="${r.desc}">
+        <span class="ar-chip-ico">${r.icon}</span>
+        <span class="ar-chip-t">${r.short}</span>
+      </button>`;
+    }).join('');
+  }
+
+  // ─── Role-specific insight engine ───
+  function computeRoleInsights(role, records, kpis, anoms, allRecords) {
+    const allMonths = state.selectedMonths.slice().sort();
+    const curMonthKey = allMonths[allMonths.length - 1];
+    const prevMonthKey = allMonths[allMonths.length - 2];
+
+    // Shared derived data
+    const scrapRecs  = records.filter(r => r.isScrap);
+    const pareto     = RepairAnalyzer.partPareto(records);
+    const crossSerial = RepairAnalyzer.crossMonthSerials(state.db, {});
+
+    // Keyword search helpers
+    const hasKw = (r, kws) => kws.some(kw => (r.content || r.faultContent || '').includes(kw) || (r.faultCause || '').includes(kw));
+    const kwCount = (kws) => records.filter(r => hasKw(r, kws)).length;
+
+    // Per-category counts
+    const catCount = {};
+    for (const r of records) catCount[r.category || '其他'] = (catCount[r.category || '其他'] || 0) + 1;
+
+    // Top model fault info
+    const modelCount = {};
+    for (const r of records) modelCount[r.model] = (modelCount[r.model] || 0) + 1;
+    const topModel = Object.entries(modelCount).sort((a,b)=>b[1]-a[1])[0];
+
+    // Month-on-month comparison
+    let momText = null;
+    if (curMonthKey && prevMonthKey) {
+      const curRecs = state.db.months[curMonthKey]?.records || [];
+      const prevRecs = state.db.months[prevMonthKey]?.records || [];
+      const delta = curRecs.length - prevRecs.length;
+      const sign = delta > 0 ? '+' : '';
+      momText = `${fmt.monthLabel(curMonthKey)} vs ${fmt.monthLabel(prevMonthKey)}：維修量 <strong style="color:${delta>0?'var(--critical)':delta<0?'var(--ok)':'var(--text2)'}">${sign}${delta}</strong> 件`;
+    }
+
+    // Repeated serials within selected period
+    const serialMap = {};
+    for (const r of records) {
+      if (!r.serial) continue;
+      const k = `${r.model}|${r.serial}`;
+      serialMap[k] = (serialMap[k] || 0) + 1;
+    }
+    const repeatedList = Object.entries(serialMap).filter(([,c]) => c >= 2).sort((a,b)=>b[1]-a[1]);
+
+    // Warranty-in records (保固內)
+    const warrantyIn = records.filter(r => (r.warranty || '').includes('保固') || (r.warranty || '').toLowerCase() === 'y' || (r.warrantyType || '').includes('保固'));
+
+    // Firmware keywords
+    const fwKws = ['韌體','異常關機','無回應','當機','重啟','升級','OTA','firmware','update','版本','軟體','APP'];
+    const fwRecs = records.filter(r => hasKw(r, fwKws));
+
+    // Hardware-design keywords (排除純軟體)
+    const hwKws = ['斷路','焊接','電容','電阻','PCB','主板','電源板','線路','短路','開路','元件','接腳','腐蝕','燒毀','變形'];
+    const hwRecs = records.filter(r => hasKw(r, hwKws));
+
+    // Top 3 anomalies filtered by role
+    const roleAnomMap = {
+      all:      anoms,
+      ceo:      anoms.filter(a => a.severity === 'critical' || a.severity === 'warn'),
+      factory:  anoms,
+      procure:  anoms.filter(a => (a.title||'').includes('零件') || (a.title||'').includes('用量')),
+      prod:     anoms.filter(a => (a.title||'').includes('故障') || (a.title||'').includes('機種')),
+      qa:       anoms.filter(a => (a.title||'').includes('重複') || (a.title||'').includes('保固') || a.severity === 'critical'),
+      logistics:anoms.filter(a => (a.title||'').includes('報廢') || (a.title||'').includes('零件')),
+      cs:       anoms.filter(a => (a.title||'').includes('重複') || (a.title||'').includes('保固')),
+      repair:   anoms,
+      hw:       anoms.filter(a => a.severity === 'critical'),
+      fw:       anoms.filter(a => (a.title||'').includes('零件') || (a.title||'').includes('重複')),
+    };
+    const roleAnoms = (roleAnomMap[role] || anoms).slice(0, 3);
+
+    const insights = [];
+
+    const addCard = (icon, color, title, body, tag) => {
+      insights.push({ icon, color, title, body, tag });
+    };
+
+    switch (role) {
+      case 'all':
+        if (momText) addCard('↗','var(--accent)','月度比較',momText,'趨勢');
+        if (kpis.scrapPct >= 5) addCard('✕','var(--critical)','報廢警示',`報廢率 <strong>${fmt.pct(kpis.scrapPct)}</strong>，已達警戒線（5%），建議立即調查主因機種`,'品質');
+        if (repeatedList.length > 0) addCard('♺','var(--warn)','重複維修',`共 <strong>${repeatedList.length}</strong> 台機器在篩選期間維修 ≥2 次；最高：${repeatedList[0][0].split('|')[1]} ×${repeatedList[0][1]}`,'品質');
+        if (crossSerial.length > 0) addCard('⇄','var(--info)','跨月重複',`<strong>${crossSerial.length}</strong> 台序號跨月出現，疑似長期未解決問題`,'追蹤');
+        break;
+
+      case 'ceo':
+        addCard('◈','var(--info)','經營摘要',`累積維修 <strong>${fmt.int(kpis.totalRepairs)}</strong> 件 / 整新數 <strong>${fmt.int(kpis.denomTotal)}</strong>，整體故障率 <strong>${fmt.pct(kpis.denomPct)}</strong>`,'績效');
+        if (kpis.scrapPct >= 3) addCard('✕','var(--critical)','財務風險',`報廢 <strong>${fmt.int(kpis.scrap)}</strong> 件（${fmt.pct(kpis.scrapPct)}），每件報廢代表直接物料損失，需主管評估報廢原因集中度`,'風險');
+        if (crossSerial.length >= 5) addCard('⇄','var(--warn)','品牌曝險',`<strong>${crossSerial.length}</strong> 台機器跨月重複故障，若涉及保固條款，可能引發客訴升級`,'風險');
+        if (anoms.filter(a=>a.severity==='critical').length > 0) addCard('!','var(--critical)','緊急異常',`本期偵測到 <strong>${anoms.filter(a=>a.severity==='critical').length}</strong> 項嚴重異常，需優先關注`,'決策');
+        if (momText) addCard('↗','var(--accent)','月度動向',momText,'趨勢');
+        break;
+
+      case 'factory':
+        addCard('⊙','var(--ok)','全廠概況',`${Object.entries(catCount).map(([c,n])=>`${c} ${n}件`).join(' · ')}`,'總覽');
+        if (anoms.length > 0) addCard('!','var(--warn)','待協調事項',`本期偵測 <strong>${anoms.length}</strong> 項異常，涉及多部門需跨部門協調`,'調度');
+        if (repeatedList.length > 5) addCard('♺','var(--warn)','積壓風險',`<strong>${repeatedList.length}</strong> 台機器重複進廠，佔用維修產能，建議與品檢確認根本原因`,'資源');
+        if (momText) addCard('↗','var(--accent)','產量比較',momText,'趨勢');
+        break;
+
+      case 'procure':
+        if (pareto.length > 0) addCard('◎','var(--warn)','採購觸發',`最高換件：<strong>${pareto[0].name}</strong> ×${pareto[0].count}，涉及 ${pareto[0].models.length} 機種；建議評估安全庫存`,'庫存');
+        if (pareto.length > 2) addCard('▤','var(--info)','零件集中度',`前 3 大零件：${pareto.slice(0,3).map(p=>`${p.name}(${p.count})`).join('、')}，佔總用量 ${fmt.pct(pareto.slice(0,3).reduce((s,p)=>s+p.count,0)/Math.max(records.length,1)*100)}`,'分析');
+        const multiModelParts = pareto.filter(p => p.models.length >= 3);
+        if (multiModelParts.length > 0) addCard('⇄','var(--critical)','跨機種零件',`<strong>${multiModelParts[0].name}</strong> 跨 ${multiModelParts[0].models.length} 機種，若庫存不足將多線停修`,'風險');
+        if (momText) addCard('↗','var(--accent)','用量趨勢',momText,'趨勢');
+        break;
+
+      case 'prod':
+        if (topModel) addCard('⚙','var(--warn)','故障最多機種',`<strong>${topModel[0]}</strong> 維修量最高（${topModel[1]} 件），佔整體 ${fmt.pct(topModel[1]/Math.max(kpis.totalRepairs,1)*100)}`,'良率');
+        addCard('◈','var(--info)','機種數量',`本期涉及 <strong>${kpis.models}</strong> 個機種，${Object.entries(catCount).map(([c,n])=>`${c} ${n}件`).join('、')}`,'生產');
+        if (scrapRecs.length > 0) {
+          const scrapByModel = {};
+          for (const r of scrapRecs) scrapByModel[r.model] = (scrapByModel[r.model]||0)+1;
+          const topScrapModel = Object.entries(scrapByModel).sort((a,b)=>b[1]-a[1])[0];
+          addCard('✕','var(--critical)','報廢集中',`報廢最高機種：<strong>${topScrapModel[0]}</strong> ×${topScrapModel[1]}，建議確認製程 SOP`,'品質');
+        }
+        break;
+
+      case 'qa':
+        addCard('◇','var(--warn)','重複維修率',`同期重複進廠 <strong>${repeatedList.length}</strong> 台（${fmt.pct(repeatedList.length/Math.max(kpis.totalRepairs,1)*100)}），是品質未閉環的指標`,'CAPA');
+        if (crossSerial.length > 0) addCard('⇄','var(--critical)','跨月重複',`<strong>${crossSerial.length}</strong> 台跨月重複，強烈建議開立 CAPA 追蹤`,'CAPA');
+        if (warrantyIn.length > 0) addCard('◉','var(--info)','保固退回',`保固期內 <strong>${warrantyIn.length}</strong> 件（${fmt.pct(warrantyIn.length/Math.max(kpis.totalRepairs,1)*100)}），需評估設計或製程責任`,'品質');
+        addCard('✕','var(--critical)','報廢率',`${fmt.pct(kpis.scrapPct)}（${kpis.scrap} 件），${kpis.scrapPct>=10?'已達高風險':'建議持續監控'}`,'品質');
+        break;
+
+      case 'logistics':
+        addCard('↗','var(--ok)','流量概況',`本期收件 <strong>${fmt.int(kpis.totalRepairs)}</strong>，報廢 <strong>${fmt.int(kpis.scrap)}</strong>，有效出貨率 <strong>${fmt.pct((kpis.totalRepairs-kpis.scrap)/Math.max(kpis.totalRepairs,1)*100)}</strong>`,'流量');
+        if (kpis.scrapPct >= 5) addCard('✕','var(--critical)','報廢影響',`報廢率 ${fmt.pct(kpis.scrapPct)}，影響有效出貨量，需與生產協調補件計畫`,'調度');
+        if (repeatedList.length > 0) addCard('♺','var(--warn)','重工循環',`${repeatedList.length} 台重複進廠，造成物流二次處理成本`,'成本');
+        if (momText) addCard('↗','var(--accent)','月度比較',momText,'趨勢');
+        break;
+
+      case 'cs':
+        if (crossSerial.length > 0) addCard('⇄','var(--critical)','高風險客戶',`<strong>${crossSerial.length}</strong> 台跨月重複故障，若持續未修好將導致客戶投訴升級`,'客訴');
+        if (warrantyIn.length > 0) addCard('◉','var(--warn)','保固曝險',`保固期內 <strong>${warrantyIn.length}</strong> 件（${fmt.pct(warrantyIn.length/Math.max(kpis.totalRepairs,1)*100)}），建議主動聯繫客戶說明修復進度`,'保固');
+        addCard('♺','var(--info)','回修滿意度風險',`重複進廠 ${repeatedList.length} 台，重複報修是客戶不滿最直接的信號`,'服務');
+        if (topModel) addCard('⚙','var(--warn)','主訴機種',`${topModel[0]} 維修量最高（${topModel[1]}件），客服話術應準備對應說明`,'溝通');
+        break;
+
+      case 'repair':
+        if (pareto.length > 0) addCard('▤','var(--warn)','主力零件',`<strong>${pareto[0].name}</strong> 使用最頻繁（${pareto[0].count}次），備料優先級最高`,'備料');
+        if (scrapRecs.length > 0) {
+          const scrapCauses = {};
+          for (const r of scrapRecs) {
+            const cause = r.faultCause || r.content || '不明';
+            scrapCauses[cause] = (scrapCauses[cause]||0)+1;
+          }
+          const topCause = Object.entries(scrapCauses).sort((a,b)=>b[1]-a[1])[0];
+          addCard('✕','var(--critical)','報廢主因',`最常見報廢原因：<strong>${topCause[0]}</strong>（${topCause[1]}件），需技術研討是否可降低報廢率`,'技術');
+        }
+        addCard('♺','var(--info)','重修率',`重複進廠 ${repeatedList.length} 台，疑似首修未解決，請確認技師維修紀錄完整性`,'品質');
+        if (momText) addCard('↗','var(--accent)','工作量比較',momText,'趨勢');
+        break;
+
+      case 'hw':
+        if (hwRecs.length > 0) addCard('◁','var(--warn)','疑似設計缺陷',`含硬體關鍵字記錄 <strong>${hwRecs.length}</strong> 件（${fmt.pct(hwRecs.length/Math.max(kpis.totalRepairs,1)*100)}），建議歸類 ECO 候選`,'ECO');
+        if (crossSerial.length > 0) addCard('⇄','var(--critical)','設計根因',`${crossSerial.length} 台跨月重複故障，若硬體設計問題未改版，將持續復發`,'ECO');
+        if (scrapRecs.length > 0) addCard('✕','var(--warn)','元件可靠性',`報廢 ${scrapRecs.length} 件，建議確認主要報廢原因是否與特定元件批次相關`,'可靠度');
+        if (topModel) addCard('⚙','var(--info)','高關注機種',`${topModel[0]} 維修量最高，若屬硬體問題需優先安排設計審查`,'審查');
+        break;
+
+      case 'fw':
+        if (fwRecs.length > 0) addCard('▷','var(--warn)','韌體相關故障',`含韌體關鍵字 <strong>${fwRecs.length}</strong> 件（${fmt.pct(fwRecs.length/Math.max(kpis.totalRepairs,1)*100)}），建議確認版本分布`,'OTA');
+        else addCard('▷','var(--ok)','韌體狀況','本期未偵測到明顯韌體相關故障關鍵字，韌體穩定度良好','OTA');
+        if (crossSerial.length > 0) addCard('⇄','var(--info)','潛在韌體根因',`${crossSerial.length} 台跨月重複，若排除硬體因素，需確認韌體 OTA 是否成功落版`,'追蹤');
+        addCard('♺','var(--info)','重複維修洞察',`重複進廠 ${repeatedList.length} 台，建議比對維修紀錄中的韌體版本欄位，排查特定版本集中問題`,'分析');
+        break;
+    }
+
+    return { insights, roleAnoms };
+  }
+
+  function renderRoleInsights(role, records, kpis, anoms) {
+    const roleInfo = ANALYSIS_ROLES[role] || ANALYSIS_ROLES.all;
+    const { insights, roleAnoms } = computeRoleInsights(role, records, kpis, anoms);
+    const el = $('roleInsightPanel');
+    if (!el) return;
+
+    if (role === 'all' && insights.length === 0) {
+      el.innerHTML = '';
+      return;
+    }
+
+    el.innerHTML = `
+      <div class="ri-banner" style="--rc:${roleInfo.color}">
+        <span class="ri-banner-ico">${roleInfo.icon}</span>
+        <span class="ri-banner-label">${roleInfo.label} 視角</span>
+        <span class="ri-banner-desc">${roleInfo.desc}</span>
+      </div>
+      <div class="ri-cards">
+        ${insights.map(ins => `
+          <div class="ri-card" style="--rc:${ins.color}">
+            <div class="ri-card-top">
+              <span class="ri-card-ico">${ins.icon}</span>
+              <span class="ri-card-tag">${ins.tag}</span>
+            </div>
+            <div class="ri-card-title">${ins.title}</div>
+            <div class="ri-card-body">${ins.body}</div>
+          </div>
+        `).join('')}
+      </div>
+      ${roleAnoms.length > 0 ? `
+        <div class="ri-anoms-label">本視角相關異常警示</div>
+        <div class="ri-anoms">
+          ${roleAnoms.map(a => `
+            <div class="ri-anom ${a.severity}">
+              <span class="ri-anom-ico">${a.icon}</span>
+              <span class="ri-anom-t">${a.title}</span>
+              <span class="ri-anom-m">${escapeHtml(a.subject)}</span>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+    `;
   }
 
   function currentFilter() {
@@ -527,11 +781,11 @@ window.App = (function () {
       </div>
     `;
 
-    // Alert strip (top 3)
+    // Role-specific insight panel
     const lastMonth = state.selectedMonths.slice().sort().pop();
     const anoms = RepairAnalyzer.detectAnomalies(state.db, lastMonth);
-    // Cache for drawer access
     state.currentAnomalies = anoms;
+    renderRoleInsights(state.analysisRole, records, kpis, anoms);
 
     $('alertStrip').innerHTML = anoms.length === 0
       ? `<div class="card" style="grid-column:1/-1"><div class="empty"><div class="empty-ico">✓</div><div class="empty-t">本期未偵測到顯著異常</div></div></div>`
@@ -1769,6 +2023,7 @@ window.App = (function () {
     handleFiles, removeMonth, clearAll, confirmClear, exportData, importData,
     openDashboard, openUpload, switchPage,
     setMonth, setCategory, setModel,
+    setAnalysisRole,
     toggleRank, toggleRankRow,
     dismissAlertPulse, dismissCrossMonthPulse,
     generateReport: () => RepairReport.generate(state.db),
