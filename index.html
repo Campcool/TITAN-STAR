@@ -13,6 +13,55 @@
 </head>
 <body>
 
+<!-- ═══════════════ Login Screen ═══════════════ -->
+<div id="loginScreen" class="ls-wrap">
+  <div class="ls-box">
+    <div class="ls-logo">TS</div>
+    <div class="ls-title">TITAN-STAR</div>
+    <div class="ls-sub">維修分析 &amp; RMA 管理系統</div>
+    <div class="ls-fields">
+      <div class="ls-field">
+        <label class="ls-label">帳號</label>
+        <input class="ls-input" type="text" id="loginUser" placeholder="請輸入帳號"
+          autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('loginPwd').focus()">
+      </div>
+      <div class="ls-field">
+        <label class="ls-label">密碼</label>
+        <input class="ls-input" type="password" id="loginPwd" placeholder="請輸入密碼"
+          autocomplete="current-password" onkeydown="if(event.key==='Enter')Auth.doLogin()">
+      </div>
+      <div class="ls-err" id="loginErr"></div>
+      <button class="ls-btn" onclick="Auth.doLogin()">登入</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ Change Password Screen ═══════════════ -->
+<div id="changePwScreen" class="ls-wrap" style="display:none">
+  <div class="ls-box">
+    <div class="ls-logo">TS</div>
+    <div class="ls-title">設定新密碼</div>
+    <div class="ls-sub" id="changePwSub">首次登入，請設定您的專屬密碼</div>
+    <div class="ls-fields">
+      <div class="ls-field">
+        <label class="ls-label">舊密碼</label>
+        <input class="ls-input" type="password" id="cpOld" placeholder="請輸入舊密碼" autocomplete="current-password">
+      </div>
+      <div class="ls-field">
+        <label class="ls-label">新密碼</label>
+        <input class="ls-input" type="password" id="cpNew" placeholder="請輸入新密碼（至少 6 碼）" autocomplete="new-password">
+      </div>
+      <div class="ls-field">
+        <label class="ls-label">確認新密碼</label>
+        <input class="ls-input" type="password" id="cpConfirm" placeholder="再次輸入新密碼" autocomplete="new-password"
+          onkeydown="if(event.key==='Enter')Auth.doChangePw()">
+      </div>
+      <div class="ls-err" id="changePwErr"></div>
+      <button class="ls-btn" onclick="Auth.doChangePw()">確認修改</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════ Loading Overlay ═══════════════ -->
 <div class="load-ov" id="loadOv" style="display:none">
   <div class="load-sp"></div>
@@ -35,11 +84,15 @@
       <span class="mode-badge" id="rmaBadge" style="display:none">0</span>
     </button>
   </div>
-  <div class="mode-bar-r" id="modeBtns"></div>
+  <div class="mode-bar-r" id="modeBtns">
+    <span class="mode-bar-user" id="modeBarUser"></span>
+    <button class="btn" id="adminPanelBtn" style="display:none" onclick="Auth.openAdminPanel()">⚙ 帳號管理</button>
+    <button class="btn danger" onclick="Auth.logout()">登出</button>
+  </div>
 </div>
 
 <!-- ═══════════════ UPLOAD ZONE ═══════════════ -->
-<div class="uz" id="uploadZone">
+<div class="uz" id="uploadZone" style="display:none">
   <div class="uz-wrap">
     <div class="uz-brand">
       <div class="uz-mark">TS</div>
@@ -457,13 +510,12 @@ function updateRmaBadge() {
   }
 }
 
-// On load, restore last mode
-document.addEventListener('DOMContentLoaded', () => {
+// On load, restore last mode — called by Auth after successful login
+function onAuthSuccess() {
   const db = RepairDB.load();
   const hasAnalysisData = Object.keys(db.months).length > 0;
   const rmaDb = RMA.stats();
 
-  // If RMA has data, show mode bar from the start
   if (rmaDb.total > 0 || hasAnalysisData) {
     document.getElementById('modeBar').style.display = 'flex';
     if (hasAnalysisData) {
@@ -471,11 +523,36 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       switchMode('rma');
     }
+  } else {
+    document.getElementById('uploadZone').style.display = 'flex';
   }
-  // else stays on upload zone
 
   updateRmaBadge();
-});
+}
 </script>
+
+<!-- ═══════════════ Admin Panel Modal ═══════════════ -->
+<div id="adminPanel" class="ap-overlay" style="display:none" onclick="if(event.target===this)Auth.closeAdminPanel()">
+  <div class="ap-box">
+    <div class="ap-hdr">
+      <div class="ap-title">⚙ 帳號管理</div>
+      <button class="ap-close" onclick="Auth.closeAdminPanel()">✕</button>
+    </div>
+    <div class="ap-body">
+      <!-- Add user -->
+      <div class="ap-sec-t">新增帳號</div>
+      <div class="ap-add-row">
+        <input class="ls-input" type="text" id="newUserInput" placeholder="帳號（預設密碼同帳號）"
+          onkeydown="if(event.key==='Enter')Auth.addUser()">
+        <button class="btn primary" onclick="Auth.addUser()">新增</button>
+      </div>
+      <div class="ls-err" id="addUserErr" style="margin-bottom:8px"></div>
+      <!-- User list -->
+      <div class="ap-sec-t" style="margin-top:18px">帳號列表</div>
+      <div id="userListEl" class="ap-user-list"></div>
+      <div class="ap-note">重置密碼 → 密碼恢復為帳號名稱，對方下次登入需重設。操作後請記得「☁ 發布到雲端」讓同步生效。</div>
+    </div>
+  </div>
+</div>
 </body>
 </html>

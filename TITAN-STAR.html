@@ -1419,6 +1419,125 @@ button, input, select { font-family: inherit; }
   .kpi-grid { grid-template-columns: 1fr; }
 }
 
+/* ════════════════ Login / Change-Password Screen ════════════════ */
+.ls-wrap {
+  position: fixed; inset: 0; z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #0d1320 0%, #161d28 60%, #1a2236 100%);
+}
+.ls-box {
+  width: 100%; max-width: 400px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  padding: 44px 40px 40px;
+  display: flex; flex-direction: column; align-items: center;
+  box-shadow: 0 32px 80px rgba(0,0,0,.5);
+}
+.ls-logo {
+  width: 60px; height: 60px; border-radius: 16px;
+  background: linear-gradient(135deg, #38bdf8, #818cf8);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 800; color: #fff;
+  margin-bottom: 16px; letter-spacing: -.5px;
+}
+.ls-title {
+  font-size: 22px; font-weight: 700; color: var(--text);
+  margin-bottom: 4px; letter-spacing: -.5px;
+}
+.ls-sub {
+  font-size: 13px; color: var(--text3); margin-bottom: 32px; text-align: center;
+}
+.ls-fields { width: 100%; display: flex; flex-direction: column; gap: 14px; }
+.ls-field { display: flex; flex-direction: column; gap: 6px; }
+.ls-label { font-size: 12.5px; font-weight: 600; color: var(--text2); letter-spacing: .04em; }
+.ls-input {
+  width: 100%; box-sizing: border-box;
+  padding: 12px 14px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: 10px; color: var(--text); font-size: 15px;
+  outline: none; transition: border-color .18s;
+}
+.ls-input:focus { border-color: var(--accent); }
+.ls-err { font-size: 13px; color: var(--critical); min-height: 18px; }
+.ls-btn {
+  margin-top: 6px; width: 100%; padding: 13px;
+  background: var(--accent); color: #0a0d12;
+  border: none; border-radius: 10px;
+  font-size: 15px; font-weight: 700; cursor: pointer;
+  transition: opacity .18s;
+}
+.ls-btn:hover { opacity: .88; }
+
+/* ════════════════ Mode-bar user display ════════════════ */
+.mode-bar-user {
+  font-size: 13px; color: var(--text2);
+  padding: 4px 10px; border-radius: 20px;
+  background: var(--surface2); margin-right: 4px;
+  white-space: nowrap;
+}
+
+/* ════════════════ Admin Panel ════════════════ */
+.ap-overlay {
+  position: fixed; inset: 0; z-index: 8000;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.6); backdrop-filter: blur(4px);
+}
+.ap-box {
+  width: 100%; max-width: 560px; max-height: 80vh;
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 18px; overflow: hidden;
+  display: flex; flex-direction: column;
+  box-shadow: 0 24px 64px rgba(0,0,0,.45);
+}
+.ap-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 24px; border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.ap-title { font-size: 16px; font-weight: 700; color: var(--text); }
+.ap-close {
+  background: none; border: none; color: var(--text3);
+  font-size: 18px; cursor: pointer; padding: 4px 8px; border-radius: 6px;
+  transition: color .15s;
+}
+.ap-close:hover { color: var(--text); }
+.ap-body { padding: 24px; overflow-y: auto; flex: 1; }
+.ap-sec-t {
+  font-size: 11.5px; font-weight: 700; color: var(--text3);
+  text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px;
+}
+.ap-add-row {
+  display: flex; gap: 10px; align-items: center;
+}
+.ap-add-row .ls-input { margin: 0; flex: 1; }
+.ap-user-list { display: flex; flex-direction: column; gap: 8px; }
+.ap-user-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: 10px;
+  gap: 12px; flex-wrap: wrap;
+}
+.ap-user-row.is-admin { border-color: var(--accent); }
+.ap-user-info { display: flex; align-items: center; gap: 8px; }
+.ap-uid { font-size: 14px; font-weight: 600; color: var(--text); font-family: var(--mono); }
+.ap-tag {
+  font-size: 10.5px; font-weight: 700; padding: 2px 8px;
+  border-radius: 10px; text-transform: uppercase; letter-spacing: .04em;
+}
+.ap-tag.admin { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+.ap-tag.must-change { background: color-mix(in srgb, var(--warn) 15%, transparent); color: var(--warn); }
+@supports not (color: color-mix(in srgb, red 10%, blue)) {
+  .ap-tag.admin { background: var(--surface3); }
+  .ap-tag.must-change { background: var(--surface3); }
+}
+.ap-user-actions { display: flex; gap: 8px; }
+.ap-note {
+  margin-top: 20px; padding: 12px 14px;
+  background: var(--surface2); border-radius: 10px;
+  font-size: 12.5px; color: var(--text3); line-height: 1.6;
+}
+
 /* ════════════════ Cloud sync bar ════════════════ */
 .uz-cloud-bar {
   display: flex;
@@ -2112,6 +2231,55 @@ button, input, select { font-family: inherit; }
 </head>
 <body>
 
+<!-- ═══════════════ Login Screen ═══════════════ -->
+<div id="loginScreen" class="ls-wrap">
+  <div class="ls-box">
+    <div class="ls-logo">TS</div>
+    <div class="ls-title">TITAN-STAR</div>
+    <div class="ls-sub">維修分析 &amp; RMA 管理系統</div>
+    <div class="ls-fields">
+      <div class="ls-field">
+        <label class="ls-label">帳號</label>
+        <input class="ls-input" type="text" id="loginUser" placeholder="請輸入帳號"
+          autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('loginPwd').focus()">
+      </div>
+      <div class="ls-field">
+        <label class="ls-label">密碼</label>
+        <input class="ls-input" type="password" id="loginPwd" placeholder="請輸入密碼"
+          autocomplete="current-password" onkeydown="if(event.key==='Enter')Auth.doLogin()">
+      </div>
+      <div class="ls-err" id="loginErr"></div>
+      <button class="ls-btn" onclick="Auth.doLogin()">登入</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ Change Password Screen ═══════════════ -->
+<div id="changePwScreen" class="ls-wrap" style="display:none">
+  <div class="ls-box">
+    <div class="ls-logo">TS</div>
+    <div class="ls-title">設定新密碼</div>
+    <div class="ls-sub" id="changePwSub">首次登入，請設定您的專屬密碼</div>
+    <div class="ls-fields">
+      <div class="ls-field">
+        <label class="ls-label">舊密碼</label>
+        <input class="ls-input" type="password" id="cpOld" placeholder="請輸入舊密碼" autocomplete="current-password">
+      </div>
+      <div class="ls-field">
+        <label class="ls-label">新密碼</label>
+        <input class="ls-input" type="password" id="cpNew" placeholder="請輸入新密碼（至少 6 碼）" autocomplete="new-password">
+      </div>
+      <div class="ls-field">
+        <label class="ls-label">確認新密碼</label>
+        <input class="ls-input" type="password" id="cpConfirm" placeholder="再次輸入新密碼" autocomplete="new-password"
+          onkeydown="if(event.key==='Enter')Auth.doChangePw()">
+      </div>
+      <div class="ls-err" id="changePwErr"></div>
+      <button class="ls-btn" onclick="Auth.doChangePw()">確認修改</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════ Loading Overlay ═══════════════ -->
 <div class="load-ov" id="loadOv" style="display:none">
   <div class="load-sp"></div>
@@ -2134,11 +2302,15 @@ button, input, select { font-family: inherit; }
       <span class="mode-badge" id="rmaBadge" style="display:none">0</span>
     </button>
   </div>
-  <div class="mode-bar-r" id="modeBtns"></div>
+  <div class="mode-bar-r" id="modeBtns">
+    <span class="mode-bar-user" id="modeBarUser"></span>
+    <button class="btn" id="adminPanelBtn" style="display:none" onclick="Auth.openAdminPanel()">⚙ 帳號管理</button>
+    <button class="btn danger" onclick="Auth.logout()">登出</button>
+  </div>
 </div>
 
 <!-- ═══════════════ UPLOAD ZONE ═══════════════ -->
-<div class="uz" id="uploadZone">
+<div class="uz" id="uploadZone" style="display:none">
   <div class="uz-wrap">
     <div class="uz-brand">
       <div class="uz-mark">TS</div>
@@ -3542,6 +3714,7 @@ window.App = (function () {
 
   // ─────────────── Helpers ───────────────
   const $ = (id) => document.getElementById(id);
+
   const fmt = {
     int: (n) => (n == null || isNaN(n)) ? '—' : Math.round(n).toLocaleString('en'),
     pct: (n, digits = 1) => (n == null || isNaN(n)) ? '—' : `${n.toFixed(digits)}%`,
@@ -3659,6 +3832,7 @@ window.App = (function () {
       if (!Object.keys(db.months || {}).length) { alert('目前沒有資料可發布,請先上傳報表'); return; }
       const payload = {
         months: db.months,
+        users: Auth.exportUsers(),
         publishedAt: new Date().toISOString(),
         publishedBy: '',
       };
@@ -3869,6 +4043,9 @@ window.App = (function () {
     $('uploadZone').style.display = 'flex';
     state.db = RepairDB.load();
     renderUploadList();
+    // Ensure upload zone is visible after login
+    const rmaDash = $('rmaDash');
+    if (rmaDash) rmaDash.style.display = 'none';
   }
 
   function switchPage(name) {
@@ -5556,19 +5733,23 @@ window.App = (function () {
 
   // ─────────────── Init ───────────────
   async function init() {
+    // 1. Fetch cloud data first (needed to seed users before login screen)
+    const cloud = await syncCloud();
+    // 2. Boot auth — merges cloud users and shows login screen (or restores session)
+    const loggedIn = await Auth.boot(cloud ? cloud.users : null);
+    // 3. Set up rest of app
     setupUpload();
     state.db = RepairDB.load();
-    renderUploadList();
+    if (loggedIn) renderUploadList();
     // Escape key closes drawer
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape' && $('drawer').classList.contains('open')) closeDrawer();
     });
-    // Pull shared cloud data (data.json) and auto-sync if maintainer published a newer version.
-    await syncCloud();
-    state.db = RepairDB.load();
-    renderUploadList();
   }
   document.addEventListener('DOMContentLoaded', init);
+
+  // ─── Auth is wired as window.Auth so it can be called from HTML onclick ───
+  // (defined after App IIFE return at bottom of file)
 
   return {
     handleFiles, removeMonth, clearAll, confirmClear, exportData, importData,
@@ -5583,6 +5764,303 @@ window.App = (function () {
     // Drawer
     openKpiDrawer, openAnomalyDrawer, openPartDrawer, openModelDrawer, openSerialDrawer,
     closeDrawer,
+  };
+})();
+
+// ════════════════════════════════════════════════════════════════════
+// Auth — 帳號管理、登入、密碼管理
+// ════════════════════════════════════════════════════════════════════
+window.Auth = (function () {
+  const USERS_KEY   = 'titan_users_v1';
+  const SESSION_KEY = 'titan_session';
+  const ADMIN_ID    = '031780';
+
+  // ─── Crypto ───
+  async function hashPwd(username, password) {
+    const raw = username + ':' + password;
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  // ─── Users storage ───
+  function loadUsers() {
+    try { return JSON.parse(localStorage.getItem(USERS_KEY) || 'null') || {}; }
+    catch { return {}; }
+  }
+  function saveUsers(u) { localStorage.setItem(USERS_KEY, JSON.stringify(u)); }
+
+  // Seed admin on very first run; merge cloud users without clobbering local passwords.
+  async function initUsers(cloudUsers) {
+    let users = loadUsers();
+
+    // Always ensure admin exists locally
+    if (!users[ADMIN_ID]) {
+      users[ADMIN_ID] = {
+        hash: await hashPwd(ADMIN_ID, ADMIN_ID),
+        isAdmin: true,
+        mustChange: false,
+        localChanged: true,
+      };
+    }
+
+    // Merge cloud users
+    if (cloudUsers) {
+      for (const [uid, cu] of Object.entries(cloudUsers)) {
+        if (!users[uid]) {
+          // New user from cloud → add locally
+          users[uid] = { ...cu };
+        } else if (cu.forceReset && !users[uid].localChanged) {
+          // Admin forced a reset and user hasn't changed password locally yet
+          users[uid].hash = cu.hash;
+          users[uid].mustChange = true;
+          delete users[uid].forceReset;
+        } else if (cu.forceReset && users[uid].localChanged) {
+          // User already changed locally — still honour force reset, overwrite
+          users[uid].hash = cu.hash;
+          users[uid].mustChange = true;
+          users[uid].localChanged = false;
+          delete users[uid].forceReset;
+        }
+        // Copy isAdmin flag from cloud (admin promotion/demotion)
+        if (uid !== ADMIN_ID) users[uid].isAdmin = cu.isAdmin || false;
+      }
+      // Remove users deleted by admin (not present in cloud), except admin itself
+      for (const uid of Object.keys(users)) {
+        if (uid === ADMIN_ID) continue;
+        if (!cloudUsers[uid]) delete users[uid];
+      }
+    }
+
+    saveUsers(users);
+    return users;
+  }
+
+  // ─── Session ───
+  function getSession() {
+    try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); }
+    catch { return null; }
+  }
+  function setSession(username, isAdmin) {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ username, isAdmin }));
+  }
+  function clearSession() { sessionStorage.removeItem(SESSION_KEY); }
+
+  // ─── Login screen control ───
+  function showLogin() {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('changePwScreen').style.display = 'none';
+    document.getElementById('loginUser').value = '';
+    document.getElementById('loginPwd').value = '';
+    document.getElementById('loginErr').textContent = '';
+    setTimeout(() => document.getElementById('loginUser').focus(), 100);
+  }
+
+  function showChangePw(isForced) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('changePwScreen').style.display = 'flex';
+    document.getElementById('changePwSub').textContent = isForced
+      ? '首次登入，請設定您的專屬密碼'
+      : '請輸入舊密碼與新密碼';
+    document.getElementById('cpOld').value = '';
+    document.getElementById('cpNew').value = '';
+    document.getElementById('cpConfirm').value = '';
+    document.getElementById('changePwErr').textContent = '';
+    setTimeout(() => document.getElementById('cpOld').focus(), 100);
+  }
+
+  function hideAuthScreens() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('changePwScreen').style.display = 'none';
+  }
+
+  function showMainUI(session) {
+    hideAuthScreens();
+    const userEl = document.getElementById('modeBarUser');
+    if (userEl) userEl.textContent = '👤 ' + session.username;
+    const adminBtn = document.getElementById('adminPanelBtn');
+    if (adminBtn) adminBtn.style.display = session.isAdmin ? '' : 'none';
+    // Trigger app restore (defined in index.html inline script)
+    if (typeof onAuthSuccess === 'function') onAuthSuccess();
+  }
+
+  // ─── Auth actions ───
+  async function doLogin() {
+    const username = document.getElementById('loginUser').value.trim();
+    const password = document.getElementById('loginPwd').value;
+    const errEl = document.getElementById('loginErr');
+    errEl.textContent = '';
+
+    if (!username || !password) { errEl.textContent = '請輸入帳號與密碼'; return; }
+
+    const users = loadUsers();
+    const u = users[username];
+    if (!u) { errEl.textContent = '帳號不存在，請聯繫管理員'; return; }
+
+    const hash = await hashPwd(username, password);
+    if (hash !== u.hash) { errEl.textContent = '密碼錯誤'; return; }
+
+    // Login OK
+    setSession(username, u.isAdmin);
+
+    if (u.mustChange) {
+      showChangePw(true);
+      return;
+    }
+
+    showMainUI({ username, isAdmin: u.isAdmin });
+  }
+
+  async function doChangePw() {
+    const session = getSession();
+    if (!session) { showLogin(); return; }
+
+    const oldPwd    = document.getElementById('cpOld').value;
+    const newPwd    = document.getElementById('cpNew').value;
+    const confirm   = document.getElementById('cpConfirm').value;
+    const errEl     = document.getElementById('changePwErr');
+    errEl.textContent = '';
+
+    if (!oldPwd || !newPwd || !confirm) { errEl.textContent = '請填寫所有欄位'; return; }
+    if (newPwd.length < 6) { errEl.textContent = '新密碼至少 6 個字元'; return; }
+    if (newPwd !== confirm) { errEl.textContent = '兩次新密碼不一致'; return; }
+
+    const users = loadUsers();
+    const u = users[session.username];
+    if (!u) { showLogin(); return; }
+
+    const oldHash = await hashPwd(session.username, oldPwd);
+    if (oldHash !== u.hash) { errEl.textContent = '舊密碼錯誤'; return; }
+
+    users[session.username].hash = await hashPwd(session.username, newPwd);
+    users[session.username].mustChange = false;
+    users[session.username].localChanged = true;
+    saveUsers(users);
+
+    showMainUI(session);
+  }
+
+  function logout() {
+    if (!confirm('確定登出？')) return;
+    clearSession();
+    showLogin();
+    // Hide main UI
+    const modeBar = document.getElementById('modeBar');
+    if (modeBar) modeBar.style.display = 'none';
+    const dash = document.getElementById('dash');
+    if (dash) dash.classList.remove('active');
+    const rmaDash = document.getElementById('rmaDash');
+    if (rmaDash) rmaDash.style.display = 'none';
+    const uz = document.getElementById('uploadZone');
+    if (uz) uz.style.display = 'none';
+  }
+
+  // ─── Admin panel ───
+  function openAdminPanel() {
+    const session = getSession();
+    if (!session || !session.isAdmin) return;
+    document.getElementById('adminPanel').style.display = 'flex';
+    document.getElementById('newUserInput').value = '';
+    document.getElementById('addUserErr').textContent = '';
+    renderUserList();
+  }
+
+  function closeAdminPanel() {
+    document.getElementById('adminPanel').style.display = 'none';
+  }
+
+  function renderUserList() {
+    const users = loadUsers();
+    const el = document.getElementById('userListEl');
+    if (!el) return;
+    const rows = Object.entries(users).map(([uid, u]) => `
+      <div class="ap-user-row ${uid === ADMIN_ID ? 'is-admin' : ''}">
+        <div class="ap-user-info">
+          <span class="ap-uid">${uid}</span>
+          ${u.isAdmin ? '<span class="ap-tag admin">管理員</span>' : ''}
+          ${u.mustChange ? '<span class="ap-tag must-change">待改密</span>' : ''}
+        </div>
+        <div class="ap-user-actions">
+          ${uid !== ADMIN_ID ? `
+            <button class="btn" onclick="Auth.resetUserPwd('${uid}')">重置密碼</button>
+            <button class="btn danger" onclick="Auth.deleteUser('${uid}')">刪除</button>
+          ` : '<span style="color:var(--text3);font-size:12px">主帳號</span>'}
+        </div>
+      </div>
+    `).join('');
+    el.innerHTML = rows || '<div style="color:var(--text3);font-size:13px">無帳號資料</div>';
+  }
+
+  async function addUser() {
+    const username = document.getElementById('newUserInput').value.trim();
+    const errEl    = document.getElementById('addUserErr');
+    errEl.textContent = '';
+    if (!username) { errEl.textContent = '請輸入帳號'; return; }
+    if (!/^[a-zA-Z0-9_\-\.]+$/.test(username)) { errEl.textContent = '帳號僅限英數字及 - _ .'; return; }
+    const users = loadUsers();
+    if (users[username]) { errEl.textContent = '帳號已存在'; return; }
+    users[username] = {
+      hash: await hashPwd(username, username),
+      isAdmin: false,
+      mustChange: true,
+      localChanged: false,
+    };
+    saveUsers(users);
+    document.getElementById('newUserInput').value = '';
+    renderUserList();
+  }
+
+  async function resetUserPwd(username) {
+    if (!confirm(`重置「${username}」的密碼為帳號名稱？對方下次登入需重設密碼。`)) return;
+    const users = loadUsers();
+    if (!users[username]) return;
+    users[username].hash = await hashPwd(username, username);
+    users[username].mustChange = true;
+    users[username].localChanged = false;
+    users[username].forceReset = true;
+    saveUsers(users);
+    renderUserList();
+    alert(`✓ 已重置「${username}」密碼。\n請記得按「☁ 發布到雲端」讓對方同步到新的帳號狀態。`);
+  }
+
+  function deleteUser(username) {
+    if (username === ADMIN_ID) { alert('不能刪除主帳號'); return; }
+    if (!confirm(`確定刪除帳號「${username}」？此操作無法復原。`)) return;
+    const users = loadUsers();
+    delete users[username];
+    saveUsers(users);
+    renderUserList();
+  }
+
+  // Export users for publishData (called by app.js)
+  function exportUsers() {
+    return loadUsers();
+  }
+
+  // Called from app.js syncCloud to merge cloud users
+  async function mergeCloudUsers(cloudUsers) {
+    await initUsers(cloudUsers || null);
+  }
+
+  // ─── Bootstrap ───
+  async function boot(cloudUsers) {
+    await initUsers(cloudUsers || null);
+    const session = getSession();
+    if (session) {
+      const users = loadUsers();
+      if (users[session.username]) {
+        // Restore session — defer showMainUI so App.init() finishes first
+        setTimeout(() => showMainUI(session), 0);
+        return true;
+      }
+    }
+    showLogin();
+    return false;
+  }
+
+  return {
+    boot, doLogin, doChangePw, logout,
+    openAdminPanel, closeAdminPanel, addUser, resetUserPwd, deleteUser,
+    exportUsers, mergeCloudUsers,
   };
 })();
 
@@ -7583,13 +8061,12 @@ function updateRmaBadge() {
   }
 }
 
-// On load, restore last mode
-document.addEventListener('DOMContentLoaded', () => {
+// On load, restore last mode — called by Auth after successful login
+function onAuthSuccess() {
   const db = RepairDB.load();
   const hasAnalysisData = Object.keys(db.months).length > 0;
   const rmaDb = RMA.stats();
 
-  // If RMA has data, show mode bar from the start
   if (rmaDb.total > 0 || hasAnalysisData) {
     document.getElementById('modeBar').style.display = 'flex';
     if (hasAnalysisData) {
@@ -7597,11 +8074,36 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       switchMode('rma');
     }
+  } else {
+    document.getElementById('uploadZone').style.display = 'flex';
   }
-  // else stays on upload zone
 
   updateRmaBadge();
-});
+}
 </script>
+
+<!-- ═══════════════ Admin Panel Modal ═══════════════ -->
+<div id="adminPanel" class="ap-overlay" style="display:none" onclick="if(event.target===this)Auth.closeAdminPanel()">
+  <div class="ap-box">
+    <div class="ap-hdr">
+      <div class="ap-title">⚙ 帳號管理</div>
+      <button class="ap-close" onclick="Auth.closeAdminPanel()">✕</button>
+    </div>
+    <div class="ap-body">
+      <!-- Add user -->
+      <div class="ap-sec-t">新增帳號</div>
+      <div class="ap-add-row">
+        <input class="ls-input" type="text" id="newUserInput" placeholder="帳號（預設密碼同帳號）"
+          onkeydown="if(event.key==='Enter')Auth.addUser()">
+        <button class="btn primary" onclick="Auth.addUser()">新增</button>
+      </div>
+      <div class="ls-err" id="addUserErr" style="margin-bottom:8px"></div>
+      <!-- User list -->
+      <div class="ap-sec-t" style="margin-top:18px">帳號列表</div>
+      <div id="userListEl" class="ap-user-list"></div>
+      <div class="ap-note">重置密碼 → 密碼恢復為帳號名稱，對方下次登入需重設。操作後請記得「☁ 發布到雲端」讓同步生效。</div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
