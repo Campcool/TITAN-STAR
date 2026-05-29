@@ -721,10 +721,34 @@ window.App = (function () {
       case 'sales': {
         // 產品口碑紅黃綠燈
         const ranks = RepairAnalyzer.modelRank(records, RepairAnalyzer.getDenominators(state.db, currentFilter()), state.db, state.selectedMonths);
+
+        // Compute consecutive green months for each model
+        const stableModels = [];
+        const improvedModels = [];
+        for (const r of ranks) {
+          if (!r.history || r.history.length < 2) continue;
+          const hist = r.history.filter(h => h.denom > 0);
+          if (hist.length < 2) continue;
+          let consecutive = 0;
+          for (let i = hist.length - 1; i >= 0; i--) {
+            if (hist[i].faultRate != null && hist[i].faultRate < 0.05) consecutive++;
+            else break;
+          }
+          if (consecutive >= 2) stableModels.push({ model: r.model, months: consecutive });
+          const last = hist[hist.length - 1];
+          const prev = hist[hist.length - 2];
+          if (last.faultRate != null && last.faultRate < 0.05 &&
+              prev.faultRate != null && prev.faultRate >= 0.05) {
+            improvedModels.push(r.model);
+          }
+        }
+
         const risky = ranks.filter(r => (r.faultRate||0) >= 0.1 || r.scrap > 0).slice(0,3);
         const stable = ranks.filter(r => (r.faultRate!=null) && r.faultRate < 0.05).slice(0,3);
         if (risky.length) addCard('●','var(--critical)','需謹慎銷售（紅燈）',`${risky.map(r=>r.model).join('、')} 故障率偏高或有報廢，對外溝通宜保守`,'口碑');
-        if (stable.length) addCard('●','var(--ok)','可安心主推（綠燈）',`${stable.map(r=>r.model).join('、')} 故障率低且穩定，適合作為主力推廣機種`,'推廣');
+        if (stableModels.length) addCard('●','var(--ok)','可安心主推（穩定 ≥2月）',`${stableModels.slice(0,4).map(m=>`${m.model}(${m.months}月)`).join('、')} 持續低故障，適合主力推廣`,'推廣');
+        else if (stable.length) addCard('●','var(--ok)','可安心主推（綠燈）',`${stable.map(r=>r.model).join('、')} 故障率低且穩定，適合作為主力推廣機種`,'推廣');
+        if (improvedModels.length) addCard('↗','var(--accent)','近期改善機種',`${improvedModels.slice(0,3).join('、')} 從高故障轉為穩定，是業務說故事的好素材`,'改善');
         if (crossSerial.length > 0) addCard('⇄','var(--critical)','客戶信心風險',`<strong>${crossSerial.length}</strong> 台跨月重複故障，這是客戶實際感受到的「不可靠」，恐影響續單`,'客戶');
         if (topModel) addCard('⚙','var(--warn)','主訴機種',`${topModel[0]} 維修量最高（${topModel[1]}件），業務應準備對應客戶說明`,'溝通');
         break;
@@ -1360,6 +1384,7 @@ window.App = (function () {
             <div class="pnum">${(p.pct * 100).toFixed(1)}% / ${(p.cumPct * 100).toFixed(0)}%</div>
           </div>
         </td>
+        <td><button class="btn sm" onclick="App.openPartFaultDrawer('${escapeAttr(p.name)}')">詳情</button></td>
       </tr>
     `).join('');
   }
@@ -1593,6 +1618,63 @@ window.App = (function () {
         },
       },
     });
+
+    // Fault taxonomy MoM comparison
+    const taxonomy = RepairAnalyzer.FAULT_TAXONOMY;
+    const taxKeys = Object.keys(taxonomy);
+
+    const curCounts = {};
+    for (const r of records) {
+      const text = `${r.content || ''} ${r.reason || ''}`;
+      const cat = RepairAnalyzer.classifyFault(text);
+      curCounts[cat] = (curCounts[cat] || 0) + 1;
+    }
+
+    const sortedSel = state.selectedMonths.slice().sort();
+    const curMk = sortedSel[sortedSel.length - 1];
+    const prevMk = sortedSel.length > 1 ? sortedSel[sortedSel.length - 2] : null;
+
+    let prevCounts = {};
+    if (prevMk) {
+      const pf = currentFilter();
+      const prevRecs = RepairAnalyzer.getRecords(state.db, { ...pf, months: [prevMk] });
+      for (const r of prevRecs) {
+        const text = `${r.content || ''} ${r.reason || ''}`;
+        const cat = RepairAnalyzer.classifyFault(text);
+        prevCounts[cat] = (prevCounts[cat] || 0) + 1;
+      }
+    }
+
+    const taxAllKeys = [...taxKeys, '其他/未分類'].filter(k => curCounts[k] || prevCounts[k]);
+    const reasonTaxSection = $('reasonTaxSection');
+    if (reasonTaxSection && taxAllKeys.length) {
+      const ctx = $('reasonTaxChart');
+      if (ctx) {
+        const datasets = [
+          { label: fmt.monthLabel(curMk) || '本期', data: taxAllKeys.map(k => curCounts[k] || 0),
+            backgroundColor: taxAllKeys.map(k => (taxonomy[k]?.color || '#94a2b6') + 'cc'), borderRadius:4 },
+        ];
+        if (prevMk) {
+          datasets.push({
+            label: fmt.monthLabel(prevMk) + '（前期）',
+            data: taxAllKeys.map(k => prevCounts[k] || 0),
+            backgroundColor: taxAllKeys.map(k => (taxonomy[k]?.color || '#94a2b6') + '55'), borderRadius:4,
+          });
+        }
+        state.charts.reasonTax = new Chart(ctx, {
+          type:'bar',
+          data: { labels: taxAllKeys.map(k => k.replace('/','/ ')), datasets },
+          options: {
+            maintainAspectRatio:false, responsive:true,
+            plugins:{ legend:{ position:'top', labels:{ color:COLORS.text2, font:{size:11} } } },
+            scales:{
+              x:{ ticks:{ color:COLORS.text3 }, grid:{ display:false } },
+              y:{ beginAtZero:true, ticks:{ color:COLORS.text3 }, grid:{ color:COLORS.border } },
+            },
+          },
+        });
+      }
+    }
   }
 
   // ─────────────── Scrap + Repeated ───────────────
@@ -2207,6 +2289,49 @@ window.App = (function () {
       bodyHtml: partDrillContent(partNorm),
     });
   }
+  function openPartFaultDrawer(partNorm) {
+    const f = currentFilter();
+    const allRecords = RepairAnalyzer.getRecords(state.db, f);
+    const partRecords = allRecords.filter(r =>
+      r.part1Norm === partNorm || r.part2Norm === partNorm || r.part3Norm === partNorm
+    );
+    const byTaxonomy = {};
+    for (const r of partRecords) {
+      const text = `${r.content || ''} ${r.reason || ''}`;
+      const cat = RepairAnalyzer.classifyFault(text);
+      if (!byTaxonomy[cat]) byTaxonomy[cat] = [];
+      byTaxonomy[cat].push(r);
+    }
+    const sortedCats = Object.entries(byTaxonomy).sort((a,b) => b[1].length - a[1].length);
+    openDrawer({
+      severity: 'info', icon: '▤',
+      overline: '零件故障記錄詳情',
+      title: partNorm,
+      bodyHtml: `
+        <div class="drawer-banner info">
+          共 <strong>${partRecords.length}</strong> 筆記錄使用此零件 · 依故障部位分類
+        </div>
+        ${sortedCats.map(([cat, recs]) => `
+          <div class="drawer-sec">
+            <div class="drawer-sec-t"><span class="strong">${cat}</span> <span class="count-tag">${recs.length} 筆</span></div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              ${recs.slice(0, 15).map(r => `
+                <div style="padding:8px 12px;background:var(--surface2);border-radius:6px;font-size:12px">
+                  <div style="display:flex;gap:10px;justify-content:space-between;margin-bottom:3px">
+                    <span style="font-family:var(--mono);color:var(--text3)">${r.date || '—'} · ${r.model}</span>
+                    ${r.serial ? `<span style="font-family:var(--mono);color:var(--text3)">#${escapeHtml(r.serial)}</span>` : ''}
+                  </div>
+                  <div style="color:${r.isScrap ? 'var(--critical)' : 'var(--text)'}">${escapeHtml(r.content || r.reason || '—')}</div>
+                </div>
+              `).join('')}
+              ${recs.length > 15 ? `<div style="text-align:center;color:var(--text3);font-size:11px;padding:4px">…還有 ${recs.length - 15} 筆</div>` : ''}
+            </div>
+          </div>
+        `).join('')}
+        ${partRecords.length === 0 ? '<div class="empty"><div class="empty-t">無記錄</div></div>' : ''}
+      `
+    });
+  }
   function openModelDrawer(model, focusMonth) {
     const cat = RepairParser.getCategory(model);
     const subtitle = focusMonth ? ` · ${fmt.monthLabel(focusMonth)}` : '';
@@ -2398,9 +2523,26 @@ window.App = (function () {
   function renderCapa() {
     const list = loadCapa();
     const open = list.filter(c => c.status !== 'closed').length;
-    $('capaMeta').textContent = `${list.length} 項 · ${open} 進行中`;
+    const today = new Date().toISOString().slice(0, 10);
+    const overdue = list.filter(c => c.due && c.status !== 'closed' && c.due < today).length;
+    const closed = list.filter(c => c.status === 'closed').length;
+    const overdueRate = open > 0 ? Math.round(overdue / list.filter(c => c.status !== 'closed').length * 100) : 0;
+    $('capaMeta').textContent = `${list.length} 項 · ${open} 進行中 · ${overdue} 逾期`;
     const badge = $('capaBadge');
     if (badge) { if (open > 0) { badge.textContent = open; badge.style.display = ''; } else badge.style.display = 'none'; }
+
+    const capaKpiRow = $('capaKpiRow');
+    if (capaKpiRow && list.length > 0) {
+      capaKpiRow.innerHTML = `
+        <div class="capa-kpi-grid">
+          <div class="capa-kpi-item"><div class="capa-kpi-v">${list.length}</div><div class="capa-kpi-l">總計</div></div>
+          <div class="capa-kpi-item" style="--cc:var(--warn)"><div class="capa-kpi-v" style="color:var(--warn)">${open}</div><div class="capa-kpi-l">進行中</div></div>
+          <div class="capa-kpi-item" style="--cc:var(--critical)"><div class="capa-kpi-v" style="color:${overdue>0?'var(--critical)':'var(--ok)'}">${overdue}</div><div class="capa-kpi-l">逾期 (${overdueRate}%)</div></div>
+          <div class="capa-kpi-item" style="--cc:var(--ok)"><div class="capa-kpi-v" style="color:var(--ok)">${closed}</div><div class="capa-kpi-l">已結案</div></div>
+        </div>`;
+    } else if (capaKpiRow) {
+      capaKpiRow.innerHTML = '';
+    }
 
     if (!list.length) {
       $('capaList').innerHTML = `<div class="empty"><div class="empty-ico">✓</div><div class="empty-t">尚無 CAPA 項目</div><div class="empty-d">點右上角「+ 新增 CAPA」建立矯正預防措施</div></div>`;
@@ -2512,6 +2654,16 @@ window.App = (function () {
     }
 
     const fmtMoney = (n) => 'NT$ ' + Math.round(n).toLocaleString('en');
+
+    // Monthly COPQ trend (all months)
+    const allMonthKeys = Object.keys(state.db.months).sort();
+    const costByMonth = allMonthKeys.map(mk => {
+      const recs = RepairAnalyzer.getRecords(state.db, { months: [mk] });
+      const c = RepairAnalyzer.costAnalysis(recs, cfg);
+      return { month: mk, scrap: c.scrapCost, labor: c.laborCost, total: c.totalCost };
+    });
+    const hasTrend = costByMonth.length >= 2;
+
     $('costContent').innerHTML = `
       <div class="kpi-grid">
         <div class="kpi k-red">
@@ -2525,13 +2677,24 @@ window.App = (function () {
           <div class="kpi-d"><span class="muted">${fmt.int(records.length)} 件 × 單件工時</span></div>
         </div>
         <div class="kpi k-blue">
-          <div class="kpi-h"><div class="kpi-l">總損失</div><div class="kpi-ico">∑</div></div>
+          <div class="kpi-h"><div class="kpi-l">總損失 (COPQ)</div><div class="kpi-ico">∑</div></div>
           <div class="kpi-v" style="font-size:34px">${fmtMoney(cost.totalCost)}</div>
           <div class="kpi-d"><span class="muted">報廢 + 工時</span></div>
         </div>
       </div>
+      ${hasTrend ? `
+      <div class="card sec">
+        <div class="card-h">
+          <div class="card-t">COPQ 月度趨勢</div>
+          <button class="btn sm" onclick="App.exportCostCsv()" style="margin-left:auto">⤓ 匯出 CSV</button>
+        </div>
+        <div class="chart-wrap"><canvas id="costTrendChart"></canvas></div>
+      </div>` : ''}
       <div class="sec">
-        <div class="sec-h"><span class="sec-t"><span class="strong">各類別成本分布</span></span></div>
+        <div class="sec-h">
+          <span class="sec-t"><span class="strong">各類別成本分布</span></span>
+          ${!hasTrend ? `<button class="btn sm" onclick="App.exportCostCsv()">⤓ 匯出 CSV</button>` : ''}
+        </div>
         <div class="tbl-wrap"><table class="tbl">
           <thead><tr><th>類別</th><th class="right">件數</th><th class="right">報廢數</th><th class="right">報廢成本</th><th class="right">工時成本</th><th class="right">合計</th></tr></thead>
           <tbody>${cost.byCategory.map(c => `
@@ -2540,6 +2703,34 @@ window.App = (function () {
             <td class="right"><strong>${fmtMoney(c.total)}</strong></td></tr>`).join('')}
           </tbody></table></div>
       </div>`;
+
+    // Initialize cost trend chart after DOM update
+    if (hasTrend) {
+      const ctx = $('costTrendChart');
+      if (ctx) {
+        const labels = costByMonth.map(t => fmt.monthLabel(t.month));
+        state.charts.costTrend = new Chart(ctx, {
+          data: {
+            labels,
+            datasets: [
+              { type:'bar', label:'報廢成本', data: costByMonth.map(t => Math.round(t.scrap)), backgroundColor: COLORS.critical+'cc', borderRadius:4 },
+              { type:'bar', label:'工時成本', data: costByMonth.map(t => Math.round(t.labor)), backgroundColor: COLORS.warn+'cc', borderRadius:4 },
+              { type:'line', label:'總損失', data: costByMonth.map(t => Math.round(t.total)),
+                borderColor: COLORS.ok, backgroundColor:'transparent', tension:.3, pointRadius:4,
+                pointBackgroundColor: COLORS.ok, borderWidth:2, yAxisID:'y' },
+            ],
+          },
+          options: {
+            maintainAspectRatio:false, responsive:true,
+            plugins:{ legend:{ position:'top', labels:{ color:COLORS.text2 } } },
+            scales:{
+              x:{ stacked:true, ticks:{ color:COLORS.text3 }, grid:{ display:false } },
+              y:{ stacked:true, beginAtZero:true, ticks:{ color:COLORS.text3, callback:v=>'NT$'+Math.round(v/1000)+'K' }, grid:{ color:COLORS.border } },
+            },
+          },
+        });
+      }
+    }
   }
 
   function openCostConfig() {
@@ -2573,6 +2764,33 @@ window.App = (function () {
     saveCostCfg(cfg);
     closeDrawer();
     if (state.currentPage === 'cost') renderCost();
+  }
+
+  function exportCostCsv() {
+    const f = currentFilter();
+    const records = RepairAnalyzer.getRecords(state.db, f);
+    const cfg = loadCostCfg();
+    const allMonthKeys = Object.keys(state.db.months).sort();
+    const rows = [['月份','維修件數','報廢件數','報廢成本(NT$)','工時成本(NT$)','總損失(NT$)']];
+    for (const mk of allMonthKeys) {
+      const recs = RepairAnalyzer.getRecords(state.db, { months: [mk] });
+      const c = RepairAnalyzer.costAnalysis(recs, cfg);
+      rows.push([fmt.monthLabel(mk), recs.length, c.scrapCount, Math.round(c.scrapCost), Math.round(c.laborCost), Math.round(c.totalCost)]);
+    }
+    rows.push([]);
+    rows.push(['類別','件數','報廢數','報廢成本','工時成本','合計']);
+    const cost = RepairAnalyzer.costAnalysis(records, cfg);
+    for (const c of cost.byCategory) {
+      rows.push([c.cat, c.count, c.scrap, Math.round(c.scrapCost), Math.round(c.laborCost), Math.round(c.total)]);
+    }
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `COPQ成本摘要_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   // ─────────────── Init ───────────────
@@ -2610,6 +2828,12 @@ window.App = (function () {
     // Drawer
     openKpiDrawer, openAnomalyDrawer, openPartDrawer, openModelDrawer, openSerialDrawer,
     closeDrawer,
+    // New functions
+    searchDetail,
+    openPartFaultDrawer,
+    saveFmeaOverride,
+    resetFmeaOverrides,
+    exportCostCsv,
   };
 })();
 
