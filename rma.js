@@ -23,6 +23,51 @@ window.RMA = (function () {
 
   const CATEGORY_MAP = window.RepairParser ? window.RepairParser.CATEGORY_MAP : {};
 
+  // ─── Role definitions ───
+  const ROLES = {
+    all:       { label:'綜合視角', short:'綜合',   icon:'⊞', color:'#38bdf8', desc:'所有部門共同關注的核心指標' },
+    ceo:       { label:'董事長',   short:'董事長',  icon:'◈', color:'#a78bfa', desc:'戰略績效 · 風險評估 · 財務影響' },
+    factory:   { label:'廠長',     short:'廠長',    icon:'⊙', color:'#fb923c', desc:'跨部門協調 · 積壓管理 · 資源調配' },
+    procure:   { label:'採購主管', short:'採購',    icon:'◎', color:'#facc15', desc:'零件需求 · 供應商風險 · 換件成本' },
+    prod:      { label:'生產主管', short:'生產',    icon:'⚙', color:'#10b981', desc:'良率 · 機種分布 · 製程異常' },
+    qa:        { label:'品檢主管', short:'品檢',    icon:'◇', color:'#f472b6', desc:'重複故障 · 保固分析 · CAPA追蹤' },
+    logistics: { label:'物流主管', short:'物流',    icon:'↗', color:'#34d399', desc:'SLA達成 · 在廠天數 · 出貨排程' },
+    cs:        { label:'客服主管', short:'客服',    icon:'◉', color:'#60a5fa', desc:'客戶溝通 · 逾期通知 · 保固處理' },
+    repair:    { label:'維修主管', short:'維修',    icon:'✦', color:'#f59e0b', desc:'工單分配 · 技師效率 · 報廢判定' },
+    hw:        { label:'硬體研發', short:'硬體',    icon:'◁', color:'#818cf8', desc:'設計缺陷 · ECO · 元件可靠性' },
+    fw:        { label:'韌體研發', short:'韌體',    icon:'▷', color:'#22d3ee', desc:'韌體Bug · OTA修復 · 版本分析' },
+  };
+
+  // ─── Column definitions ───
+  const COL_DEFS = {
+    id:      { th:'案件號',    w:'120px' },
+    model:   { th:'機種/序號', w:'130px' },
+    category:{ th:'大類',     w:'80px'  },
+    customer:{ th:'客戶',     w:'120px' },
+    issue:   { th:'故障描述', w:'160px' },
+    warranty:{ th:'保固',     w:'72px'  },
+    receivedDate:   { th:'收件日',   w:'88px' },
+    estimatedReturn:{ th:'預計回覆', w:'88px' },
+    days:    { th:'天數',     w:'60px'  },
+    status:  { th:'狀態',     w:'90px'  },
+    parts:   { th:'換件記錄', w:'140px' },
+    techName:{ th:'技師',     w:'80px'  },
+  };
+
+  const ROLE_COLS = {
+    all:       { cols:['id','model','category','customer','issue','warranty','receivedDate','days','status'],        hi:['days','status'] },
+    ceo:       { cols:['id','model','category','warranty','days','status'],                                         hi:['status','days'] },
+    factory:   { cols:['id','model','category','customer','receivedDate','days','status'],                          hi:['days'] },
+    procure:   { cols:['id','model','category','warranty','parts','receivedDate','status'],                         hi:['parts','warranty'] },
+    prod:      { cols:['id','model','category','issue','receivedDate','status'],                                    hi:['category','model'] },
+    qa:        { cols:['id','model','warranty','issue','status'],                                                   hi:['warranty'] },
+    logistics: { cols:['id','model','receivedDate','estimatedReturn','days','status'],                              hi:['days','estimatedReturn'] },
+    cs:        { cols:['id','customer','model','warranty','estimatedReturn','status'],                              hi:['customer','estimatedReturn'] },
+    repair:    { cols:['id','model','techName','issue','days','status'],                                            hi:['status','days','techName'] },
+    hw:        { cols:['id','model','category','issue','warranty','parts','status'],                                hi:['model','warranty'] },
+    fw:        { cols:['id','model','issue','days','status'],                                                       hi:['issue'] },
+  };
+
   // ─── Storage ───
   function load() {
     try {
@@ -173,10 +218,191 @@ window.RMA = (function () {
     return { total: cases.length, open, overdue, byStatus, byCategory, byMonth };
   }
 
+  function computeExtStats(cases) {
+    const today = new Date().toISOString().substring(0, 10);
+    const thisMonth = today.substring(0, 7);
+
+    const serialCount = {};
+    const partFreq = {};
+    const byCategory = {};
+    const byModel = {};
+    let warrantyIn = 0, scrapped = 0, swFaults = 0;
+
+    const swKw = ['當機','異常關機','無法開機','無回應','軟體','韌體','系統','連線','網路','藍牙','WiFi','更新','升級'];
+
+    for (const c of cases) {
+      if (c.serial) serialCount[c.serial] = (serialCount[c.serial] || 0) + 1;
+      if (c.warranty === 'in') warrantyIn++;
+      if (c.status === 'scrapped') scrapped++;
+      if (swKw.some(kw => (c.issueDesc || '').includes(kw))) swFaults++;
+      byCategory[c.category] = (byCategory[c.category] || 0) + 1;
+      if (c.model) byModel[c.model] = (byModel[c.model] || 0) + 1;
+      for (const p of [...(c.diagnosis?.parts || []), ...(c.repair?.parts || [])]) {
+        partFreq[p.part] = (partFreq[p.part] || 0) + (p.qty || 1);
+      }
+    }
+
+    const repeatSerials = Object.values(serialCount).filter(n => n > 1).length;
+    const topPart = Object.entries(partFreq).sort((a, b) => b[1] - a[1])[0] || null;
+    const topCategory = Object.entries(byCategory).sort((a, b) => b[1] - a[1])[0] || null;
+    const topModel = Object.entries(byModel).sort((a, b) => b[1] - a[1])[0] || null;
+    const totalParts = Object.values(partFreq).reduce((s, n) => s + n, 0);
+
+    const closedThisMonth = cases.filter(c =>
+      ['shipped', 'scrapped', 'cancelled'].includes(c.status) &&
+      (c.statusHistory || []).some(h => h.date?.startsWith(thisMonth) && ['shipped', 'scrapped', 'cancelled'].includes(h.status))
+    ).length;
+
+    const shippedThisMonth = cases.filter(c => {
+      return c.status === 'shipped' && (c.statusHistory || []).some(h => h.date?.startsWith(thisMonth) && h.status === 'shipped');
+    }).length;
+
+    const cycles = cases.map(c => {
+      const end = c.actualReturn || (c.status === 'shipped' ? today : null);
+      if (!end || !c.receivedDate) return null;
+      return Math.floor((new Date(end) - new Date(c.receivedDate)) / 86400000);
+    }).filter(d => d !== null && d >= 0);
+    const avgCycleDays = cycles.length ? Math.round(cycles.reduce((s, d) => s + d, 0) / cycles.length) : 0;
+
+    return {
+      repeatSerials, warrantyIn, scrapped, swFaults,
+      topPart, topCategory, topModel, totalParts,
+      closedThisMonth, shippedThisMonth, avgCycleDays,
+      scrapRate: cases.length ? Math.round(scrapped / cases.length * 100) : 0,
+      warrantyInRate: cases.length ? Math.round(warrantyIn / cases.length * 100) : 0,
+    };
+  }
+
+  function getRoleKPIs(role, cases, ext, st) {
+    const today = new Date().toISOString().substring(0, 10);
+    const thisMonth = today.substring(0, 7);
+    switch (role) {
+      case 'all': return [
+        { label:'總案件',      value: st.total,              color:'blue', desc:'累計所有案件' },
+        { label:'進行中',      value: st.open,               color:'warn', desc:'尚未關閉案件' },
+        { label:'已逾期',      value: st.overdue,            color: st.overdue > 0 ? 'red' : 'ok', desc:'超過預計回覆日' },
+        { label:'本月完成',    value: ext.closedThisMonth,   color:'info', desc:'出貨+報廢+取消' },
+        { label:'平均在廠天數',value: ext.avgCycleDays + '天', color:'blue', desc:'收件至完成平均' },
+        { label:'報廢率',      value: ext.scrapRate + '%',   color: ext.scrapRate > 10 ? 'red' : 'ok', desc:'累計報廢/總案件' },
+      ];
+      case 'ceo': return [
+        { label:'本月完成',    value: ext.closedThisMonth,   color:'ok',   desc:'出貨結案件數' },
+        { label:'逾期風險',    value: st.overdue,            color: st.overdue > 0 ? 'red' : 'ok', desc:'超出承諾日' },
+        { label:'報廢率',      value: ext.scrapRate + '%',   color: ext.scrapRate > 10 ? 'red' : 'ok', desc:'品質指標' },
+        { label:'平均週轉天數',value: ext.avgCycleDays + '天', color:'blue', desc:'維修效率指標' },
+      ];
+      case 'factory': return [
+        { label:'進行中',      value: st.open,               color:'warn', desc:'需關注的案件' },
+        { label:'逾期未處理',  value: st.overdue,            color: st.overdue > 0 ? 'red' : 'ok', desc:'需立即介入' },
+        { label:'待診斷分配',  value: st.byStatus.received || 0, color:'blue', desc:'剛收件待分配技師' },
+        { label:'測試完畢可出貨', value: st.byStatus.testing || 0, color:'ok', desc:'即將完工' },
+      ];
+      case 'procure': return [
+        { label:'已記錄換件次數', value: ext.totalParts,    color:'blue', desc:'診斷+維修累計換件' },
+        { label:'保固外案件',  value: cases.filter(c => c.warranty === 'out').length, color:'warn', desc:'可能涉及換件費用' },
+        { label:'最高頻零件',  value: ext.topPart ? ext.topPart[0] : '—', color:'info', desc: ext.topPart ? `累計 ${ext.topPart[1]} 次` : '尚無換件記錄' },
+        { label:'待診斷件數',  value: st.byStatus.received || 0, color:'warn', desc:'即將產生換件需求' },
+      ];
+      case 'prod': return [
+        { label:'最高故障大類', value: ext.topCategory ? ext.topCategory[0] : '—', color:'warn', desc: ext.topCategory ? `${ext.topCategory[1]} 件` : '無資料' },
+        { label:'最高故障機種', value: ext.topModel ? ext.topModel[0] : '—',     color:'red',  desc: ext.topModel ? `${ext.topModel[1]} 件` : '無資料' },
+        { label:'報廢件數',    value: ext.scrapped,          color: ext.scrapped > 0 ? 'red' : 'ok', desc:'需分析製程根因' },
+        { label:'本月結案',    value: ext.closedThisMonth,   color:'blue', desc:'本月完成件數' },
+      ];
+      case 'qa': return [
+        { label:'重複序號',    value: ext.repeatSerials,     color: ext.repeatSerials > 0 ? 'red' : 'ok', desc:'同設備多次進廠' },
+        { label:'保固內比例',  value: ext.warrantyInRate + '%', color: ext.warrantyInRate > 50 ? 'warn' : 'blue', desc:'設計/品質問題指標' },
+        { label:'報廢件數',    value: ext.scrapped,          color: ext.scrapped > 0 ? 'red' : 'ok', desc:'本期累計報廢' },
+        { label:'總案件基數',  value: st.total,              color:'blue', desc:'統計基礎母數' },
+      ];
+      case 'logistics': return [
+        { label:'測試完可出貨', value: st.byStatus.testing || 0, color:'ok', desc:'等待安排出貨' },
+        { label:'逾期超SLA',   value: st.overdue,            color: st.overdue > 0 ? 'red' : 'ok', desc:'超過承諾回覆日' },
+        { label:'平均在廠天數', value: ext.avgCycleDays + '天', color:'blue', desc:'週轉效率' },
+        { label:'本月已出貨',  value: ext.shippedThisMonth,  color:'ok', desc:'本月出貨件數' },
+      ];
+      case 'cs': return [
+        { label:'逾期未回覆',  value: st.overdue,            color: st.overdue > 0 ? 'red' : 'ok', desc:'需主動聯繫客戶' },
+        { label:'保固內案件',  value: ext.warrantyIn,        color:'blue', desc:'優先處理保固糾紛' },
+        { label:'進行中案件',  value: st.open,               color:'warn', desc:'客戶等待回覆' },
+        { label:'本月完成通知', value: ext.closedThisMonth,  color:'ok',  desc:'已完成結案' },
+      ];
+      case 'repair': return [
+        { label:'待診斷',      value: st.byStatus.received || 0,   color:'blue', desc:'需分配技師' },
+        { label:'診斷中',      value: st.byStatus.diagnosing || 0, color:'warn', desc:'技師進行中' },
+        { label:'維修中',      value: st.byStatus.repairing || 0,  color:'warn', desc:'換件/調整中' },
+        { label:'測試中',      value: st.byStatus.testing || 0,    color:'ok',   desc:'即將完工' },
+      ];
+      case 'hw': return [
+        { label:'重複序號',    value: ext.repeatSerials,     color: ext.repeatSerials > 0 ? 'red' : 'ok', desc:'可能設計缺陷' },
+        { label:'保固內比例',  value: ext.warrantyInRate + '%', color: ext.warrantyInRate > 50 ? 'red' : 'blue', desc:'設計問題指標' },
+        { label:'最高故障機種', value: ext.topModel ? ext.topModel[0] : '—', color:'warn', desc: ext.topModel ? `${ext.topModel[1]} 件` : '無資料' },
+        { label:'報廢率',      value: ext.scrapRate + '%',   color: ext.scrapRate > 10 ? 'red' : 'ok', desc:'硬體損壞程度' },
+      ];
+      case 'fw': return [
+        { label:'疑似韌體故障', value: ext.swFaults,         color: ext.swFaults > 0 ? 'warn' : 'ok', desc:'含軟體關鍵字案件' },
+        { label:'保固內案件',  value: ext.warrantyIn,        color:'blue', desc:'可能含韌體問題' },
+        { label:'診斷+維修中', value: (st.byStatus.diagnosing || 0) + (st.byStatus.repairing || 0), color:'warn', desc:'可評估OTA修復' },
+        { label:'已換件次數',  value: ext.totalParts,        color:'blue', desc:'可能是軟硬整合問題' },
+      ];
+      default: return [];
+    }
+  }
+
+  function renderCellParts(c) {
+    const parts = [...(c.diagnosis?.parts || []), ...(c.repair?.parts || [])];
+    if (!parts.length) return '<span style="color:var(--text3)">—</span>';
+    return parts.slice(0, 2).map(p =>
+      `<span style="display:inline-block;background:var(--surface2);border-radius:4px;padding:1px 6px;margin:1px;font-family:var(--mono);font-size:11.5px">${esc(p.part)}×${p.qty}</span>`
+    ).join('') + (parts.length > 2 ? `<span style="color:var(--text3);font-size:11px"> +${parts.length - 2}</span>` : '');
+  }
+
+  function renderCell(col, c, hi, today) {
+    const open = !['shipped', 'scrapped', 'cancelled'].includes(c.status);
+    const overdue = open && c.estimatedReturn && c.estimatedReturn < today;
+    const hiCls = hi ? ' rma-col-hi' : '';
+    switch (col) {
+      case 'id':
+        return `<td><span class="rma-id">${c.id}</span></td>`;
+      case 'model':
+        return `<td class="${hiCls}"><div class="rma-model" style="${hi ? 'color:inherit' : ''}">${esc(c.model)}</div>${c.serial ? `<div class="rma-serial">#${esc(c.serial)}</div>` : ''}</td>`;
+      case 'category':
+        return `<td class="${hiCls}"><span class="tag cat" style="--c:${CAT_COLOR[c.category] || '#64748b'}">${esc(c.category)}</span></td>`;
+      case 'customer':
+        return `<td class="${hiCls}"><div style="font-size:13px;font-weight:${hi ? '700' : '400'}">${esc(c.customer) || '<span style="color:var(--text3)">—</span>'}</div>${c.contactName ? `<div style="font-size:11.5px;color:var(--text3)">${esc(c.contactName)}</div>` : ''}</td>`;
+      case 'issue':
+        return `<td class="${hiCls}" style="max-width:200px"><div style="font-size:12.5px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.issueDesc) || '—'}</div></td>`;
+      case 'warranty':
+        return `<td class="${hiCls}"><span style="font-family:var(--mono);font-size:12px;font-weight:700;color:${warrantyColor(c.warranty)}">${warrantyLabel(c.warranty)}</span></td>`;
+      case 'receivedDate':
+        return `<td><span style="font-family:var(--mono);font-size:12.5px;color:var(--text3)">${fmtDate(c.receivedDate)}</span></td>`;
+      case 'estimatedReturn': {
+        const od = c.estimatedReturn && c.estimatedReturn < today && open;
+        return `<td class="${hiCls}"><span style="font-family:var(--mono);font-size:12.5px;font-weight:${hi ? '700' : '400'};color:${od ? 'var(--critical)' : c.estimatedReturn ? 'var(--text2)' : 'var(--text3)'}">${fmtDate(c.estimatedReturn)}</span>${od ? '<span style="display:block;font-size:10px;color:var(--critical)">⚠ 逾期</span>' : ''}</td>`;
+      }
+      case 'days': {
+        const days = daysSince(c.receivedDate);
+        return `<td><span style="font-family:var(--mono);font-size:13px;font-weight:${hi ? '700' : '400'};color:${overdue ? 'var(--critical)' : open ? 'var(--text2)' : 'var(--text3)'}">${days != null ? days + '天' : '—'}</span>${overdue && hi ? '<span style="display:block;font-size:10px;color:var(--critical)">逾期!</span>' : ''}</td>`;
+      }
+      case 'status': {
+        const s = STATUS[c.status] || STATUS.received;
+        return `<td><span class="rma-status-badge" style="--sc:${s.color}">${s.icon} ${s.label}</span></td>`;
+      }
+      case 'parts':
+        return `<td class="${hiCls}"><div style="font-size:12px">${renderCellParts(c)}</div></td>`;
+      case 'techName': {
+        const tech = c.diagnosis?.techName || c.repair?.techName || '';
+        return `<td class="${hiCls}"><span style="font-size:12.5px;color:${tech ? 'var(--text2)' : 'var(--text3)'};font-weight:${hi ? '700' : '400'}">${esc(tech) || '未分配'}</span></td>`;
+      }
+      default: return '<td></td>';
+    }
+  }
+
   // ─── UI State ───
   const state = {
     page: 'list',   // list | new | detail
     filter: { status: 'all', category: '全部', q: '' },
+    role: 'all',
     detailId: null,
     editingDiagnosis: false,
     editingRepair: false,
@@ -238,9 +464,19 @@ window.RMA = (function () {
 
   // ── List page ──
   function renderList() {
+    const allCases = load().cases;
     const st = stats();
+    const ext = computeExtStats(allCases);
     const cases = listCases(state.filter);
     const today = new Date().toISOString().substring(0, 10);
+    const role = state.role || 'all';
+    const roleInfo = ROLES[role];
+    const kpis = getRoleKPIs(role, allCases, ext, st);
+    const colCfg = ROLE_COLS[role] || ROLE_COLS.all;
+
+    const pipeStatuses = ['received', 'diagnosing', 'repairing', 'testing', 'shipped'];
+    const pipeTotal = pipeStatuses.reduce((s, k) => s + (st.byStatus[k] || 0), 0) || 1;
+    const showPipe = ['all', 'factory', 'repair', 'logistics'].includes(role);
 
     const statusTabs = [
       { key: 'all', label: '全部', count: st.total },
@@ -249,6 +485,8 @@ window.RMA = (function () {
 
     return `
       <div class="rma-page">
+
+        <!-- ── Header ── -->
         <div class="rma-page-h">
           <div>
             <div class="page-t">RMA 案件管理</div>
@@ -260,44 +498,79 @@ window.RMA = (function () {
           </div>
         </div>
 
-        <!-- KPI strip -->
-        <div class="rma-kpi-row">
-          <div class="rma-kpi rma-kpi-blue">
-            <div class="rma-kpi-l">總案件</div>
-            <div class="rma-kpi-v">${st.total}</div>
-            <div class="rma-kpi-d">累計所有案件</div>
-          </div>
-          <div class="rma-kpi rma-kpi-warn">
-            <div class="rma-kpi-l">進行中</div>
-            <div class="rma-kpi-v">${st.open}</div>
-            <div class="rma-kpi-d">尚未關閉案件</div>
-          </div>
-          <div class="rma-kpi ${st.overdue > 0 ? 'rma-kpi-red' : 'rma-kpi-ok'}">
-            <div class="rma-kpi-l">已逾期</div>
-            <div class="rma-kpi-v">${st.overdue}</div>
-            <div class="rma-kpi-d">超過預計回覆日</div>
-          </div>
-          <div class="rma-kpi rma-kpi-info">
-            <div class="rma-kpi-l">已完成 (本月)</div>
-            <div class="rma-kpi-v">${countClosedThisMonth()}</div>
-            <div class="rma-kpi-d">出貨 + 報廢 + 取消</div>
+        <!-- ── Role switcher ── -->
+        <div class="rma-role-bar">
+          ${Object.entries(ROLES).map(([k, r]) => `
+            <button class="rma-role-chip ${role === k ? 'active' : ''}"
+                    style="${role === k ? `--rc:${r.color}` : ''}"
+                    onclick="RMA.setRole('${k}')" title="${r.desc}">
+              <span class="rma-role-ico">${r.icon}</span>
+              <span class="rma-role-label">${r.short}</span>
+            </button>
+          `).join('')}
+        </div>
+
+        <!-- ── Role context banner ── -->
+        <div class="rma-role-banner" style="--rc:${roleInfo.color}">
+          <span class="rma-role-banner-ico">${roleInfo.icon}</span>
+          <div>
+            <div class="rma-role-banner-t">${roleInfo.label} 視角</div>
+            <div class="rma-role-banner-d">${roleInfo.desc}</div>
           </div>
         </div>
 
-        <!-- Status tabs -->
+        <!-- ── KPI strip (dynamic per role) ── -->
+        <div class="rma-kpi-row" style="grid-template-columns:repeat(${kpis.length},1fr)">
+          ${kpis.map(k => `
+            <div class="rma-kpi rma-kpi-${k.color}" style="--rc:${roleInfo.color}">
+              <div class="rma-kpi-l">${k.label}</div>
+              <div class="rma-kpi-v">${k.value}</div>
+              <div class="rma-kpi-d">${k.desc}</div>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- ── Pipeline flow bar ── -->
+        ${showPipe ? `
+          <div class="rma-pipeline-bar">
+            ${pipeStatuses.map(s => {
+              const n = st.byStatus[s] || 0;
+              const info = STATUS[s];
+              const pct = Math.round(n / pipeTotal * 100);
+              const isDone = s === 'shipped';
+              return `
+                <div class="rma-pipe-seg${isDone ? ' rma-pipe-seg-done' : ''}"
+                     style="flex:${Math.max(n, 0.3)};--sc:${info.color}"
+                     title="${info.label}：${n} 件 (${pct}%)">
+                  <div class="rma-pipe-seg-bar"></div>
+                  <div class="rma-pipe-seg-lbl">
+                    <span>${info.icon}</span>
+                    <span class="rma-pipe-seg-name">${info.label}</span>
+                    <strong>${n}</strong>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        ` : ''}
+
+        <!-- ── Status tabs ── -->
         <div class="rma-tabs">
           ${statusTabs.map(t => `
-            <button class="rma-tab ${state.filter.status === t.key ? 'active' : ''}" onclick="RMA.setFilter('status','${t.key}')">
+            <button class="rma-tab ${state.filter.status === t.key ? 'active' : ''}"
+                    onclick="RMA.setFilter('status','${t.key}')">
               ${t.label} <span class="rma-tab-n">${t.count}</span>
             </button>
           `).join('')}
         </div>
 
-        <!-- Search + category filter -->
+        <!-- ── Toolbar ── -->
         <div class="rma-toolbar">
           <div class="rma-search-wrap">
             <span class="rma-search-ico">⌕</span>
-            <input class="rma-search" id="rmaSearch" type="text" placeholder="搜尋案件號 · 機種 · 序號 · 客戶…" value="${esc(state.filter.q)}" oninput="RMA.setFilter('q',this.value)">
+            <input class="rma-search" id="rmaSearch" type="text"
+              placeholder="搜尋案件號 · 機種 · 序號 · 客戶…"
+              value="${esc(state.filter.q)}" oninput="RMA.setFilter('q',this.value)">
           </div>
           <select class="rma-select" onchange="RMA.setFilter('category',this.value)">
             <option value="全部" ${state.filter.category === '全部' ? 'selected' : ''}>全部大類</option>
@@ -305,67 +578,42 @@ window.RMA = (function () {
               `<option value="${c}" ${state.filter.category === c ? 'selected' : ''}>${c}</option>`
             ).join('')}
           </select>
+          <div class="rma-col-hint">
+            <span class="rma-col-hint-dot" style="background:${roleInfo.color}"></span>
+            ${colCfg.hi.map(c => COL_DEFS[c]?.th || c).join(' · ')} 已強調
+          </div>
         </div>
 
-        <!-- Cases table -->
+        <!-- ── Cases table ── -->
         ${cases.length === 0 ? `
           <div class="empty" style="padding:80px 24px">
             <div class="empty-ico">◌</div>
             <div class="empty-t">目前沒有符合條件的案件</div>
-            <div style="margin-top:12px"><button class="btn primary" onclick="RMA.goNew()">+ 建立第一筆 RMA</button></div>
+            <div style="margin-top:12px">
+              <button class="btn primary" onclick="RMA.goNew()">+ 建立第一筆 RMA</button>
+            </div>
           </div>
         ` : `
           <div class="rma-table-wrap">
-            <table class="rma-table">
+            <table class="rma-table" style="min-width:560px">
               <thead>
                 <tr>
-                  <th>案件號</th>
-                  <th>機種 / 序號</th>
-                  <th>大類</th>
-                  <th>客戶</th>
-                  <th>故障描述</th>
-                  <th>保固</th>
-                  <th>收件日</th>
-                  <th>天數</th>
-                  <th>狀態</th>
-                  <th></th>
+                  ${colCfg.cols.map(col => {
+                    const def = COL_DEFS[col];
+                    if (!def) return '';
+                    const hi = colCfg.hi.includes(col);
+                    return `<th style="min-width:${def.w}${hi ? ';color:' + roleInfo.color : ''}">${def.th}${hi ? ' ●' : ''}</th>`;
+                  }).join('')}
+                  <th style="width:24px"></th>
                 </tr>
               </thead>
               <tbody>
                 ${cases.map(c => {
-                  const s = STATUS[c.status] || STATUS.received;
-                  const days = daysSince(c.receivedDate);
                   const open = !['shipped', 'scrapped', 'cancelled'].includes(c.status);
                   const overdue = open && c.estimatedReturn && c.estimatedReturn < today;
                   return `
-                    <tr class="rma-row" onclick="RMA.goDetail('${c.id}')">
-                      <td><span class="rma-id">${c.id}</span></td>
-                      <td>
-                        <div class="rma-model">${esc(c.model)}</div>
-                        ${c.serial ? `<div class="rma-serial">#${esc(c.serial)}</div>` : ''}
-                      </td>
-                      <td>
-                        <span class="tag cat" style="--c:${CAT_COLOR[c.category] || '#64748b'}">${esc(c.category)}</span>
-                      </td>
-                      <td>
-                        <div style="font-size:13px">${esc(c.customer) || '<span style="color:var(--text3)">—</span>'}</div>
-                        ${c.contactName ? `<div style="font-size:11.5px;color:var(--text3)">${esc(c.contactName)}</div>` : ''}
-                      </td>
-                      <td style="max-width:200px">
-                        <div style="font-size:12.5px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.issueDesc) || '—'}</div>
-                      </td>
-                      <td><span style="font-family:var(--mono);font-size:12px;color:${warrantyColor(c.warranty)}">${warrantyLabel(c.warranty)}</span></td>
-                      <td><span style="font-family:var(--mono);font-size:12.5px;color:var(--text3)">${fmtDate(c.receivedDate)}</span></td>
-                      <td>
-                        <span class="rma-days ${overdue ? 'overdue' : ''}" style="font-family:var(--mono);font-size:13px;color:${overdue ? 'var(--critical)' : open ? 'var(--text2)' : 'var(--text3)'}">
-                          ${days != null ? (open ? days + '天' : days + '天') : '—'}
-                        </span>
-                      </td>
-                      <td>
-                        <span class="rma-status-badge" style="--sc:${s.color}">
-                          ${s.icon} ${s.label}
-                        </span>
-                      </td>
+                    <tr class="rma-row${overdue ? ' rma-row-overdue' : ''}" onclick="RMA.goDetail('${c.id}')">
+                      ${colCfg.cols.map(col => renderCell(col, c, colCfg.hi.includes(col), today)).join('')}
                       <td><span style="color:var(--text3);font-size:12px">›</span></td>
                     </tr>
                   `;
@@ -373,20 +621,12 @@ window.RMA = (function () {
               </tbody>
             </table>
           </div>
-          <div class="rma-count-hint">共 ${cases.length} 筆案件</div>
+          <div class="rma-count-hint">共 ${cases.length} 筆 · ${roleInfo.label}視角</div>
         `}
       </div>
     `;
   }
 
-  function countClosedThisMonth() {
-    const ym = new Date().toISOString().substring(0, 7);
-    const db = load();
-    return db.cases.filter(c =>
-      ['shipped', 'scrapped', 'cancelled'].includes(c.status) &&
-      c.statusHistory.some(h => h.date && h.date.startsWith(ym) && ['shipped', 'scrapped', 'cancelled'].includes(h.status))
-    ).length;
-  }
 
   // ── New form ──
   function renderNewForm() {
@@ -779,6 +1019,11 @@ window.RMA = (function () {
     render();
   }
 
+  function setRole(role) {
+    state.role = role;
+    render();
+  }
+
   function goList() {
     state.page = 'list';
     state.detailId = null;
@@ -1080,7 +1325,7 @@ window.RMA = (function () {
 
   return {
     init, render, goList, goNew, goDetail,
-    setFilter, autofillCategory, submitNew,
+    setFilter, setRole, autofillCategory, submitNew,
     advance, reopenCase,
     toggleEditSection, saveDiagnosis, saveRepair,
     editField, saveEditField,
