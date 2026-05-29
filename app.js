@@ -167,6 +167,8 @@ window.App = (function () {
       if (cloud.publishedAt !== seen) {
         // Cloud has a newer publish than this browser last loaded → adopt it.
         localStorage.setItem('repair_db_v2', JSON.stringify({ months: cloud.months }));
+        if (cloud.capa) localStorage.setItem('titan_capa_v1', JSON.stringify(cloud.capa));
+        if (cloud.costCfg) localStorage.setItem('titan_cost_cfg_v1', JSON.stringify(cloud.costCfg));
         localStorage.setItem(CLOUD_SEEN_KEY, cloud.publishedAt);
         state.cloudJustLoaded = true;
       }
@@ -186,6 +188,8 @@ window.App = (function () {
       const payload = {
         months: db.months,
         users: Auth.exportUsers(),
+        capa: JSON.parse(localStorage.getItem('titan_capa_v1') || '[]'),
+        costCfg: JSON.parse(localStorage.getItem('titan_cost_cfg_v1') || 'null'),
         publishedAt: new Date().toISOString(),
         publishedBy: '',
       };
@@ -805,6 +809,10 @@ window.App = (function () {
       case 'reason':   renderReason(); break;
       case 'scrap':    renderScrap(); break;
       case 'detail':   renderDetail(); break;
+      case 'quality':  renderQuality(); break;
+      case 'risk':     renderRisk(); break;
+      case 'capa':     renderCapa(); break;
+      case 'cost':     renderCost(); break;
     }
   }
 
@@ -2084,6 +2092,308 @@ window.App = (function () {
     });
   }
 
+  // ═══════════════ Quality metrics + SPC ═══════════════
+  function renderQuality() {
+    const f = currentFilter();
+    const records = RepairAnalyzer.getRecords(state.db, f);
+    const denom = RepairAnalyzer.getDenominators(state.db, f);
+    const q = RepairAnalyzer.qualityMetrics(records, denom, state.db, state.selectedMonths);
+
+    $('qualityMeta').textContent = `基數（整新數）${fmt.int(q.base)} · 維修 ${fmt.int(q.total)}`;
+
+    const dppmClass = q.dppm == null ? '' : q.dppm >= 50000 ? 'k-red' : q.dppm >= 10000 ? 'k-warn' : 'k-info';
+    const fpyClass = q.fpy == null ? '' : q.fpy >= 95 ? 'k-info' : q.fpy >= 90 ? 'k-warn' : 'k-red';
+    const reworkClass = q.reworkRate >= 10 ? 'k-red' : q.reworkRate >= 5 ? 'k-warn' : 'k-info';
+
+    $('qualityKpi').innerHTML = `
+      <div class="kpi ${dppmClass}">
+        <div class="kpi-h"><div class="kpi-l">DPPM</div><div class="kpi-ico">‰</div></div>
+        <div class="kpi-v">${q.dppm == null ? '—' : fmt.int(q.dppm)}</div>
+        <div class="kpi-d"><span class="muted">每百萬基數缺陷數 · 維修觸發</span></div>
+      </div>
+      <div class="kpi k-red">
+        <div class="kpi-h"><div class="kpi-l">報廢 DPPM</div><div class="kpi-ico">✕</div></div>
+        <div class="kpi-v">${q.scrapDppm == null ? '—' : fmt.int(q.scrapDppm)}</div>
+        <div class="kpi-d"><span class="muted">每百萬基數報廢數</span></div>
+      </div>
+      <div class="kpi ${fpyClass}">
+        <div class="kpi-h"><div class="kpi-l">FPY 直通率</div><div class="kpi-ico">✓</div></div>
+        <div class="kpi-v">${q.fpy == null ? '—' : fmt.pct(q.fpy)}</div>
+        <div class="kpi-d"><span class="muted">未進維修比例（代理值）</span></div>
+      </div>
+      <div class="kpi ${reworkClass}">
+        <div class="kpi-h"><div class="kpi-l">重工率</div><div class="kpi-ico">♺</div></div>
+        <div class="kpi-v">${fmt.pct(q.reworkRate)}</div>
+        <div class="kpi-d"><span class="muted">${q.reworkUnits} / ${q.uniqueUnits} 台重複進廠</span></div>
+      </div>
+    `;
+
+    // SPC chart
+    const spc = RepairAnalyzer.spcAnalysis(state.db, { category: f.category, model: f.model });
+    const note = $('spcNote');
+    if (!spc.ready) {
+      note.innerHTML = `<span class="muted">${spc.reason}</span>`;
+      if (state.charts.spc) { state.charts.spc.destroy(); state.charts.spc = null; }
+      return;
+    }
+    note.innerHTML = `中心線 CL = <strong>${spc.mean.toFixed(2)}%</strong> · 管制上限 UCL(3σ) = <strong style="color:var(--critical)">${spc.ucl.toFixed(2)}%</strong> · σ = ${spc.sigma.toFixed(2)}`
+      + (spc.outCount > 0 ? ` · <strong style="color:var(--critical)">${spc.outCount} 個月超出管制界限 ⚠</strong>` : ` · <span style="color:var(--ok)">製程穩定</span>`);
+
+    const labels = spc.points.map(p => fmt.monthLabel(p.month));
+    const data = spc.points.map(p => +p.faultPct.toFixed(2));
+    const ptColors = spc.points.map(p => p.status === 'out' ? COLORS.critical : p.status === 'warn' ? COLORS.warn : COLORS.accent);
+    const ctx = $('spcChart');
+    if (ctx) {
+      state.charts.spc = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            { label: '故障率%', data, borderColor: COLORS.accent, backgroundColor: 'transparent',
+              pointBackgroundColor: ptColors, pointRadius: 6, pointHoverRadius: 8, tension: .2, borderWidth: 2 },
+            { label: 'UCL', data: labels.map(() => +spc.ucl.toFixed(2)), borderColor: COLORS.critical,
+              borderDash: [6, 4], pointRadius: 0, borderWidth: 1.5 },
+            { label: 'CL', data: labels.map(() => +spc.mean.toFixed(2)), borderColor: COLORS.text3,
+              borderDash: [3, 3], pointRadius: 0, borderWidth: 1 },
+            { label: 'LCL', data: labels.map(() => +spc.lcl.toFixed(2)), borderColor: COLORS.ok,
+              borderDash: [6, 4], pointRadius: 0, borderWidth: 1.5 },
+          ],
+        },
+        options: { responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } },
+          scales: { y: { beginAtZero: true, title: { display: true, text: '故障率 %' } } } },
+      });
+    }
+  }
+
+  // ═══════════════ Risk: FMEA + root cause + forecast ═══════════════
+  function renderRisk() {
+    const f = currentFilter();
+    const records = RepairAnalyzer.getRecords(state.db, f);
+    $('riskMeta').textContent = `${fmt.int(records.length)} 筆記錄`;
+
+    // Forecast
+    const fc = RepairAnalyzer.forecastNextMonth(state.db, { category: f.category, model: f.model });
+    if (fc.ready) {
+      const dirIco = fc.trendDir === 'up' ? '↗' : fc.trendDir === 'down' ? '↘' : '→';
+      const dirColor = fc.trendDir === 'up' ? 'var(--critical)' : fc.trendDir === 'down' ? 'var(--ok)' : 'var(--text2)';
+      $('forecastCard').innerHTML = `
+        <div class="card-h"><div class="card-t">下月維修量預測</div></div>
+        <div class="forecast-row">
+          <div class="forecast-main">
+            <div class="forecast-v" style="color:${dirColor}">${dirIco} ${fc.forecast}</div>
+            <div class="forecast-l">預估件數（線性回歸 + 3月移動平均）</div>
+          </div>
+          <div class="forecast-detail">
+            <div><span class="muted">上月實際</span> <strong>${fc.lastCount}</strong></div>
+            <div><span class="muted">趨勢斜率</span> <strong>${fc.slope.toFixed(1)}/月</strong></div>
+            <div><span class="muted">預估變化</span> <strong style="color:${dirColor}">${fc.deltaPct >= 0 ? '+' : ''}${fc.deltaPct.toFixed(0)}%</strong></div>
+          </div>
+        </div>
+      `;
+      $('forecastCard').style.display = '';
+    } else {
+      $('forecastCard').style.display = 'none';
+    }
+
+    // FMEA
+    const fmea = RepairAnalyzer.fmeaAnalysis(records, state.db);
+    $('fmeaTable').innerHTML = fmea.length === 0
+      ? '<div class="empty"><div class="empty-t">無資料</div></div>'
+      : `<div class="tbl-wrap"><table class="tbl fmea-tbl">
+          <thead><tr>
+            <th>故障部位</th><th class="right">件數</th>
+            <th class="right" title="嚴重度">S</th><th class="right" title="發生度">O</th><th class="right" title="偵測度">D</th>
+            <th class="right">RPN</th><th>風險等級</th>
+          </tr></thead>
+          <tbody>
+          ${fmea.map(m => `
+            <tr>
+              <td><span class="fmea-dot" style="background:${m.color}"></span>${m.part}</td>
+              <td class="right">${m.count}${m.scrap > 0 ? ` <span class="muted">(${m.scrap}廢)</span>` : ''}</td>
+              <td class="right">${m.severity}</td>
+              <td class="right">${m.occurrence}</td>
+              <td class="right">${m.detection}</td>
+              <td class="right"><strong>${m.rpn}</strong></td>
+              <td><span class="risk-badge ${m.level}">${({critical:'極高',high:'高',medium:'中',low:'低'})[m.level]}</span></td>
+            </tr>`).join('')}
+          </tbody></table></div>
+          <div class="fmea-legend">S 嚴重度 × O 發生度 × D 偵測度 = RPN 風險優先數 · RPN≥200 極高 · ≥100 高 · ≥50 中</div>`;
+
+    // Root cause tree
+    const tree = RepairAnalyzer.rootCauseTree(records);
+    const maxCount = Math.max(...tree.map(t => t.count), 1);
+    $('rootCauseTree').innerHTML = tree.length === 0
+      ? '<div class="empty"><div class="empty-t">無資料</div></div>'
+      : tree.map(t => `
+        <div class="rct-node">
+          <div class="rct-head">
+            <span class="rct-dot" style="background:${t.color}"></span>
+            <span class="rct-part">${t.part}</span>
+            <span class="rct-bar"><span style="width:${(t.count / maxCount * 100).toFixed(0)}%;background:${t.color}"></span></span>
+            <span class="rct-count">${t.count} 件</span>
+            ${t.scrap > 0 ? `<span class="rct-scrap">${t.scrap} 報廢 (${t.scrapRate.toFixed(0)}%)</span>` : ''}
+          </div>
+          <div class="rct-modes">
+            ${t.topModes.map(m => `<span class="rct-mode">${escapeHtml(m.mode)} <em>${m.count}</em></span>`).join('')}
+          </div>
+        </div>`).join('');
+  }
+
+  // ═══════════════ CAPA store + render ═══════════════
+  const CAPA_KEY = 'titan_capa_v1';
+  function loadCapa() {
+    try { return JSON.parse(localStorage.getItem(CAPA_KEY) || '[]'); } catch { return []; }
+  }
+  function saveCapa(list) { localStorage.setItem(CAPA_KEY, JSON.stringify(list)); }
+
+  function renderCapa() {
+    const list = loadCapa();
+    const open = list.filter(c => c.status !== 'closed').length;
+    $('capaMeta').textContent = `${list.length} 項 · ${open} 進行中`;
+    const badge = $('capaBadge');
+    if (badge) { if (open > 0) { badge.textContent = open; badge.style.display = ''; } else badge.style.display = 'none'; }
+
+    if (!list.length) {
+      $('capaList').innerHTML = `<div class="empty"><div class="empty-ico">✓</div><div class="empty-t">尚無 CAPA 項目</div><div class="empty-d">點右上角「+ 新增 CAPA」建立矯正預防措施</div></div>`;
+      return;
+    }
+    const statusMap = { open: { t: '待處理', c: 'var(--critical)' }, progress: { t: '進行中', c: 'var(--warn)' }, verify: { t: '驗證中', c: 'var(--info)' }, closed: { t: '已結案', c: 'var(--ok)' } };
+    const today = new Date().toISOString().slice(0, 10);
+    $('capaList').innerHTML = `<div class="capa-grid">${list.map((c, i) => {
+      const st = statusMap[c.status] || statusMap.open;
+      const overdue = c.due && c.status !== 'closed' && c.due < today;
+      return `
+        <div class="capa-card ${overdue ? 'overdue' : ''}">
+          <div class="capa-top">
+            <span class="capa-id">#${c.id}</span>
+            <span class="capa-status" style="--sc:${st.c}">${st.t}</span>
+          </div>
+          <div class="capa-title">${escapeHtml(c.problem)}</div>
+          <div class="capa-meta">
+            <span>👤 ${escapeHtml(c.owner || '—')}</span>
+            <span class="${overdue ? 'capa-overdue' : ''}">📅 ${c.due || '—'}${overdue ? ' 逾期' : ''}</span>
+          </div>
+          ${c.action ? `<div class="capa-action">${escapeHtml(c.action)}</div>` : ''}
+          ${c.linkRma ? `<div class="capa-link">🔗 關聯 RMA: ${escapeHtml(c.linkRma)}</div>` : ''}
+          <div class="capa-btns">
+            <select class="capa-sel" onchange="App.setCapaStatus('${c.id}',this.value)">
+              ${Object.entries(statusMap).map(([k, v]) => `<option value="${k}" ${c.status === k ? 'selected' : ''}>${v.t}</option>`).join('')}
+            </select>
+            <button class="btn danger sm" onclick="App.deleteCapa('${c.id}')">刪除</button>
+          </div>
+        </div>`;
+    }).join('')}</div>`;
+  }
+
+  function openCapaForm() {
+    const id = 'C' + Date.now().toString().slice(-6);
+    const problem = prompt('問題描述（必填）：');
+    if (!problem) return;
+    const owner = prompt('負責人：') || '';
+    const due = prompt('截止日 (YYYY-MM-DD)：') || '';
+    const action = prompt('矯正措施：') || '';
+    const linkRma = prompt('關聯 RMA 單號（可空白）：') || '';
+    const list = loadCapa();
+    list.unshift({ id, problem, owner, due, action, linkRma, status: 'open', created: new Date().toISOString() });
+    saveCapa(list);
+    renderCapa();
+  }
+  function setCapaStatus(id, status) {
+    const list = loadCapa();
+    const c = list.find(x => x.id === id);
+    if (c) { c.status = status; saveCapa(list); renderCapa(); }
+  }
+  function deleteCapa(id) {
+    if (!confirm('確定刪除此 CAPA 項目？')) return;
+    saveCapa(loadCapa().filter(x => x.id !== id));
+    renderCapa();
+  }
+
+  // ═══════════════ Cost analysis + config ═══════════════
+  const COST_KEY = 'titan_cost_cfg_v1';
+  function loadCostCfg() {
+    try { return JSON.parse(localStorage.getItem(COST_KEY) || 'null') || { categories: {}, models: {}, laborPerRepair: 0, scrapDefault: 0 }; }
+    catch { return { categories: {}, models: {}, laborPerRepair: 0, scrapDefault: 0 }; }
+  }
+  function saveCostCfg(cfg) { localStorage.setItem(COST_KEY, JSON.stringify(cfg)); }
+
+  function renderCost() {
+    const f = currentFilter();
+    const records = RepairAnalyzer.getRecords(state.db, f);
+    const cfg = loadCostCfg();
+    const cost = RepairAnalyzer.costAnalysis(records, cfg);
+    $('costMeta').textContent = cost.configured ? `${fmt.int(records.length)} 筆記錄` : '尚未設定單價';
+
+    if (!cost.configured) {
+      $('costContent').innerHTML = `<div class="empty"><div class="empty-ico">$</div><div class="empty-t">尚未設定單價</div><div class="empty-d">點右上角「⚙ 單價設定」輸入各類別/機種單價與工時成本，即可換算報廢與維修成本</div></div>`;
+      return;
+    }
+
+    const fmtMoney = (n) => 'NT$ ' + Math.round(n).toLocaleString('en');
+    $('costContent').innerHTML = `
+      <div class="kpi-grid">
+        <div class="kpi k-red">
+          <div class="kpi-h"><div class="kpi-l">報廢成本</div><div class="kpi-ico">✕</div></div>
+          <div class="kpi-v" style="font-size:34px">${fmtMoney(cost.scrapCost)}</div>
+          <div class="kpi-d"><span class="muted">${cost.scrapCount} 件報廢 · 平均 ${fmtMoney(cost.avgScrapCost)}</span></div>
+        </div>
+        <div class="kpi k-warn">
+          <div class="kpi-h"><div class="kpi-l">維修工時成本</div><div class="kpi-ico">⚙</div></div>
+          <div class="kpi-v" style="font-size:34px">${fmtMoney(cost.laborCost)}</div>
+          <div class="kpi-d"><span class="muted">${fmt.int(records.length)} 件 × 單件工時</span></div>
+        </div>
+        <div class="kpi k-blue">
+          <div class="kpi-h"><div class="kpi-l">總損失</div><div class="kpi-ico">∑</div></div>
+          <div class="kpi-v" style="font-size:34px">${fmtMoney(cost.totalCost)}</div>
+          <div class="kpi-d"><span class="muted">報廢 + 工時</span></div>
+        </div>
+      </div>
+      <div class="sec">
+        <div class="sec-h"><span class="sec-t"><span class="strong">各類別成本分布</span></span></div>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>類別</th><th class="right">件數</th><th class="right">報廢數</th><th class="right">報廢成本</th><th class="right">工時成本</th><th class="right">合計</th></tr></thead>
+          <tbody>${cost.byCategory.map(c => `
+            <tr><td>${c.cat}</td><td class="right">${c.count}</td><td class="right">${c.scrap}</td>
+            <td class="right">${fmtMoney(c.scrapCost)}</td><td class="right">${fmtMoney(c.laborCost)}</td>
+            <td class="right"><strong>${fmtMoney(c.total)}</strong></td></tr>`).join('')}
+          </tbody></table></div>
+      </div>`;
+  }
+
+  function openCostConfig() {
+    const cfg = loadCostCfg();
+    const cats = ['監視器', '傳統保全', '無線保全', '車機系統', 'AED', '門禁', '其他'];
+    const body = `
+      <div class="cc-sec-t">各類別報廢單價 (NT$)</div>
+      <div class="cc-grid">
+        ${cats.map(c => `<div class="cc-row"><label>${c}</label><input type="number" class="ls-input" id="cc_${c}" value="${cfg.categories[c] || ''}" placeholder="0"></div>`).join('')}
+      </div>
+      <div class="cc-sec-t" style="margin-top:16px">通用設定</div>
+      <div class="cc-grid">
+        <div class="cc-row"><label>每件維修工時成本</label><input type="number" class="ls-input" id="cc_labor" value="${cfg.laborPerRepair || ''}" placeholder="0"></div>
+        <div class="cc-row"><label>預設報廢單價（無對應時）</label><input type="number" class="ls-input" id="cc_default" value="${cfg.scrapDefault || ''}" placeholder="0"></div>
+      </div>`;
+    openDrawer({
+      severity: 'info', icon: '$', overline: '成本設定', title: '單價設定',
+      bodyHtml: body + `<div style="margin-top:20px"><button class="btn primary" onclick="App.saveCostConfig()">儲存設定</button> <span class="muted" style="font-size:12px;margin-left:8px">儲存後記得「☁ 發布到雲端」讓設定同步</span></div>`,
+    });
+  }
+  function saveCostConfig() {
+    const cats = ['監視器', '傳統保全', '無線保全', '車機系統', 'AED', '門禁', '其他'];
+    const cfg = loadCostCfg();
+    cfg.categories = {};
+    for (const c of cats) {
+      const v = parseFloat(document.getElementById('cc_' + c)?.value);
+      if (!isNaN(v) && v > 0) cfg.categories[c] = v;
+    }
+    cfg.laborPerRepair = parseFloat(document.getElementById('cc_labor')?.value) || 0;
+    cfg.scrapDefault = parseFloat(document.getElementById('cc_default')?.value) || 0;
+    saveCostCfg(cfg);
+    closeDrawer();
+    if (state.currentPage === 'cost') renderCost();
+  }
+
   // ─────────────── Init ───────────────
   async function init() {
     // 1. Fetch cloud data first (needed to seed users before login screen)
@@ -2110,6 +2420,8 @@ window.App = (function () {
     openDashboard, openUpload, switchPage,
     setMonth, setCategory, setModel,
     setAnalysisRole,
+    openCapaForm, setCapaStatus, deleteCapa,
+    openCostConfig, saveCostConfig,
     toggleRank, toggleRankRow,
     dismissAlertPulse, dismissCrossMonthPulse,
     generateReport: () => RepairReport.generate(state.db),

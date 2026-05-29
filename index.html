@@ -191,6 +191,21 @@
           <div class="snav-l"><span class="snav-ico">◎</span> 故障原因</div>
         </button>
         <div class="snav-sep"></div>
+        <div class="snav-h">品質工程</div>
+        <button class="snav-item" data-page="quality" onclick="App.switchPage('quality')">
+          <div class="snav-l"><span class="snav-ico">◈</span> 品質指標 / SPC</div>
+        </button>
+        <button class="snav-item" data-page="risk" onclick="App.switchPage('risk')">
+          <div class="snav-l"><span class="snav-ico">⚠</span> 風險 / 根因 / 預測</div>
+        </button>
+        <button class="snav-item" data-page="capa" onclick="App.switchPage('capa')">
+          <div class="snav-l"><span class="snav-ico">✓</span> CAPA 追蹤</div>
+          <span class="snav-badge" id="capaBadge" style="display:none">0</span>
+        </button>
+        <button class="snav-item" data-page="cost" onclick="App.switchPage('cost')">
+          <div class="snav-l"><span class="snav-ico">$</span> 成本量化</div>
+        </button>
+        <div class="snav-sep"></div>
         <div class="snav-h">追蹤</div>
         <button class="snav-item" data-page="scrap" onclick="App.switchPage('scrap')">
           <div class="snav-l"><span class="snav-ico">↻</span> 報廢 &amp; 重修</div>
@@ -365,6 +380,73 @@
               <div id="repeatList"></div>
             </div>
           </div>
+        </div>
+
+        <!-- Quality metrics + SPC -->
+        <div class="page" id="pageQuality">
+          <div class="page-h">
+            <div>
+              <div class="page-t">品質指標體系</div>
+              <div class="page-d">DPPM · FPY 直通率 · 重工率 · SPC 管制圖</div>
+            </div>
+            <div class="page-meta" id="qualityMeta"></div>
+          </div>
+          <div class="kpi-grid" id="qualityKpi"></div>
+          <div class="card sec">
+            <div class="card-h"><div class="card-t">SPC 故障率管制圖（p-chart）</div></div>
+            <div class="chart-wrap tall"><canvas id="spcChart"></canvas></div>
+            <div id="spcNote" class="spc-note"></div>
+          </div>
+        </div>
+
+        <!-- FMEA / Root cause -->
+        <div class="page" id="pageRisk">
+          <div class="page-h">
+            <div>
+              <div class="page-t">風險與根因分析</div>
+              <div class="page-d">FMEA / RPN 風險評分 · 故障根因樹 · 下月預測</div>
+            </div>
+            <div class="page-meta" id="riskMeta"></div>
+          </div>
+          <div class="card sec" id="forecastCard"></div>
+          <div class="sec">
+            <div class="sec-h"><span class="sec-t"><span class="strong">FMEA 風險矩陣</span> 依 RPN 排序</span></div>
+            <div id="fmeaTable"></div>
+          </div>
+          <div class="sec">
+            <div class="sec-h"><span class="sec-t"><span class="strong">故障根因樹</span> 部位 → 模式</span></div>
+            <div id="rootCauseTree"></div>
+          </div>
+        </div>
+
+        <!-- CAPA -->
+        <div class="page" id="pageCapa">
+          <div class="page-h">
+            <div>
+              <div class="page-t">CAPA 矯正預防措施</div>
+              <div class="page-d">問題 → 負責人 → 截止日 → 狀態追蹤</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <div class="page-meta" id="capaMeta"></div>
+              <button class="btn primary" onclick="App.openCapaForm()">+ 新增 CAPA</button>
+            </div>
+          </div>
+          <div id="capaList"></div>
+        </div>
+
+        <!-- Cost -->
+        <div class="page" id="pageCost">
+          <div class="page-h">
+            <div>
+              <div class="page-t">成本量化</div>
+              <div class="page-d">報廢成本 · 維修工時成本 · 各類別損失</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <div class="page-meta" id="costMeta"></div>
+              <button class="btn" onclick="App.openCostConfig()">⚙ 單價設定</button>
+            </div>
+          </div>
+          <div id="costContent"></div>
         </div>
 
         <!-- Detail -->

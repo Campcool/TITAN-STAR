@@ -593,6 +593,225 @@
     return anomalies;
   }
 
+  // ════════════════════════════════════════════════════════════════
+  // ADVANCED ANALYTICS LAYER
+  // 品質指標 / SPC / FMEA / 根因樹 / 預測 / 成本
+  // ════════════════════════════════════════════════════════════════
+
+  // ─── 品質指標體系：DPPM / FPY / 重工率 ───
+  // base = 整新數 (denominator) 作為出貨/生產基數的代理值
+  function qualityMetrics(records, denom, db, monthKeys) {
+    const total = records.length;
+    const base  = denom.total || 0;
+    const scrap = records.filter(r => r.isScrap).length;
+
+    // DPPM：每百萬缺陷數
+    const dppm = base ? Math.round((total / base) * 1_000_000) : null;
+    const scrapDppm = base ? Math.round((scrap / base) * 1_000_000) : null;
+
+    // 重複維修（重工）：同序號在選定期間 ≥2 次
+    const serialMap = {};
+    for (const r of records) {
+      if (!r.serial) continue;
+      const k = `${r.model}|${r.serial}`;
+      serialMap[k] = (serialMap[k] || 0) + 1;
+    }
+    const reworkUnits = Object.values(serialMap).filter(c => c >= 2).length;
+    const uniqueUnits = Object.keys(serialMap).length;
+    const reworkRate = uniqueUnits ? (reworkUnits / uniqueUnits) * 100 : 0;
+
+    // FPY 直通率代理：(整新數 - 維修數) / 整新數，代表未進維修的比例
+    const fpy = base ? Math.max(0, (base - total) / base) * 100 : null;
+
+    return {
+      total, base, scrap,
+      dppm, scrapDppm,
+      reworkUnits, uniqueUnits, reworkRate,
+      fpy,
+      scrapRate: total ? (scrap / total) * 100 : 0,
+    };
+  }
+
+  // ─── SPC 管制圖：對每月故障率計算 mean / σ / UCL / LCL ───
+  // 使用 p-chart 概念（不良率管制圖）；資料不足 3 個月時 σ 不可靠，回傳 ready=false
+  function spcAnalysis(db, filter) {
+    const trend = monthlyTrend(db, filter).filter(t => t.denom > 0);
+    if (trend.length < 2) return { ready: false, points: trend, reason: '需至少 2 個月有整新數資料' };
+
+    const rates = trend.map(t => t.faultPct);
+    const mean = rates.reduce((a, b) => a + b, 0) / rates.length;
+    const variance = rates.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / rates.length;
+    const sigma = Math.sqrt(variance);
+    const ucl = mean + 3 * sigma;
+    const lcl = Math.max(0, mean - 3 * sigma);
+    const uclW = mean + 2 * sigma; // 警告線 (2σ)
+
+    const points = trend.map(t => {
+      let status = 'normal';
+      if (t.faultPct > ucl) status = 'out';        // 超出管制界限
+      else if (t.faultPct > uclW) status = 'warn'; // 接近界限
+      return { ...t, status };
+    });
+
+    return {
+      ready: true, mean, sigma, ucl, lcl, uclW, points,
+      outCount: points.filter(p => p.status === 'out').length,
+    };
+  }
+
+  // ─── 故障根因分類樹：部位 → 模式（關鍵字規則）───
+  const FAULT_TAXONOMY = {
+    '電源系統': { kws: ['電源','電供','變壓','adapter','power','電池','充電','供電','穩壓','保險絲'], color:'#f59e0b' },
+    '主板/PCB': { kws: ['主板','母板','pcb','電路板','板子','ic','晶片','bga','電容','電阻','二極','電晶','焊','短路','斷路','開路'], color:'#ef4444' },
+    '顯示/螢幕': { kws: ['螢幕','面板','顯示','lcd','背光','液晶','觸控','panel','花屏','黑屏'], color:'#38bdf8' },
+    '儲存/記憶': { kws: ['硬碟','hdd','ssd','記憶','ram','emmc','儲存','flash','sd卡','讀寫'], color:'#a78bfa' },
+    '感測/鏡頭': { kws: ['鏡頭','感測','sensor','ccd','cmos','對焦','紅外','ir','pir','收訊'], color:'#34d399' },
+    '機構/外觀': { kws: ['外殼','機構','按鍵','卡榫','破裂','變形','刮傷','螺絲','接頭','端子','排線','連接'], color:'#94a2b6' },
+    '通訊/網路': { kws: ['網路','wifi','藍牙','zigbee','rf','天線','訊號','通訊','連線','斷線','lan','poe'], color:'#22d3ee' },
+    '韌體/軟體': { kws: ['韌體','軟體','firmware','程式','當機','重啟','異常關機','無回應','升級','版本','設定','系統','ota'], color:'#818cf8' },
+  };
+
+  function classifyFault(text) {
+    const s = String(text || '').toLowerCase();
+    for (const [part, def] of Object.entries(FAULT_TAXONOMY)) {
+      if (def.kws.some(kw => s.includes(kw.toLowerCase()))) return part;
+    }
+    return '其他/未分類';
+  }
+
+  function rootCauseTree(records) {
+    const tree = {}; // 部位 → { count, scrap, modes:{mode:count} }
+    for (const r of records) {
+      const text = `${r.content || ''} ${r.reason || ''}`;
+      const part = classifyFault(text);
+      if (!tree[part]) tree[part] = { count: 0, scrap: 0, modes: {} };
+      tree[part].count++;
+      if (r.isScrap) tree[part].scrap++;
+      const mode = (r.content || r.reason || '未填').trim().slice(0, 30);
+      tree[part].modes[mode] = (tree[part].modes[mode] || 0) + 1;
+    }
+    return Object.entries(tree)
+      .map(([part, d]) => ({
+        part,
+        count: d.count,
+        scrap: d.scrap,
+        scrapRate: d.count ? (d.scrap / d.count) * 100 : 0,
+        color: FAULT_TAXONOMY[part]?.color || '#64748b',
+        topModes: Object.entries(d.modes).sort((a, b) => b[1] - a[1]).slice(0, 5)
+          .map(([mode, count]) => ({ mode, count })),
+      }))
+      .sort((a, b) => b.count - a.count);
+  }
+
+  // ─── FMEA / RPN 風險評分 ───
+  // Severity（嚴重度）：依該故障部位的報廢率推估 (1-10)
+  // Occurrence（發生度）：依發生頻率分位推估 (1-10)
+  // Detection（偵測度）：重複/跨月故障代表難偵測，預設偏高 (1-10)
+  function fmeaAnalysis(records, db) {
+    const tree = rootCauseTree(records);
+    if (!tree.length) return [];
+    const maxCount = Math.max(...tree.map(t => t.count), 1);
+
+    // 跨月重複的部位集合（偵測度加權）
+    const crossSerials = crossMonthSerials(db, {});
+    const crossModels = new Set(crossSerials.map(c => c.model));
+
+    return tree.map(t => {
+      // Severity：報廢率 0→1, 50%+→10
+      const severity = Math.min(10, Math.max(1, Math.round(1 + (t.scrapRate / 100) * 18)));
+      // Occurrence：頻率分位
+      const occurrence = Math.min(10, Math.max(1, Math.round((t.count / maxCount) * 10)));
+      // Detection：基礎 5，若該部位涉及跨月重複機種 +3
+      const hasCross = records.some(r => {
+        const text = `${r.content || ''} ${r.reason || ''}`;
+        return classifyFault(text) === t.part && crossModels.has(r.model);
+      });
+      const detection = Math.min(10, 5 + (hasCross ? 3 : 0) + (t.scrapRate > 20 ? 1 : 0));
+      const rpn = severity * occurrence * detection;
+      return {
+        part: t.part, color: t.color,
+        count: t.count, scrap: t.scrap, scrapRate: t.scrapRate,
+        severity, occurrence, detection, rpn,
+        level: rpn >= 200 ? 'critical' : rpn >= 100 ? 'high' : rpn >= 50 ? 'medium' : 'low',
+        topModes: t.topModes,
+      };
+    }).sort((a, b) => b.rpn - a.rpn);
+  }
+
+  // ─── 預測：下月故障數（線性回歸 + 3 月移動平均）───
+  function forecastNextMonth(db, filter) {
+    const trend = monthlyTrend(db, filter);
+    if (trend.length < 2) return { ready: false, reason: '需至少 2 個月資料' };
+
+    const counts = trend.map(t => t.count);
+    const n = counts.length;
+
+    // 線性回歸 y = a + bx
+    const xs = counts.map((_, i) => i);
+    const sumX = xs.reduce((a, b) => a + b, 0);
+    const sumY = counts.reduce((a, b) => a + b, 0);
+    const sumXY = xs.reduce((s, x, i) => s + x * counts[i], 0);
+    const sumXX = xs.reduce((s, x) => s + x * x, 0);
+    const b = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX || 1);
+    const a = (sumY - b * sumX) / n;
+    const linearPred = Math.max(0, Math.round(a + b * n));
+
+    // 3 月移動平均
+    const recent = counts.slice(-3);
+    const ma = Math.round(recent.reduce((x, y) => x + y, 0) / recent.length);
+
+    // 綜合預測：兩者平均
+    const forecast = Math.round((linearPred + ma) / 2);
+    const lastCount = counts[counts.length - 1];
+    const trendDir = b > 0.5 ? 'up' : b < -0.5 ? 'down' : 'flat';
+
+    return {
+      ready: true, forecast, linearPred, ma, lastCount, trendDir,
+      slope: b,
+      deltaPct: lastCount ? ((forecast - lastCount) / lastCount) * 100 : 0,
+      nextMonthLabel: trend.length ? null : null,
+    };
+  }
+
+  // ─── 成本量化（需單價設定）───
+  // priceConfig: { models:{model:price}, categories:{cat:price}, laborPerRepair, scrapDefault }
+  function costAnalysis(records, priceConfig) {
+    const cfg = priceConfig || {};
+    const modelPrices = cfg.models || {};
+    const catPrices = cfg.categories || {};
+    const laborPerRepair = cfg.laborPerRepair || 0;
+    const scrapDefault = cfg.scrapDefault || 0;
+
+    const unitPrice = (r) => modelPrices[r.model] ?? catPrices[r.category] ?? scrapDefault;
+
+    let scrapCost = 0, laborCost = 0;
+    const byCategory = {};
+    let scrapCount = 0;
+
+    for (const r of records) {
+      const labor = laborPerRepair;
+      laborCost += labor;
+      let sc = 0;
+      if (r.isScrap) { sc = unitPrice(r); scrapCost += sc; scrapCount++; }
+      const cat = r.category || '其他';
+      if (!byCategory[cat]) byCategory[cat] = { scrapCost: 0, laborCost: 0, count: 0, scrap: 0 };
+      byCategory[cat].scrapCost += sc;
+      byCategory[cat].laborCost += labor;
+      byCategory[cat].count++;
+      if (r.isScrap) byCategory[cat].scrap++;
+    }
+
+    return {
+      scrapCost, laborCost, totalCost: scrapCost + laborCost,
+      scrapCount,
+      avgScrapCost: scrapCount ? scrapCost / scrapCount : 0,
+      byCategory: Object.entries(byCategory)
+        .map(([cat, d]) => ({ cat, ...d, total: d.scrapCost + d.laborCost }))
+        .sort((a, b) => b.total - a.total),
+      configured: Object.keys(modelPrices).length > 0 || Object.keys(catPrices).length > 0 || scrapDefault > 0,
+    };
+  }
+
   // Expose
   window.RepairAnalyzer = {
     getRecords,
@@ -611,5 +830,14 @@
     monthlyTrend,
     partTrend,
     detectAnomalies,
+    // Advanced analytics
+    qualityMetrics,
+    spcAnalysis,
+    rootCauseTree,
+    classifyFault,
+    fmeaAnalysis,
+    forecastNextMonth,
+    costAnalysis,
+    FAULT_TAXONOMY,
   };
 })();

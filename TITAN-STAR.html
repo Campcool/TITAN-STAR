@@ -1717,6 +1717,67 @@ button, input, select { font-family: inherit; }
   .ar-bar { padding: 10px 12px; }
 }
 
+/* ════════════════ Quality / SPC ════════════════ */
+.spc-note { margin-top: 14px; font-size: 13px; color: var(--text2); line-height: 1.6; }
+
+/* ════════════════ Forecast ════════════════ */
+.forecast-row { display: flex; align-items: center; gap: 32px; flex-wrap: wrap; padding: 8px 4px; }
+.forecast-main { flex-shrink: 0; }
+.forecast-v { font-size: 48px; font-weight: 800; letter-spacing: -1px; line-height: 1; }
+.forecast-l { font-size: 13px; color: var(--text3); margin-top: 6px; }
+.forecast-detail { display: flex; gap: 28px; flex-wrap: wrap; font-size: 14px; }
+.forecast-detail > div { display: flex; flex-direction: column; gap: 4px; }
+.forecast-detail strong { font-size: 18px; color: var(--text); }
+
+/* ════════════════ FMEA ════════════════ */
+.fmea-tbl td, .fmea-tbl th { font-size: 14px; }
+.fmea-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 8px; vertical-align: middle; }
+.fmea-legend { margin-top: 10px; font-size: 12px; color: var(--text3); }
+.risk-badge { font-size: 11.5px; font-weight: 700; padding: 3px 10px; border-radius: 10px; }
+.risk-badge.critical { background: color-mix(in srgb, var(--critical) 18%, transparent); color: var(--critical); }
+.risk-badge.high { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+.risk-badge.medium { background: color-mix(in srgb, var(--info) 18%, transparent); color: var(--info); }
+.risk-badge.low { background: var(--surface3); color: var(--text2); }
+@supports not (color: color-mix(in srgb, red 10%, blue)) {
+  .risk-badge.critical, .risk-badge.high, .risk-badge.medium { background: var(--surface3); }
+}
+
+/* ════════════════ Root cause tree ════════════════ */
+.rct-node { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; margin-bottom: 10px; }
+.rct-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.rct-dot { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; }
+.rct-part { font-size: 15px; font-weight: 700; color: var(--text); min-width: 100px; }
+.rct-bar { flex: 1; min-width: 120px; height: 8px; background: var(--surface3); border-radius: 4px; overflow: hidden; }
+.rct-bar > span { display: block; height: 100%; border-radius: 4px; }
+.rct-count { font-size: 14px; font-weight: 600; color: var(--text); }
+.rct-scrap { font-size: 12px; color: var(--critical); font-weight: 600; }
+.rct-modes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; padding-left: 24px; }
+.rct-mode { font-size: 12px; color: var(--text2); background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; }
+.rct-mode em { color: var(--accent); font-style: normal; font-weight: 700; margin-left: 4px; }
+
+/* ════════════════ CAPA ════════════════ */
+.capa-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.capa-card { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 12px; padding: 16px 18px; }
+.capa-card.overdue { border-left-color: var(--critical); }
+.capa-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.capa-id { font-family: var(--mono); font-size: 12px; color: var(--text3); }
+.capa-status { font-size: 11.5px; font-weight: 700; padding: 3px 10px; border-radius: 10px; color: var(--sc); border: 1px solid var(--sc); }
+.capa-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 10px; line-height: 1.4; }
+.capa-meta { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--text2); margin-bottom: 8px; }
+.capa-overdue { color: var(--critical); font-weight: 700; }
+.capa-action { font-size: 13px; color: var(--text2); background: var(--surface2); border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; line-height: 1.5; }
+.capa-link { font-size: 12px; color: var(--info); margin-bottom: 10px; }
+.capa-btns { display: flex; gap: 8px; align-items: center; }
+.capa-sel { flex: 1; padding: 6px 10px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 8px; color: var(--text); font-size: 13px; }
+.btn.sm { padding: 6px 12px; font-size: 12px; }
+
+/* ════════════════ Cost config ════════════════ */
+.cc-sec-t { font-size: 12px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
+.cc-grid { display: flex; flex-direction: column; gap: 10px; }
+.cc-row { display: flex; align-items: center; gap: 12px; justify-content: space-between; }
+.cc-row label { font-size: 13.5px; color: var(--text2); flex: 1; }
+.cc-row .ls-input { width: 140px; flex-shrink: 0; padding: 8px 12px; }
+
 </style>
 <style>
 /* ════════════════════════════════════════════════════════════════════
@@ -2409,6 +2470,21 @@ button, input, select { font-family: inherit; }
           <div class="snav-l"><span class="snav-ico">◎</span> 故障原因</div>
         </button>
         <div class="snav-sep"></div>
+        <div class="snav-h">品質工程</div>
+        <button class="snav-item" data-page="quality" onclick="App.switchPage('quality')">
+          <div class="snav-l"><span class="snav-ico">◈</span> 品質指標 / SPC</div>
+        </button>
+        <button class="snav-item" data-page="risk" onclick="App.switchPage('risk')">
+          <div class="snav-l"><span class="snav-ico">⚠</span> 風險 / 根因 / 預測</div>
+        </button>
+        <button class="snav-item" data-page="capa" onclick="App.switchPage('capa')">
+          <div class="snav-l"><span class="snav-ico">✓</span> CAPA 追蹤</div>
+          <span class="snav-badge" id="capaBadge" style="display:none">0</span>
+        </button>
+        <button class="snav-item" data-page="cost" onclick="App.switchPage('cost')">
+          <div class="snav-l"><span class="snav-ico">$</span> 成本量化</div>
+        </button>
+        <div class="snav-sep"></div>
         <div class="snav-h">追蹤</div>
         <button class="snav-item" data-page="scrap" onclick="App.switchPage('scrap')">
           <div class="snav-l"><span class="snav-ico">↻</span> 報廢 &amp; 重修</div>
@@ -2583,6 +2659,73 @@ button, input, select { font-family: inherit; }
               <div id="repeatList"></div>
             </div>
           </div>
+        </div>
+
+        <!-- Quality metrics + SPC -->
+        <div class="page" id="pageQuality">
+          <div class="page-h">
+            <div>
+              <div class="page-t">品質指標體系</div>
+              <div class="page-d">DPPM · FPY 直通率 · 重工率 · SPC 管制圖</div>
+            </div>
+            <div class="page-meta" id="qualityMeta"></div>
+          </div>
+          <div class="kpi-grid" id="qualityKpi"></div>
+          <div class="card sec">
+            <div class="card-h"><div class="card-t">SPC 故障率管制圖（p-chart）</div></div>
+            <div class="chart-wrap tall"><canvas id="spcChart"></canvas></div>
+            <div id="spcNote" class="spc-note"></div>
+          </div>
+        </div>
+
+        <!-- FMEA / Root cause -->
+        <div class="page" id="pageRisk">
+          <div class="page-h">
+            <div>
+              <div class="page-t">風險與根因分析</div>
+              <div class="page-d">FMEA / RPN 風險評分 · 故障根因樹 · 下月預測</div>
+            </div>
+            <div class="page-meta" id="riskMeta"></div>
+          </div>
+          <div class="card sec" id="forecastCard"></div>
+          <div class="sec">
+            <div class="sec-h"><span class="sec-t"><span class="strong">FMEA 風險矩陣</span> 依 RPN 排序</span></div>
+            <div id="fmeaTable"></div>
+          </div>
+          <div class="sec">
+            <div class="sec-h"><span class="sec-t"><span class="strong">故障根因樹</span> 部位 → 模式</span></div>
+            <div id="rootCauseTree"></div>
+          </div>
+        </div>
+
+        <!-- CAPA -->
+        <div class="page" id="pageCapa">
+          <div class="page-h">
+            <div>
+              <div class="page-t">CAPA 矯正預防措施</div>
+              <div class="page-d">問題 → 負責人 → 截止日 → 狀態追蹤</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <div class="page-meta" id="capaMeta"></div>
+              <button class="btn primary" onclick="App.openCapaForm()">+ 新增 CAPA</button>
+            </div>
+          </div>
+          <div id="capaList"></div>
+        </div>
+
+        <!-- Cost -->
+        <div class="page" id="pageCost">
+          <div class="page-h">
+            <div>
+              <div class="page-t">成本量化</div>
+              <div class="page-d">報廢成本 · 維修工時成本 · 各類別損失</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <div class="page-meta" id="costMeta"></div>
+              <button class="btn" onclick="App.openCostConfig()">⚙ 單價設定</button>
+            </div>
+          </div>
+          <div id="costContent"></div>
         </div>
 
         <!-- Detail -->
@@ -3622,6 +3765,225 @@ button, input, select { font-family: inherit; }
     return anomalies;
   }
 
+  // ════════════════════════════════════════════════════════════════
+  // ADVANCED ANALYTICS LAYER
+  // 品質指標 / SPC / FMEA / 根因樹 / 預測 / 成本
+  // ════════════════════════════════════════════════════════════════
+
+  // ─── 品質指標體系：DPPM / FPY / 重工率 ───
+  // base = 整新數 (denominator) 作為出貨/生產基數的代理值
+  function qualityMetrics(records, denom, db, monthKeys) {
+    const total = records.length;
+    const base  = denom.total || 0;
+    const scrap = records.filter(r => r.isScrap).length;
+
+    // DPPM：每百萬缺陷數
+    const dppm = base ? Math.round((total / base) * 1_000_000) : null;
+    const scrapDppm = base ? Math.round((scrap / base) * 1_000_000) : null;
+
+    // 重複維修（重工）：同序號在選定期間 ≥2 次
+    const serialMap = {};
+    for (const r of records) {
+      if (!r.serial) continue;
+      const k = `${r.model}|${r.serial}`;
+      serialMap[k] = (serialMap[k] || 0) + 1;
+    }
+    const reworkUnits = Object.values(serialMap).filter(c => c >= 2).length;
+    const uniqueUnits = Object.keys(serialMap).length;
+    const reworkRate = uniqueUnits ? (reworkUnits / uniqueUnits) * 100 : 0;
+
+    // FPY 直通率代理：(整新數 - 維修數) / 整新數，代表未進維修的比例
+    const fpy = base ? Math.max(0, (base - total) / base) * 100 : null;
+
+    return {
+      total, base, scrap,
+      dppm, scrapDppm,
+      reworkUnits, uniqueUnits, reworkRate,
+      fpy,
+      scrapRate: total ? (scrap / total) * 100 : 0,
+    };
+  }
+
+  // ─── SPC 管制圖：對每月故障率計算 mean / σ / UCL / LCL ───
+  // 使用 p-chart 概念（不良率管制圖）；資料不足 3 個月時 σ 不可靠，回傳 ready=false
+  function spcAnalysis(db, filter) {
+    const trend = monthlyTrend(db, filter).filter(t => t.denom > 0);
+    if (trend.length < 2) return { ready: false, points: trend, reason: '需至少 2 個月有整新數資料' };
+
+    const rates = trend.map(t => t.faultPct);
+    const mean = rates.reduce((a, b) => a + b, 0) / rates.length;
+    const variance = rates.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / rates.length;
+    const sigma = Math.sqrt(variance);
+    const ucl = mean + 3 * sigma;
+    const lcl = Math.max(0, mean - 3 * sigma);
+    const uclW = mean + 2 * sigma; // 警告線 (2σ)
+
+    const points = trend.map(t => {
+      let status = 'normal';
+      if (t.faultPct > ucl) status = 'out';        // 超出管制界限
+      else if (t.faultPct > uclW) status = 'warn'; // 接近界限
+      return { ...t, status };
+    });
+
+    return {
+      ready: true, mean, sigma, ucl, lcl, uclW, points,
+      outCount: points.filter(p => p.status === 'out').length,
+    };
+  }
+
+  // ─── 故障根因分類樹：部位 → 模式（關鍵字規則）───
+  const FAULT_TAXONOMY = {
+    '電源系統': { kws: ['電源','電供','變壓','adapter','power','電池','充電','供電','穩壓','保險絲'], color:'#f59e0b' },
+    '主板/PCB': { kws: ['主板','母板','pcb','電路板','板子','ic','晶片','bga','電容','電阻','二極','電晶','焊','短路','斷路','開路'], color:'#ef4444' },
+    '顯示/螢幕': { kws: ['螢幕','面板','顯示','lcd','背光','液晶','觸控','panel','花屏','黑屏'], color:'#38bdf8' },
+    '儲存/記憶': { kws: ['硬碟','hdd','ssd','記憶','ram','emmc','儲存','flash','sd卡','讀寫'], color:'#a78bfa' },
+    '感測/鏡頭': { kws: ['鏡頭','感測','sensor','ccd','cmos','對焦','紅外','ir','pir','收訊'], color:'#34d399' },
+    '機構/外觀': { kws: ['外殼','機構','按鍵','卡榫','破裂','變形','刮傷','螺絲','接頭','端子','排線','連接'], color:'#94a2b6' },
+    '通訊/網路': { kws: ['網路','wifi','藍牙','zigbee','rf','天線','訊號','通訊','連線','斷線','lan','poe'], color:'#22d3ee' },
+    '韌體/軟體': { kws: ['韌體','軟體','firmware','程式','當機','重啟','異常關機','無回應','升級','版本','設定','系統','ota'], color:'#818cf8' },
+  };
+
+  function classifyFault(text) {
+    const s = String(text || '').toLowerCase();
+    for (const [part, def] of Object.entries(FAULT_TAXONOMY)) {
+      if (def.kws.some(kw => s.includes(kw.toLowerCase()))) return part;
+    }
+    return '其他/未分類';
+  }
+
+  function rootCauseTree(records) {
+    const tree = {}; // 部位 → { count, scrap, modes:{mode:count} }
+    for (const r of records) {
+      const text = `${r.content || ''} ${r.reason || ''}`;
+      const part = classifyFault(text);
+      if (!tree[part]) tree[part] = { count: 0, scrap: 0, modes: {} };
+      tree[part].count++;
+      if (r.isScrap) tree[part].scrap++;
+      const mode = (r.content || r.reason || '未填').trim().slice(0, 30);
+      tree[part].modes[mode] = (tree[part].modes[mode] || 0) + 1;
+    }
+    return Object.entries(tree)
+      .map(([part, d]) => ({
+        part,
+        count: d.count,
+        scrap: d.scrap,
+        scrapRate: d.count ? (d.scrap / d.count) * 100 : 0,
+        color: FAULT_TAXONOMY[part]?.color || '#64748b',
+        topModes: Object.entries(d.modes).sort((a, b) => b[1] - a[1]).slice(0, 5)
+          .map(([mode, count]) => ({ mode, count })),
+      }))
+      .sort((a, b) => b.count - a.count);
+  }
+
+  // ─── FMEA / RPN 風險評分 ───
+  // Severity（嚴重度）：依該故障部位的報廢率推估 (1-10)
+  // Occurrence（發生度）：依發生頻率分位推估 (1-10)
+  // Detection（偵測度）：重複/跨月故障代表難偵測，預設偏高 (1-10)
+  function fmeaAnalysis(records, db) {
+    const tree = rootCauseTree(records);
+    if (!tree.length) return [];
+    const maxCount = Math.max(...tree.map(t => t.count), 1);
+
+    // 跨月重複的部位集合（偵測度加權）
+    const crossSerials = crossMonthSerials(db, {});
+    const crossModels = new Set(crossSerials.map(c => c.model));
+
+    return tree.map(t => {
+      // Severity：報廢率 0→1, 50%+→10
+      const severity = Math.min(10, Math.max(1, Math.round(1 + (t.scrapRate / 100) * 18)));
+      // Occurrence：頻率分位
+      const occurrence = Math.min(10, Math.max(1, Math.round((t.count / maxCount) * 10)));
+      // Detection：基礎 5，若該部位涉及跨月重複機種 +3
+      const hasCross = records.some(r => {
+        const text = `${r.content || ''} ${r.reason || ''}`;
+        return classifyFault(text) === t.part && crossModels.has(r.model);
+      });
+      const detection = Math.min(10, 5 + (hasCross ? 3 : 0) + (t.scrapRate > 20 ? 1 : 0));
+      const rpn = severity * occurrence * detection;
+      return {
+        part: t.part, color: t.color,
+        count: t.count, scrap: t.scrap, scrapRate: t.scrapRate,
+        severity, occurrence, detection, rpn,
+        level: rpn >= 200 ? 'critical' : rpn >= 100 ? 'high' : rpn >= 50 ? 'medium' : 'low',
+        topModes: t.topModes,
+      };
+    }).sort((a, b) => b.rpn - a.rpn);
+  }
+
+  // ─── 預測：下月故障數（線性回歸 + 3 月移動平均）───
+  function forecastNextMonth(db, filter) {
+    const trend = monthlyTrend(db, filter);
+    if (trend.length < 2) return { ready: false, reason: '需至少 2 個月資料' };
+
+    const counts = trend.map(t => t.count);
+    const n = counts.length;
+
+    // 線性回歸 y = a + bx
+    const xs = counts.map((_, i) => i);
+    const sumX = xs.reduce((a, b) => a + b, 0);
+    const sumY = counts.reduce((a, b) => a + b, 0);
+    const sumXY = xs.reduce((s, x, i) => s + x * counts[i], 0);
+    const sumXX = xs.reduce((s, x) => s + x * x, 0);
+    const b = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX || 1);
+    const a = (sumY - b * sumX) / n;
+    const linearPred = Math.max(0, Math.round(a + b * n));
+
+    // 3 月移動平均
+    const recent = counts.slice(-3);
+    const ma = Math.round(recent.reduce((x, y) => x + y, 0) / recent.length);
+
+    // 綜合預測：兩者平均
+    const forecast = Math.round((linearPred + ma) / 2);
+    const lastCount = counts[counts.length - 1];
+    const trendDir = b > 0.5 ? 'up' : b < -0.5 ? 'down' : 'flat';
+
+    return {
+      ready: true, forecast, linearPred, ma, lastCount, trendDir,
+      slope: b,
+      deltaPct: lastCount ? ((forecast - lastCount) / lastCount) * 100 : 0,
+      nextMonthLabel: trend.length ? null : null,
+    };
+  }
+
+  // ─── 成本量化（需單價設定）───
+  // priceConfig: { models:{model:price}, categories:{cat:price}, laborPerRepair, scrapDefault }
+  function costAnalysis(records, priceConfig) {
+    const cfg = priceConfig || {};
+    const modelPrices = cfg.models || {};
+    const catPrices = cfg.categories || {};
+    const laborPerRepair = cfg.laborPerRepair || 0;
+    const scrapDefault = cfg.scrapDefault || 0;
+
+    const unitPrice = (r) => modelPrices[r.model] ?? catPrices[r.category] ?? scrapDefault;
+
+    let scrapCost = 0, laborCost = 0;
+    const byCategory = {};
+    let scrapCount = 0;
+
+    for (const r of records) {
+      const labor = laborPerRepair;
+      laborCost += labor;
+      let sc = 0;
+      if (r.isScrap) { sc = unitPrice(r); scrapCost += sc; scrapCount++; }
+      const cat = r.category || '其他';
+      if (!byCategory[cat]) byCategory[cat] = { scrapCost: 0, laborCost: 0, count: 0, scrap: 0 };
+      byCategory[cat].scrapCost += sc;
+      byCategory[cat].laborCost += labor;
+      byCategory[cat].count++;
+      if (r.isScrap) byCategory[cat].scrap++;
+    }
+
+    return {
+      scrapCost, laborCost, totalCost: scrapCost + laborCost,
+      scrapCount,
+      avgScrapCost: scrapCount ? scrapCost / scrapCount : 0,
+      byCategory: Object.entries(byCategory)
+        .map(([cat, d]) => ({ cat, ...d, total: d.scrapCost + d.laborCost }))
+        .sort((a, b) => b.total - a.total),
+      configured: Object.keys(modelPrices).length > 0 || Object.keys(catPrices).length > 0 || scrapDefault > 0,
+    };
+  }
+
   // Expose
   window.RepairAnalyzer = {
     getRecords,
@@ -3640,6 +4002,15 @@ button, input, select { font-family: inherit; }
     monthlyTrend,
     partTrend,
     detectAnomalies,
+    // Advanced analytics
+    qualityMetrics,
+    spcAnalysis,
+    rootCauseTree,
+    classifyFault,
+    fmeaAnalysis,
+    forecastNextMonth,
+    costAnalysis,
+    FAULT_TAXONOMY,
   };
 })();
 
@@ -3814,6 +4185,8 @@ window.App = (function () {
       if (cloud.publishedAt !== seen) {
         // Cloud has a newer publish than this browser last loaded → adopt it.
         localStorage.setItem('repair_db_v2', JSON.stringify({ months: cloud.months }));
+        if (cloud.capa) localStorage.setItem('titan_capa_v1', JSON.stringify(cloud.capa));
+        if (cloud.costCfg) localStorage.setItem('titan_cost_cfg_v1', JSON.stringify(cloud.costCfg));
         localStorage.setItem(CLOUD_SEEN_KEY, cloud.publishedAt);
         state.cloudJustLoaded = true;
       }
@@ -3833,6 +4206,8 @@ window.App = (function () {
       const payload = {
         months: db.months,
         users: Auth.exportUsers(),
+        capa: JSON.parse(localStorage.getItem('titan_capa_v1') || '[]'),
+        costCfg: JSON.parse(localStorage.getItem('titan_cost_cfg_v1') || 'null'),
         publishedAt: new Date().toISOString(),
         publishedBy: '',
       };
@@ -4452,6 +4827,10 @@ window.App = (function () {
       case 'reason':   renderReason(); break;
       case 'scrap':    renderScrap(); break;
       case 'detail':   renderDetail(); break;
+      case 'quality':  renderQuality(); break;
+      case 'risk':     renderRisk(); break;
+      case 'capa':     renderCapa(); break;
+      case 'cost':     renderCost(); break;
     }
   }
 
@@ -5731,6 +6110,2351 @@ window.App = (function () {
     });
   }
 
+  // ═══════════════ Quality metrics + SPC ═══════════════
+  function renderQuality() {
+    const f = currentFilter();
+    const records = RepairAnalyzer.getRecords(state.db, f);
+    const denom = RepairAnalyzer.getDenominators(state.db, f);
+    const q = RepairAnalyzer.qualityMetrics(records, denom, state.db, state.selectedMonths);
+
+    $('qualityMeta').textContent = `基數（整新數）${fmt.int(q.base)} · 維修 ${fmt.int(q.total)}`;
+
+    const dppmClass = q.dppm == null ? '' : q.dppm >= 50000 ? 'k-red' : q.dppm >= 10000 ? 'k-warn' : 'k-info';
+    const fpyClass = q.fpy == null ? '' : q.fpy >= 95 ? 'k-info' : q.fpy >= 90 ? 'k-warn' : 'k-red';
+    const reworkClass = q.reworkRate >= 10 ? 'k-red' : q.reworkRate >= 5 ? 'k-warn' : 'k-info';
+
+    $('qualityKpi').innerHTML = `
+      <div class="kpi ${dppmClass}">
+        <div class="kpi-h"><div class="kpi-l">DPPM</div><div class="kpi-ico">‰</div></div>
+        <div class="kpi-v">${q.dppm == null ? '—' : fmt.int(q.dppm)}</div>
+        <div class="kpi-d"><span class="muted">每百萬基數缺陷數 · 維修觸發</span></div>
+      </div>
+      <div class="kpi k-red">
+        <div class="kpi-h"><div class="kpi-l">報廢 DPPM</div><div class="kpi-ico">✕</div></div>
+        <div class="kpi-v">${q.scrapDppm == null ? '—' : fmt.int(q.scrapDppm)}</div>
+        <div class="kpi-d"><span class="muted">每百萬基數報廢數</span></div>
+      </div>
+      <div class="kpi ${fpyClass}">
+        <div class="kpi-h"><div class="kpi-l">FPY 直通率</div><div class="kpi-ico">✓</div></div>
+        <div class="kpi-v">${q.fpy == null ? '—' : fmt.pct(q.fpy)}</div>
+        <div class="kpi-d"><span class="muted">未進維修比例（代理值）</span></div>
+      </div>
+      <div class="kpi ${reworkClass}">
+        <div class="kpi-h"><div class="kpi-l">重工率</div><div class="kpi-ico">♺</div></div>
+        <div class="kpi-v">${fmt.pct(q.reworkRate)}</div>
+        <div class="kpi-d"><span class="muted">${q.reworkUnits} / ${q.uniqueUnits} 台重複進廠</span></div>
+      </div>
+    `;
+
+    // SPC chart
+    const spc = RepairAnalyzer.spcAnalysis(state.db, { category: f.category, model: f.model });
+    const note = $('spcNote');
+    if (!spc.ready) {
+      note.innerHTML = `<span class="muted">${spc.reason}</span>`;
+      if (state.charts.spc) { state.charts.spc.destroy(); state.charts.spc = null; }
+      return;
+    }
+    note.innerHTML = `中心線 CL = <strong>${spc.mean.toFixed(2)}%</strong> · 管制上限 UCL(3σ) = <strong style="color:var(--critical)">${spc.ucl.toFixed(2)}%</strong> · σ = ${spc.sigma.toFixed(2)}`
+      + (spc.outCount > 0 ? ` · <strong style="color:var(--critical)">${spc.outCount} 個月超出管制界限 ⚠</strong>` : ` · <span style="color:var(--ok)">製程穩定</span>`);
+
+    const labels = spc.points.map(p => fmt.monthLabel(p.month));
+    const data = spc.points.map(p => +p.faultPct.toFixed(2));
+    const ptColors = spc.points.map(p => p.status === 'out' ? COLORS.critical : p.status === 'warn' ? COLORS.warn : COLORS.accent);
+    const ctx = $('spcChart');
+    if (ctx) {
+      state.charts.spc = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            { label: '故障率%', data, borderColor: COLORS.accent, backgroundColor: 'transparent',
+              pointBackgroundColor: ptColors, pointRadius: 6, pointHoverRadius: 8, tension: .2, borderWidth: 2 },
+            { label: 'UCL', data: labels.map(() => +spc.ucl.toFixed(2)), borderColor: COLORS.critical,
+              borderDash: [6, 4], pointRadius: 0, borderWidth: 1.5 },
+            { label: 'CL', data: labels.map(() => +spc.mean.toFixed(2)), borderColor: COLORS.text3,
+              borderDash: [3, 3], pointRadius: 0, borderWidth: 1 },
+            { label: 'LCL', data: labels.map(() => +spc.lcl.toFixed(2)), borderColor: COLORS.ok,
+              borderDash: [6, 4], pointRadius: 0, borderWidth: 1.5 },
+          ],
+        },
+        options: { responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } },
+          scales: { y: { beginAtZero: true, title: { display: true, text: '故障率 %' } } } },
+      });
+    }
+  }
+
+  // ═══════════════ Risk: FMEA + root cause + forecast ═══════════════
+  function renderRisk() {
+    const f = currentFilter();
+    const records = RepairAnalyzer.getRecords(state.db, f);
+    $('riskMeta').textContent = `${fmt.int(records.length)} 筆記錄`;
+
+    // Forecast
+    const fc = RepairAnalyzer.forecastNextMonth(state.db, { category: f.category, model: f.model });
+    if (fc.ready) {
+      const dirIco = fc.trendDir === 'up' ? '↗' : fc.trendDir === 'down' ? '↘' : '→';
+      const dirColor = fc.trendDir === 'up' ? 'var(--critical)' : fc.trendDir === 'down' ? 'var(--ok)' : 'var(--text2)';
+      $('forecastCard').innerHTML = `
+        <div class="card-h"><div class="card-t">下月維修量預測</div></div>
+        <div class="forecast-row">
+          <div class="forecast-main">
+            <div class="forecast-v" style="color:${dirColor}">${dirIco} ${fc.forecast}</div>
+            <div class="forecast-l">預估件數（線性回歸 + 3月移動平均）</div>
+          </div>
+          <div class="forecast-detail">
+            <div><span class="muted">上月實際</span> <strong>${fc.lastCount}</strong></div>
+            <div><span class="muted">趨勢斜率</span> <strong>${fc.slope.toFixed(1)}/月</strong></div>
+            <div><span class="muted">預估變化</span> <strong style="color:${dirColor}">${fc.deltaPct >= 0 ? '+' : ''}${fc.deltaPct.toFixed(0)}%</strong></div>
+          </div>
+        </div>
+      `;
+      $('forecastCard').style.display = '';
+    } else {
+      $('forecastCard').style.display = 'none';
+    }
+
+    // FMEA
+    const fmea = RepairAnalyzer.fmeaAnalysis(records, state.db);
+    $('fmeaTable').innerHTML = fmea.length === 0
+      ? '<div class="empty"><div class="empty-t">無資料</div></div>'
+      : `<div class="tbl-wrap"><table class="tbl fmea-tbl">
+          <thead><tr>
+            <th>故障部位</th><th class="right">件數</th>
+            <th class="right" title="嚴重度">S</th><th class="right" title="發生度">O</th><th class="right" title="偵測度">D</th>
+            <th class="right">RPN</th><th>風險等級</th>
+          </tr></thead>
+          <tbody>
+          ${fmea.map(m => `
+            <tr>
+              <td><span class="fmea-dot" style="background:${m.color}"></span>${m.part}</td>
+              <td class="right">${m.count}${m.scrap > 0 ? ` <span class="muted">(${m.scrap}廢)</span>` : ''}</td>
+              <td class="right">${m.severity}</td>
+              <td class="right">${m.occurrence}</td>
+              <td class="right">${m.detection}</td>
+              <td class="right"><strong>${m.rpn}</strong></td>
+              <td><span class="risk-badge ${m.level}">${({critical:'極高',high:'高',medium:'中',low:'低'})[m.level]}</span></td>
+            </tr>`).join('')}
+          </tbody></table></div>
+          <div class="fmea-legend">S 嚴重度 × O 發生度 × D 偵測度 = RPN 風險優先數 · RPN≥200 極高 · ≥100 高 · ≥50 中</div>`;
+
+    // Root cause tree
+    const tree = RepairAnalyzer.rootCauseTree(records);
+    const maxCount = Math.max(...tree.map(t => t.count), 1);
+    $('rootCauseTree').innerHTML = tree.length === 0
+      ? '<div class="empty"><div class="empty-t">無資料</div></div>'
+      : tree.map(t => `
+        <div class="rct-node">
+          <div class="rct-head">
+            <span class="rct-dot" style="background:${t.color}"></span>
+            <span class="rct-part">${t.part}</span>
+            <span class="rct-bar"><span style="width:${(t.count / maxCount * 100).toFixed(0)}%;background:${t.color}"></span></span>
+            <span class="rct-count">${t.count} 件</span>
+            ${t.scrap > 0 ? `<span class="rct-scrap">${t.scrap} 報廢 (${t.scrapRate.toFixed(0)}%)</span>` : ''}
+          </div>
+          <div class="rct-modes">
+            ${t.topModes.map(m => `<span class="rct-mode">${escapeHtml(m.mode)} <em>${m.count}</em></span>`).join('')}
+          </div>
+        </div>`).join('');
+  }
+
+  // ═══════════════ CAPA store + render ═══════════════
+  const CAPA_KEY = 'titan_capa_v1';
+  function loadCapa() {
+    try { return JSON.parse(localStorage.getItem(CAPA_KEY) || '[]'); } catch { return []; }
+  }
+  function saveCapa(list) { localStorage.setItem(CAPA_KEY, JSON.stringify(list)); }
+
+  function renderCapa() {
+    const list = loadCapa();
+    const open = list.filter(c => c.status !== 'closed').length;
+    $('capaMeta').textContent = `${list.length} 項 · ${open} 進行中`;
+    const badge = $('capaBadge');
+    if (badge) { if (open > 0) { badge.textContent = open; badge.style.display = ''; } else badge.style.display = 'none'; }
+
+    if (!list.length) {
+      $('capaList').innerHTML = `<div class="empty"><div class="empty-ico">✓</div><div class="empty-t">尚無 CAPA 項目</div><div class="empty-d">點右上角「+ 新增 CAPA」建立矯正預防措施</div></div>`;
+      return;
+    }
+    const statusMap = { open: { t: '待處理', c: 'var(--critical)' }, progress: { t: '進行中', c: 'var(--warn)' }, verify: { t: '驗證中', c: 'var(--info)' }, closed: { t: '已結案', c: 'var(--ok)' } };
+    const today = new Date().toISOString().slice(0, 10);
+    $('capaList').innerHTML = `<div class="capa-grid">${list.map((c, i) => {
+      const st = statusMap[c.status] || statusMap.open;
+      const overdue = c.due && c.status !== 'closed' && c.due < today;
+      return `
+        <div class="capa-card ${overdue ? 'overdue' : ''}">
+          <div class="capa-top">
+            <span class="capa-id">#${c.id}</span>
+            <span class="capa-status" style="--sc:${st.c}">${st.t}</span>
+          </div>
+          <div class="capa-title">${escapeHtml(c.problem)}</div>
+          <div class="capa-meta">
+            <span>👤 ${escapeHtml(c.owner || '—')}</span>
+            <span class="${overdue ? 'capa-overdue' : ''}">📅 ${c.due || '—'}${overdue ? ' 逾期' : ''}</span>
+          </div>
+          ${c.action ? `<div class="capa-action">${escapeHtml(c.action)}</div>` : ''}
+          ${c.linkRma ? `<div class="capa-link">🔗 關聯 RMA: ${escapeHtml(c.linkRma)}</div>` : ''}
+          <div class="capa-btns">
+            <select class="capa-sel" onchange="App.setCapaStatus('${c.id}',this.value)">
+              ${Object.entries(statusMap).map(([k, v]) => `<option value="${k}" ${c.status === k ? 'selected' : ''}>${v.t}</option>`).join('')}
+            </select>
+            <button class="btn danger sm" onclick="App.deleteCapa('${c.id}')">刪除</button>
+          </div>
+        </div>`;
+    }).join('')}</div>`;
+  }
+
+  function openCapaForm() {
+    const id = 'C' + Date.now().toString().slice(-6);
+    const problem = prompt('問題描述（必填）：');
+    if (!problem) return;
+    const owner = prompt('負責人：') || '';
+    const due = prompt('截止日 (YYYY-MM-DD)：') || '';
+    const action = prompt('矯正措施：') || '';
+    const linkRma = prompt('關聯 RMA 單號（可空白）：') || '';
+    const list = loadCapa();
+    list.unshift({ id, problem, owner, due, action, linkRma, status: 'open', created: new Date().toISOString() });
+    saveCapa(list);
+    renderCapa();
+  }
+  function setCapaStatus(id, status) {
+    const list = loadCapa();
+    const c = list.find(x => x.id === id);
+    if (c) { c.status = status; saveCapa(list); renderCapa(); }
+  }
+  function deleteCapa(id) {
+    if (!confirm('確定刪除此 CAPA 項目？')) return;
+    saveCapa(loadCapa().filter(x => x.id !== id));
+    renderCapa();
+  }
+
+  // ═══════════════ Cost analysis + config ═══════════════
+  const COST_KEY = 'titan_cost_cfg_v1';
+  function loadCostCfg() {
+    try { return JSON.parse(localStorage.getItem(COST_KEY) || 'null') || { categories: {}, models: {}, laborPerRepair: 0, scrapDefault: 0 }; }
+    catch { return { categories: {}, models: {}, laborPerRepair: 0, scrapDefault: 0 }; }
+  }
+  function saveCostCfg(cfg) { localStorage.setItem(COST_KEY, JSON.stringify(cfg)); }
+
+  function renderCost() {
+    const f = currentFilter();
+    const records = RepairAnalyzer.getRecords(state.db, f);
+    const cfg = loadCostCfg();
+    const cost = RepairAnalyzer.costAnalysis(records, cfg);
+    $('costMeta').textContent = cost.configured ? `${fmt.int(records.length)} 筆記錄` : '尚未設定單價';
+
+    if (!cost.configured) {
+      $('costContent').innerHTML = `<div class="empty"><div class="empty-ico">$</div><div class="empty-t">尚未設定單價</div><div class="empty-d">點右上角「⚙ 單價設定」輸入各類別/機種單價與工時成本，即可換算報廢與維修成本</div></div>`;
+      return;
+    }
+
+    const fmtMoney = (n) => 'NT$ ' + Math.round(n).toLocaleString('en');
+    $('costContent').innerHTML = `
+      <div class="kpi-grid">
+        <div class="kpi k-red">
+          <div class="kpi-h"><div class="kpi-l">報廢成本</div><div class="kpi-ico">✕</div></div>
+          <div class="kpi-v" style="font-size:34px">${fmtMoney(cost.scrapCost)}</div>
+          <div class="kpi-d"><span class="muted">${cost.scrapCount} 件報廢 · 平均 ${fmtMoney(cost.avgScrapCost)}</span></div>
+        </div>
+        <div class="kpi k-warn">
+          <div class="kpi-h"><div class="kpi-l">維修工時成本</div><div class="kpi-ico">⚙</div></div>
+          <div class="kpi-v" style="font-size:34px">${fmtMoney(cost.laborCost)}</div>
+          <div class="kpi-d"><span class="muted">${fmt.int(records.length)} 件 × 單件工時</span></div>
+        </div>
+        <div class="kpi k-blue">
+          <div class="kpi-h"><div class="kpi-l">總損失</div><div class="kpi-ico">∑</div></div>
+          <div class="kpi-v" style="font-size:34px">${fmtMoney(cost.totalCost)}</div>
+          <div class="kpi-d"><span class="muted">報廢 + 工時</span></div>
+        </div>
+      </div>
+      <div class="sec">
+        <div class="sec-h"><span class="sec-t"><span class="strong">各類別成本分布</span></span></div>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>類別</th><th class="right">件數</th><th class="right">報廢數</th><th class="right">報廢成本</th><th class="right">工時成本</th><th class="right">合計</th></tr></thead>
+          <tbody>${cost.byCategory.map(c => `
+            <tr><td>${c.cat}</td><td class="right">${c.count}</td><td class="right">${c.scrap}</td>
+            <td class="right">${fmtMoney(c.scrapCost)}</td><td class="right">${fmtMoney(c.laborCost)}</td>
+            <td class="right"><strong>${fmtMoney(c.total)}</strong></td></tr>`).join('')}
+          </tbody></table></div>
+      </div>`;
+  }
+
+  function openCostConfig() {
+    const cfg = loadCostCfg();
+    const cats = ['監視器', '傳統保全', '無線保全', '車機系統', 'AED', '門禁', '其他'];
+    const body = `
+      <div class="cc-sec-t">各類別報廢單價 (NT$)</div>
+      <div class="cc-grid">
+        ${cats.map(c => `<div class="cc-row"><label>${c}</label><input type="number" class="ls-input" id="cc_${c}" value="${cfg.categories[c] || ''}" placeholder="0"></div>`).join('')}
+      </div>
+      <div class="cc-sec-t" style="margin-top:16px">通用設定</div>
+      <div class="cc-grid">
+        <div class="cc-row"><label>每件維修工時成本</label><input type="number" class="ls-input" id="cc_labor" value="${cfg.laborPerRepair || ''}" placeholder="0"></div>
+        <div class="cc-row"><label>預設報廢單價（無對應時）</label><input type="number" class="ls-input" id="cc_default" value="${cfg.scrapDefault || ''}" placeholder="0"></div>
+      </div>`;
+    openDrawer({
+      severity: 'info', icon: '
+<script>
+// ════════════════════════════════════════════════════════════════════
+// Executive Summary Report Generator
+// Builds a print-ready HTML document and opens it in a new tab.
+// User presses Cmd+P / Ctrl+P to save as PDF.
+// ════════════════════════════════════════════════════════════════════
+
+(function () {
+
+  const CAT_COLOR = {
+    '監視器':   '#0ea5e9',
+    '傳統保全': '#ea580c',
+    '無線保全': '#059669',
+    '車機系統': '#7c3aed',
+    'AED':      '#db2777',
+    '門禁':     '#ca8a04',
+    '其他':     '#475569',
+  };
+
+  function fmtMonth(mk) {
+    if (!mk) return '';
+    const [y, m] = mk.split('-');
+    return `${parseInt(y, 10) - 1911}/${m}`;
+  }
+
+  function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function generate(db) {
+    const months = Object.keys(db.months).sort();
+    if (!months.length) return alert('沒有資料可生成報告');
+
+    const latestMonth = months[months.length - 1];
+    const prevMonth = months.length >= 2 ? months[months.length - 2] : null;
+
+    // === Aggregate ALL months for executive summary ===
+    const allRecords = RepairAnalyzer.getRecords(db, { months });
+    const allDenom = RepairAnalyzer.getDenominators(db, { months });
+    const allKpis = RepairAnalyzer.computeKPIs(allRecords, allDenom);
+
+    // === Latest month only ===
+    const curRecords = RepairAnalyzer.getRecords(db, { months: [latestMonth] });
+    const curDenom = RepairAnalyzer.getDenominators(db, { months: [latestMonth] });
+    const curKpis = RepairAnalyzer.computeKPIs(curRecords, curDenom);
+
+    // Previous month for delta
+    let prevKpis = null;
+    if (prevMonth) {
+      const prevRecords = RepairAnalyzer.getRecords(db, { months: [prevMonth] });
+      const prevDenom = RepairAnalyzer.getDenominators(db, { months: [prevMonth] });
+      prevKpis = RepairAnalyzer.computeKPIs(prevRecords, prevDenom);
+    }
+
+    // === Anomalies (latest month) ===
+    const anomalies = RepairAnalyzer.detectAnomalies(db, latestMonth);
+    const critical = anomalies.filter(a => a.severity === 'critical');
+    const warn = anomalies.filter(a => a.severity === 'warn');
+
+    // === Model rank (latest month) ===
+    const modelRank = RepairAnalyzer.modelRank(curRecords, curDenom).slice(0, 10);
+
+    // === Top parts (latest month) ===
+    const topParts = RepairAnalyzer.partPareto(curRecords).slice(0, 15);
+
+    // === Cross-month repeated serials ===
+    const crossMonth = RepairAnalyzer.crossMonthSerials(db, {});
+
+    // === Trend across all months ===
+    const trend = RepairAnalyzer.monthlyTrend(db, {});
+
+    // === Build delta info ===
+    const delta = prevKpis ? {
+      count: curKpis.totalRepairs - prevKpis.totalRepairs,
+      countPct: prevKpis.totalRepairs ? ((curKpis.totalRepairs - prevKpis.totalRepairs) / prevKpis.totalRepairs * 100) : 0,
+      scrap: curKpis.scrap - prevKpis.scrap,
+      faultRate: curKpis.denomPct - prevKpis.denomPct,
+    } : null;
+
+    const html = buildHTML({
+      months, latestMonth, prevMonth,
+      curKpis, prevKpis, allKpis, delta,
+      anomalies, critical, warn,
+      modelRank, topParts, crossMonth, trend,
+      reportDate: new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' }),
+    });
+
+    // Open in new tab
+    const w = window.open('', '_blank');
+    if (!w) {
+      alert('彈出視窗被阻擋，請允許後再試一次');
+      return;
+    }
+    w.document.write(html);
+    w.document.close();
+  }
+
+  function buildHTML(d) {
+    const monthLabel = fmtMonth(d.latestMonth);
+    const sevLabel = { critical: '嚴重', warn: '注意', info: '資訊' };
+
+    return `<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>維修月度總結 · ${monthLabel}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  @page { size: A4; margin: 14mm 12mm; }
+  html, body { font-family: 'Inter', 'Noto Sans TC', system-ui, sans-serif; color: #1e293b; line-height: 1.5; background: #f8fafc; }
+  body { padding: 24px; }
+  .doc { max-width: 1000px; margin: 0 auto; background: white; padding: 40px 48px; box-shadow: 0 2px 12px rgba(0,0,0,.06); }
+  @media print {
+    body { background: white; padding: 0; }
+    .doc { box-shadow: none; padding: 0; max-width: none; }
+    .pagebreak { page-break-before: always; }
+    .no-print { display: none !important; }
+    .print-btn { display: none !important; }
+  }
+
+  /* Print button */
+  .print-btn {
+    position: fixed; top: 20px; right: 20px;
+    background: #0ea5e9; color: white;
+    padding: 12px 24px; border-radius: 8px; border: none;
+    font-size: 14px; font-weight: 700; cursor: pointer;
+    font-family: inherit;
+    box-shadow: 0 4px 12px rgba(14,165,233,.3);
+    z-index: 100;
+  }
+  .print-btn:hover { background: #0284c7; }
+
+  /* Cover */
+  .cover {
+    border-bottom: 3px solid #0ea5e9;
+    padding-bottom: 24px; margin-bottom: 32px;
+  }
+  .cover-overline {
+    font-size: 11px; color: #64748b; letter-spacing: .18em; text-transform: uppercase;
+    font-weight: 700; margin-bottom: 8px;
+  }
+  .cover-title { font-size: 32px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 6px; color: #0f172a; }
+  .cover-sub { font-size: 14px; color: #475569; font-family: 'JetBrains Mono', monospace; }
+  .cover-meta {
+    margin-top: 14px; display: flex; gap: 20px;
+    font-size: 12px; color: #64748b;
+  }
+  .cover-meta span { font-family: 'JetBrains Mono', monospace; }
+
+  /* Section heading */
+  h2.sec {
+    font-size: 16px; color: #0f172a;
+    margin: 32px 0 14px;
+    padding-bottom: 8px; border-bottom: 1.5px solid #e2e8f0;
+    letter-spacing: -.01em; font-weight: 700;
+    display: flex; align-items: center; gap: 8px;
+  }
+  h2.sec::before {
+    content: ''; width: 4px; height: 16px; background: #0ea5e9; border-radius: 2px;
+  }
+  h2.sec .meta { margin-left: auto; font-size: 11px; color: #94a3b8; font-weight: 400; letter-spacing: .04em; }
+
+  /* KPI grid */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .kpi {
+    background: #f8fafc; border: 1px solid #e2e8f0;
+    padding: 16px 18px; border-radius: 8px;
+    border-left: 3px solid #0ea5e9;
+  }
+  .kpi.warn { border-left-color: #f59e0b; }
+  .kpi.bad { border-left-color: #ef4444; }
+  .kpi-l {
+    font-size: 10.5px; color: #64748b; letter-spacing: .1em;
+    text-transform: uppercase; font-weight: 700; margin-bottom: 8px;
+  }
+  .kpi-v {
+    font-family: 'JetBrains Mono', monospace; font-size: 28px;
+    font-weight: 700; line-height: 1; letter-spacing: -.02em; color: #0f172a;
+  }
+  .kpi-d {
+    margin-top: 8px; font-size: 11.5px; color: #64748b;
+    display: flex; align-items: baseline; gap: 6px;
+  }
+  .kpi-d .pct { color: #0f172a; font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+  .kpi-d .delta {
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+    padding: 2px 6px; border-radius: 8px; font-weight: 700;
+  }
+  .kpi-d .delta.up { color: #ef4444; background: #fef2f2; }
+  .kpi-d .delta.down { color: #059669; background: #f0fdf4; }
+  .kpi-d .delta.flat { color: #64748b; background: #f1f5f9; }
+
+  /* Executive summary box */
+  .exec {
+    background: linear-gradient(135deg, #0c4a6e, #075985);
+    color: white; padding: 24px 28px; border-radius: 10px;
+    margin: 20px 0;
+  }
+  .exec-h {
+    font-size: 11px; color: #7dd3fc; letter-spacing: .14em; text-transform: uppercase;
+    font-weight: 700; margin-bottom: 12px;
+  }
+  .exec-body { font-size: 14px; line-height: 1.8; color: #f0f9ff; }
+  .exec-body strong { color: white; font-weight: 700; }
+
+  /* Anomaly card */
+  .anom-list { display: flex; flex-direction: column; gap: 8px; }
+  .anom {
+    border: 1px solid #e2e8f0;
+    border-left: 3px solid #94a3b8;
+    border-radius: 6px; padding: 12px 16px;
+    display: grid; grid-template-columns: 1fr 60px; gap: 16px;
+    align-items: center;
+  }
+  .anom.critical { border-left-color: #ef4444; background: #fef2f2; }
+  .anom.warn { border-left-color: #f59e0b; background: #fffbeb; }
+  .anom.info { border-left-color: #6366f1; background: #eef2ff; }
+  .anom-l { min-width: 0; }
+  .anom-h { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .anom-t { font-size: 10.5px; color: #475569; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; }
+  .anom-sev {
+    font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+    padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: .04em;
+  }
+  .anom.critical .anom-sev { background: #fecaca; color: #991b1b; }
+  .anom.warn .anom-sev { background: #fde68a; color: #92400e; }
+  .anom.info .anom-sev { background: #c7d2fe; color: #3730a3; }
+  .anom-s { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 2px; word-break: break-word; }
+  .anom-m { font-size: 12px; color: #475569; font-family: 'JetBrains Mono', monospace; }
+  .anom-r {
+    text-align: right;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .anom-metric { font-size: 22px; font-weight: 700; line-height: 1; }
+  .anom.critical .anom-metric { color: #dc2626; }
+  .anom.warn .anom-metric { color: #d97706; }
+  .anom.info .anom-metric { color: #4f46e5; }
+  .anom-mlabel { font-size: 10px; color: #64748b; margin-top: 3px; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead th {
+    text-align: left; padding: 10px 12px; font-size: 10.5px;
+    letter-spacing: .08em; text-transform: uppercase; color: #64748b; font-weight: 700;
+    border-bottom: 1.5px solid #cbd5e1; background: #f1f5f9;
+  }
+  tbody td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  .num { font-family: 'JetBrains Mono', monospace; }
+  .right { text-align: right; }
+  .center { text-align: center; }
+  .muted { color: #94a3b8; }
+
+  .bar { display: inline-block; height: 4px; background: #0ea5e9; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+  .tag {
+    display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    padding: 1px 6px; border-radius: 8px; background: #f1f5f9; color: #475569;
+    border: 1px solid #e2e8f0;
+  }
+  .pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; padding: 1px 6px; border-radius: 8px;
+    font-weight: 600;
+  }
+  .pill.crit { background: #fee2e2; color: #991b1b; }
+  .pill.warn { background: #fef3c7; color: #92400e; }
+  .pill.ok { background: #d1fae5; color: #065f46; }
+  .pill::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+  /* Trend chart (SVG) */
+  .trend-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .trend-card {
+    border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;
+  }
+  .trend-card h3 {
+    font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+    color: #64748b; font-weight: 700; margin-bottom: 12px;
+  }
+  .trend-svg { width: 100%; height: 120px; }
+
+  /* Cross-month detail */
+  .cm-row {
+    border: 1px solid #e2e8f0; border-left: 3px solid #ef4444;
+    border-radius: 6px; padding: 12px 16px; margin-bottom: 8px;
+    background: #fef2f2;
+  }
+  .cm-row.warn { border-left-color: #f59e0b; background: #fffbeb; }
+  .cm-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .cm-id { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; color: #0f172a; }
+  .cm-id .ser { color: #64748b; font-weight: 500; }
+  .cm-months { display: flex; gap: 4px; }
+  .cm-month {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 2px 7px; border-radius: 8px;
+    background: #fecaca; color: #991b1b; font-weight: 700;
+  }
+  .cm-row.warn .cm-month { background: #fde68a; color: #92400e; }
+  .cm-visits { font-size: 11.5px; color: #475569; font-family: 'JetBrains Mono', monospace; line-height: 1.7; }
+
+  /* Footer */
+  .footer {
+    margin-top: 40px; padding-top: 16px; border-top: 1px solid #e2e8f0;
+    font-size: 10.5px; color: #94a3b8; display: flex; justify-content: space-between;
+  }
+
+  /* Helpers */
+  .strip {
+    display: flex; gap: 16px; align-items: center;
+    padding: 12px 16px; background: #f1f5f9; border-radius: 8px; margin-bottom: 12px;
+    font-size: 12.5px; color: #475569;
+  }
+  .strip strong { color: #0f172a; }
+</style>
+</head>
+<body>
+
+<button class="print-btn no-print" onclick="window.print()">⤓ 列印 / 儲存為 PDF</button>
+
+<div class="doc">
+
+  <!-- COVER -->
+  <div class="cover">
+    <div class="cover-overline">維修月度總結報告</div>
+    <div class="cover-title">${monthLabel} 維修分析摘要</div>
+    <div class="cover-sub">電子工廠 · 報廢與維修狀態總覽</div>
+    <div class="cover-meta">
+      <span>生成日期：${d.reportDate}</span>
+      <span>資料範圍：${fmtMonth(d.months[0])} – ${monthLabel}（${d.months.length} 個月）</span>
+      <span>總紀錄：${d.allKpis.totalRepairs.toLocaleString()} 筆</span>
+    </div>
+  </div>
+
+  <!-- Executive summary -->
+  <div class="exec">
+    <div class="exec-h">本月重點摘要</div>
+    <div class="exec-body">
+      ${buildExecutiveSummary(d)}
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <h2 class="sec">本月關鍵指標 <span class="meta">${monthLabel}</span></h2>
+  <div class="kpi-row">
+    ${kpiCard('總維修件數', d.curKpis.totalRepairs, `佔整新數 <span class="pct">${d.curKpis.denomPct.toFixed(1)}%</span><span class="muted">/ ${d.curKpis.denomTotal.toLocaleString()}</span>`, deltaPill(d.delta?.count, '上月'))}
+    ${kpiCard('受檢機種', d.curKpis.models, '<span class="muted">機種</span>', '')}
+    ${kpiCard('報廢件數', d.curKpis.scrap, `報廢率 <span class="pct">${d.curKpis.scrapPct.toFixed(1)}%</span>`, deltaPill(d.delta?.scrap, '上月'), d.curKpis.scrapPct >= 10 ? 'bad' : d.curKpis.scrapPct >= 5 ? 'warn' : '')}
+    ${kpiCard('重複維修', d.curKpis.repeatedSerials, '<span class="muted">同序號 ≥ 2 次</span>', '')}
+  </div>
+
+  ${d.critical.length || d.warn.length ? `
+  <h2 class="sec">需立即關注 <span class="meta">${d.critical.length + d.warn.length} 筆警示</span></h2>
+  <div class="anom-list">
+    ${d.critical.slice(0, 6).map(anomCard).join('')}
+    ${d.warn.slice(0, 6 - Math.min(d.critical.length, 6)).map(anomCard).join('')}
+  </div>` : ''}
+
+  ${d.crossMonth.length ? `
+  <h2 class="sec">跨月份重複維修 <span class="meta">${d.crossMonth.length} 台機台</span></h2>
+  <div class="strip">
+    <strong>${d.crossMonth.length}</strong> 台機台在 ≥ 2 個月份出現維修紀錄。可能為治標未治本、設計缺陷或客戶使用問題。建議列入下月重點檢討。
+  </div>
+  ${d.crossMonth.slice(0, 10).map(crossMonthCard).join('')}
+  ${d.crossMonth.length > 10 ? `<div style="text-align:center;font-size:11px;color:#94a3b8;margin-top:8px">…另有 ${d.crossMonth.length - 10} 台未顯示</div>` : ''}
+  ` : ''}
+
+  <div class="pagebreak"></div>
+
+  <!-- Trend -->
+  ${d.trend.length >= 2 ? `
+  <h2 class="sec">月份趨勢 <span class="meta">${d.trend.length} 個月</span></h2>
+  <div class="trend-grid">
+    <div class="trend-card">
+      <h3>維修件數</h3>
+      ${trendSvg(d.trend.map(t => ({ label: fmtMonth(t.month), value: t.count })), '#0ea5e9')}
+    </div>
+    <div class="trend-card">
+      <h3>故障率 (件數 / 整新數)</h3>
+      ${trendSvg(d.trend.map(t => ({ label: fmtMonth(t.month), value: t.faultPct })), '#f59e0b', '%')}
+    </div>
+  </div>
+  ` : ''}
+
+  <!-- Top models -->
+  <h2 class="sec">機種故障排名 <span class="meta">本月前 10</span></h2>
+  <table>
+    <thead><tr>
+      <th style="width:32px">#</th>
+      <th>機種</th>
+      <th>大類</th>
+      <th class="right">件數</th>
+      <th class="right">整新數</th>
+      <th class="right">故障率</th>
+      <th class="right">報廢</th>
+      <th>主要故障內容</th>
+    </tr></thead>
+    <tbody>
+      ${d.modelRank.map((r, i) => `
+        <tr>
+          <td class="num muted">${i + 1}</td>
+          <td><strong class="num">${escapeHtml(r.model)}</strong></td>
+          <td><span class="tag" style="border-color:${CAT_COLOR[r.category] || '#94a3b8'}33;color:${CAT_COLOR[r.category] || '#475569'}">${r.category}</span></td>
+          <td class="right num">${r.count}</td>
+          <td class="right num muted">${r.denom || '—'}</td>
+          <td class="right">${r.faultRate != null ? `<span class="pill ${r.faultRate >= 0.1 ? 'crit' : r.faultRate >= 0.05 ? 'warn' : 'ok'}">${(r.faultRate * 100).toFixed(1)}%</span>` : '<span class="muted">—</span>'}</td>
+          <td class="right num">${r.scrap || '<span class="muted">0</span>'}</td>
+          <td style="font-size:11px;color:#475569">${r.topContents.slice(0, 2).map(c => `${escapeHtml(c.name)} <span class="muted">×${c.count}</span>`).join('・') || '<span class="muted">—</span>'}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+
+  <!-- Top parts -->
+  <h2 class="sec">本月最常更換零件 <span class="meta">前 15</span></h2>
+  <table>
+    <thead><tr>
+      <th style="width:32px">#</th>
+      <th>零件名稱</th>
+      <th>影響機種</th>
+      <th class="right">件數</th>
+      <th style="width:160px">佔比</th>
+    </tr></thead>
+    <tbody>
+      ${d.topParts.map((p, i) => `
+        <tr>
+          <td class="num muted">${i + 1}</td>
+          <td><strong>${escapeHtml(p.name)}</strong></td>
+          <td>
+            <span class="tag">${p.models.length} 機種</span>
+            <span style="font-size:10px;color:#94a3b8;font-family:'JetBrains Mono',monospace;margin-left:4px">${p.models.slice(0, 3).join(', ')}${p.models.length > 3 ? '…' : ''}</span>
+          </td>
+          <td class="right num"><strong>${p.count}</strong></td>
+          <td>
+            <span class="bar" style="width:${Math.max(8, p.pct * 100 * 2)}px;background:${i < 3 ? '#ef4444' : i < 7 ? '#f59e0b' : '#0ea5e9'}"></span>
+            <span class="num" style="font-size:11px;color:#475569">${(p.pct * 100).toFixed(1)}%</span>
+            <span class="muted" style="font-size:10px;margin-left:6px">累計 ${(p.cumPct * 100).toFixed(0)}%</span>
+          </td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+
+  <div class="footer">
+    <span>維修分析報表 · ${d.reportDate}</span>
+    <span class="num">${d.allKpis.totalRepairs.toLocaleString()} 筆總紀錄 · ${d.months.length} 個月份累積</span>
+  </div>
+</div>
+
+<script>
+  // Auto-trigger print dialog after fonts/layout settle (give user a moment to see preview)
+  // window.addEventListener('load', () => setTimeout(() => window.print(), 800));
+<\/script>
+</body>
+</html>`;
+  }
+
+  function kpiCard(label, value, detail, extra, cls = '') {
+    return `
+      <div class="kpi ${cls}">
+        <div class="kpi-l">${label}</div>
+        <div class="kpi-v">${typeof value === 'number' ? value.toLocaleString() : value}</div>
+        <div class="kpi-d">${detail}${extra ? ` ${extra}` : ''}</div>
+      </div>`;
+  }
+
+  function deltaPill(d, label) {
+    if (d == null || d === undefined) return '';
+    if (d === 0) return `<span class="delta flat">→ ${label} ±0</span>`;
+    const cls = d > 0 ? 'up' : 'down';
+    const arrow = d > 0 ? '▲' : '▼';
+    return `<span class="delta ${cls}">${arrow} ${label} ${d > 0 ? '+' : ''}${d}</span>`;
+  }
+
+  function anomCard(a) {
+    const sevLabel = { critical: '嚴重', warn: '注意', info: '資訊' };
+    return `
+      <div class="anom ${a.severity}">
+        <div class="anom-l">
+          <div class="anom-h">
+            <span class="anom-t">${a.title}</span>
+            <span class="anom-sev">${sevLabel[a.severity]}</span>
+          </div>
+          <div class="anom-s">${escapeHtml(a.subject)}</div>
+          <div class="anom-m">${escapeHtml(a.message)}</div>
+        </div>
+        <div class="anom-r">
+          <div class="anom-metric">${a.metric}</div>
+          <div class="anom-mlabel">${a.metricLabel}</div>
+        </div>
+      </div>`;
+  }
+
+  function crossMonthCard(r) {
+    const sev = r.monthCount >= 3 ? '' : 'warn';
+    return `
+      <div class="cm-row ${sev}">
+        <div class="cm-h">
+          <div>
+            <div class="cm-id">${escapeHtml(r.model)} <span class="ser">#${escapeHtml(r.serial)}</span></div>
+          </div>
+          <div class="cm-months">
+            ${r.monthsSpan.map(m => `<span class="cm-month">${fmtMonth(m)}</span>`).join('')}
+            <span style="margin-left:8px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:${r.monthCount >= 3 ? '#dc2626' : '#d97706'}">${r.visitCount} 次</span>
+          </div>
+        </div>
+        <div class="cm-visits">
+          ${r.visits.slice(0, 4).map(v => `
+            <div>${v.date || '—'}　${escapeHtml(v.content || v.reason || '—')}${v.parts.length ? `　→ ${v.parts.slice(0, 2).map(escapeHtml).join(', ')}` : ''}</div>
+          `).join('')}
+          ${r.visits.length > 4 ? `<div style="color:#94a3b8">…另有 ${r.visits.length - 4} 次</div>` : ''}
+        </div>
+      </div>`;
+  }
+
+  function trendSvg(data, color, suffix = '') {
+    if (!data.length) return '';
+    const w = 380, h = 120, padX = 30, padY = 18;
+    const xs = data.length === 1
+      ? [w / 2]
+      : data.map((_, i) => padX + (w - 2 * padX) * (i / (data.length - 1)));
+    const maxV = Math.max(...data.map(d => d.value), 0.001);
+    const ys = data.map(d => h - padY - ((h - 2 * padY) * d.value / maxV));
+    const pathD = xs.map((x, i) => `${i === 0 ? 'M' : 'L'} ${x} ${ys[i]}`).join(' ');
+    const areaD = `${pathD} L ${xs[xs.length - 1]} ${h - padY} L ${xs[0]} ${h - padY} Z`;
+    return `
+      <svg viewBox="0 0 ${w} ${h}" class="trend-svg" preserveAspectRatio="none">
+        <line x1="${padX}" y1="${h - padY}" x2="${w - padX}" y2="${h - padY}" stroke="#e2e8f0" stroke-width="1"/>
+        <path d="${areaD}" fill="${color}" opacity=".12"/>
+        <path d="${pathD}" fill="none" stroke="${color}" stroke-width="2"/>
+        ${xs.map((x, i) => `
+          <circle cx="${x}" cy="${ys[i]}" r="3.5" fill="${color}"/>
+          <text x="${x}" y="${ys[i] - 8}" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" font-weight="700" fill="#0f172a">${typeof data[i].value === 'number' ? (suffix === '%' ? data[i].value.toFixed(1) : data[i].value.toLocaleString()) : data[i].value}${suffix}</text>
+          <text x="${x}" y="${h - 4}" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#64748b">${data[i].label}</text>
+        `).join('')}
+      </svg>`;
+  }
+
+  function buildExecutiveSummary(d) {
+    const parts = [];
+    const m = fmtMonth(d.latestMonth);
+
+    // Total + delta
+    if (d.delta && d.prevKpis) {
+      const dir = d.delta.count > 0 ? '較上月增加' : d.delta.count < 0 ? '較上月減少' : '與上月持平';
+      parts.push(`${m} 月共處理 <strong>${d.curKpis.totalRepairs.toLocaleString()}</strong> 筆維修，${dir} <strong>${Math.abs(d.delta.count)}</strong> 件（${d.delta.countPct >= 0 ? '+' : ''}${d.delta.countPct.toFixed(0)}%），佔整新數 <strong>${d.curKpis.denomPct.toFixed(1)}%</strong>。`);
+    } else {
+      parts.push(`${m} 月共處理 <strong>${d.curKpis.totalRepairs.toLocaleString()}</strong> 筆維修，佔整新數 <strong>${d.curKpis.denomPct.toFixed(1)}%</strong>。`);
+    }
+
+    // Critical anomalies
+    if (d.critical.length > 0) {
+      parts.push(`系統偵測到 <strong>${d.critical.length}</strong> 件嚴重異常${d.warn.length ? `、${d.warn.length} 件待注意項目` : ''}，需立即關注。`);
+      // Highlight top 1-2
+      const top = d.critical.slice(0, 2);
+      top.forEach(a => {
+        parts.push(`<strong>${a.title}：${escapeHtml(a.subject)}</strong> — ${escapeHtml(a.message)}。`);
+      });
+    } else if (d.warn.length > 0) {
+      parts.push(`偵測到 <strong>${d.warn.length}</strong> 件待注意項目，本月整體狀況穩定。`);
+    } else {
+      parts.push(`未偵測到顯著異常，狀況穩定。`);
+    }
+
+    // Cross-month
+    if (d.crossMonth.length > 0) {
+      const ge3 = d.crossMonth.filter(r => r.monthCount >= 3).length;
+      parts.push(`<strong>${d.crossMonth.length}</strong> 台機台在多個月份均有維修紀錄${ge3 ? `（其中 <strong>${ge3}</strong> 台已連續 ≥ 3 個月）` : ''}，建議列入下月重點檢討。`);
+    }
+
+    // Top part
+    if (d.topParts.length > 0) {
+      const p = d.topParts[0];
+      parts.push(`本月最頻繁更換零件為 <strong>${escapeHtml(p.name)}</strong>，共 <strong>${p.count}</strong> 件${p.models.length > 1 ? `，跨 <strong>${p.models.length}</strong> 個機種` : ''}。`);
+    }
+
+    return parts.join(' ');
+  }
+
+  // Expose
+  window.RepairReport = { generate };
+})();
+
+</script>
+<script>
+// ════════════════════════════════════════════════════════════════════
+// RMA Management Module
+// Create / track / resolve return merchandise authorization cases.
+// Storage: localStorage keyed by rma_db_v1
+// ════════════════════════════════════════════════════════════════════
+
+window.RMA = (function () {
+
+  const STORAGE_KEY = 'rma_db_v1';
+
+  // ─── Status flow ───
+  const STATUS = {
+    received:    { label: '已收件', icon: '◎', color: '#38bdf8' },
+    diagnosing:  { label: '診斷中', icon: '⊙', color: '#818cf8' },
+    repairing:   { label: '維修中', icon: '⚙', color: '#f59e0b' },
+    testing:     { label: '測試中', icon: '◈', color: '#10b981' },
+    shipped:     { label: '已出貨', icon: '✓', color: '#10b981' },
+    scrapped:    { label: '報廢',   icon: '✕', color: '#ef4444' },
+    cancelled:   { label: '取消',   icon: '—', color: '#475569' },
+  };
+
+  const STATUS_ORDER = ['received', 'diagnosing', 'repairing', 'testing', 'shipped'];
+
+  const CATEGORY_MAP = window.RepairParser ? window.RepairParser.CATEGORY_MAP : {};
+
+  // ─── Role definitions ───
+  const ROLES = {
+    all:       { label:'綜合視角', short:'綜合',   icon:'⊞', color:'#38bdf8', desc:'所有部門共同關注的核心指標' },
+    ceo:       { label:'董事長',   short:'董事長',  icon:'◈', color:'#a78bfa', desc:'戰略績效 · 風險評估 · 財務影響' },
+    factory:   { label:'廠長',     short:'廠長',    icon:'⊙', color:'#fb923c', desc:'跨部門協調 · 積壓管理 · 資源調配' },
+    procure:   { label:'採購主管', short:'採購',    icon:'◎', color:'#facc15', desc:'零件需求 · 供應商風險 · 換件成本' },
+    prod:      { label:'生產主管', short:'生產',    icon:'⚙', color:'#10b981', desc:'良率 · 機種分布 · 製程異常' },
+    qa:        { label:'品檢主管', short:'品檢',    icon:'◇', color:'#f472b6', desc:'重複故障 · 保固分析 · CAPA追蹤' },
+    logistics: { label:'物流主管', short:'物流',    icon:'↗', color:'#34d399', desc:'SLA達成 · 在廠天數 · 出貨排程' },
+    cs:        { label:'客服主管', short:'客服',    icon:'◉', color:'#60a5fa', desc:'客戶溝通 · 逾期通知 · 保固處理' },
+    repair:    { label:'維修主管', short:'維修',    icon:'✦', color:'#f59e0b', desc:'工單分配 · 技師效率 · 報廢判定' },
+    hw:        { label:'硬體研發', short:'硬體',    icon:'◁', color:'#818cf8', desc:'設計缺陷 · ECO · 元件可靠性' },
+    fw:        { label:'韌體研發', short:'韌體',    icon:'▷', color:'#22d3ee', desc:'韌體Bug · OTA修復 · 版本分析' },
+  };
+
+  // ─── Column definitions ───
+  const COL_DEFS = {
+    id:      { th:'案件號',    w:'120px' },
+    model:   { th:'機種/序號', w:'130px' },
+    category:{ th:'大類',     w:'80px'  },
+    customer:{ th:'客戶',     w:'120px' },
+    issue:   { th:'故障描述', w:'160px' },
+    warranty:{ th:'保固',     w:'72px'  },
+    receivedDate:   { th:'收件日',   w:'88px' },
+    estimatedReturn:{ th:'預計回覆', w:'88px' },
+    days:    { th:'天數',     w:'60px'  },
+    status:  { th:'狀態',     w:'90px'  },
+    parts:   { th:'換件記錄', w:'140px' },
+    techName:{ th:'技師',     w:'80px'  },
+  };
+
+  const ROLE_COLS = {
+    all:       { cols:['id','model','category','customer','issue','warranty','receivedDate','days','status'],        hi:['days','status'] },
+    ceo:       { cols:['id','model','category','warranty','days','status'],                                         hi:['status','days'] },
+    factory:   { cols:['id','model','category','customer','receivedDate','days','status'],                          hi:['days'] },
+    procure:   { cols:['id','model','category','warranty','parts','receivedDate','status'],                         hi:['parts','warranty'] },
+    prod:      { cols:['id','model','category','issue','receivedDate','status'],                                    hi:['category','model'] },
+    qa:        { cols:['id','model','warranty','issue','status'],                                                   hi:['warranty'] },
+    logistics: { cols:['id','model','receivedDate','estimatedReturn','days','status'],                              hi:['days','estimatedReturn'] },
+    cs:        { cols:['id','customer','model','warranty','estimatedReturn','status'],                              hi:['customer','estimatedReturn'] },
+    repair:    { cols:['id','model','techName','issue','days','status'],                                            hi:['status','days','techName'] },
+    hw:        { cols:['id','model','category','issue','warranty','parts','status'],                                hi:['model','warranty'] },
+    fw:        { cols:['id','model','issue','days','status'],                                                       hi:['issue'] },
+  };
+
+  // ─── Storage ───
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return { cases: [], nextSeq: 1 };
+      const obj = JSON.parse(raw);
+      if (!obj.cases) obj.cases = [];
+      if (!obj.nextSeq) obj.nextSeq = (obj.cases.length || 0) + 1;
+      return obj;
+    } catch {
+      return { cases: [], nextSeq: 1 };
+    }
+  }
+
+  function save(db) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+      return true;
+    } catch (e) {
+      console.warn('RMA save failed:', e);
+      return false;
+    }
+  }
+
+  function genId(db) {
+    const now = new Date();
+    const yr = now.getFullYear();
+    const seq = String(db.nextSeq).padStart(4, '0');
+    db.nextSeq++;
+    return `RMA-${yr}-${seq}`;
+  }
+
+  function getCategory(model) {
+    const key = String(model || '').toUpperCase().replace(/[\s\-_\.()（）]/g, '');
+    for (const [cat, list] of Object.entries(CATEGORY_MAP)) {
+      if (list.some(m => m.toUpperCase().replace(/[\s\-_\.()（）]/g, '') === key)) return cat;
+    }
+    return '其他';
+  }
+
+  function createCase(data) {
+    const db = load();
+    const now = new Date().toISOString().substring(0, 10);
+    const c = {
+      id: genId(db),
+      createdAt: now,
+      model: (data.model || '').toUpperCase().trim(),
+      serial: (data.serial || '').trim(),
+      customer: (data.customer || '').trim(),
+      contactName: (data.contactName || '').trim(),
+      contactPhone: (data.contactPhone || '').trim(),
+      issueDesc: (data.issueDesc || '').trim(),
+      category: data.category || getCategory(data.model),
+      warranty: data.warranty || 'unknown',  // in | out | unknown
+      receivedDate: data.receivedDate || now,
+      estimatedReturn: data.estimatedReturn || null,
+      actualReturn: null,
+      status: 'received',
+      statusHistory: [{ status: 'received', date: now, note: '建立案件', operator: data.operator || '' }],
+      diagnosis: { techName: '', diagDate: '', faultContent: '', parts: [], isScrap: false, notes: '' },
+      repair: { techName: '', repairDate: '', parts: [], notes: '' },
+      repairType: null,
+      cost: null,
+      notes: (data.notes || '').trim(),
+    };
+    db.cases.push(c);
+    save(db);
+    return c;
+  }
+
+  function updateCase(id, patch) {
+    const db = load();
+    const idx = db.cases.findIndex(c => c.id === id);
+    if (idx < 0) return null;
+    Object.assign(db.cases[idx], patch);
+    save(db);
+    return db.cases[idx];
+  }
+
+  function advanceStatus(id, newStatus, note, operator) {
+    const db = load();
+    const idx = db.cases.findIndex(c => c.id === id);
+    if (idx < 0) return null;
+    const c = db.cases[idx];
+    c.status = newStatus;
+    c.statusHistory.push({
+      status: newStatus,
+      date: new Date().toISOString().substring(0, 10),
+      note: note || '',
+      operator: operator || '',
+    });
+    if (newStatus === 'shipped') c.actualReturn = new Date().toISOString().substring(0, 10);
+    save(db);
+    return c;
+  }
+
+  function deleteCase(id) {
+    const db = load();
+    db.cases = db.cases.filter(c => c.id !== id);
+    save(db);
+    return db;
+  }
+
+  function getCase(id) {
+    const db = load();
+    return db.cases.find(c => c.id === id) || null;
+  }
+
+  function listCases(filter) {
+    const db = load();
+    let cases = db.cases.slice();
+    if (filter) {
+      if (filter.status && filter.status !== 'all') cases = cases.filter(c => c.status === filter.status);
+      if (filter.category && filter.category !== '全部') cases = cases.filter(c => c.category === filter.category);
+      if (filter.q) {
+        const q = filter.q.toLowerCase();
+        cases = cases.filter(c =>
+          c.id.toLowerCase().includes(q) ||
+          c.model.toLowerCase().includes(q) ||
+          c.serial.toLowerCase().includes(q) ||
+          c.customer.toLowerCase().includes(q) ||
+          c.issueDesc.toLowerCase().includes(q)
+        );
+      }
+    }
+    return cases.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  function stats() {
+    const db = load();
+    const cases = db.cases;
+    const today = new Date().toISOString().substring(0, 10);
+    const byStatus = {};
+    for (const s of Object.keys(STATUS)) byStatus[s] = 0;
+    let overdue = 0;
+    const byCategory = {};
+    const byMonth = {};
+
+    for (const c of cases) {
+      byStatus[c.status] = (byStatus[c.status] || 0) + 1;
+      byCategory[c.category] = (byCategory[c.category] || 0) + 1;
+      const ym = c.createdAt.substring(0, 7);
+      byMonth[ym] = (byMonth[ym] || 0) + 1;
+      const open = !['shipped', 'scrapped', 'cancelled'].includes(c.status);
+      if (open && c.estimatedReturn && c.estimatedReturn < today) overdue++;
+    }
+    const open = cases.filter(c => !['shipped', 'scrapped', 'cancelled'].includes(c.status)).length;
+    return { total: cases.length, open, overdue, byStatus, byCategory, byMonth };
+  }
+
+  function computeExtStats(cases) {
+    const today = new Date().toISOString().substring(0, 10);
+    const thisMonth = today.substring(0, 7);
+
+    const serialCount = {};
+    const partFreq = {};
+    const byCategory = {};
+    const byModel = {};
+    let warrantyIn = 0, scrapped = 0, swFaults = 0;
+
+    const swKw = ['當機','異常關機','無法開機','無回應','軟體','韌體','系統','連線','網路','藍牙','WiFi','更新','升級'];
+
+    for (const c of cases) {
+      if (c.serial) serialCount[c.serial] = (serialCount[c.serial] || 0) + 1;
+      if (c.warranty === 'in') warrantyIn++;
+      if (c.status === 'scrapped') scrapped++;
+      if (swKw.some(kw => (c.issueDesc || '').includes(kw))) swFaults++;
+      byCategory[c.category] = (byCategory[c.category] || 0) + 1;
+      if (c.model) byModel[c.model] = (byModel[c.model] || 0) + 1;
+      for (const p of [...(c.diagnosis?.parts || []), ...(c.repair?.parts || [])]) {
+        partFreq[p.part] = (partFreq[p.part] || 0) + (p.qty || 1);
+      }
+    }
+
+    const repeatSerials = Object.values(serialCount).filter(n => n > 1).length;
+    const topPart = Object.entries(partFreq).sort((a, b) => b[1] - a[1])[0] || null;
+    const topCategory = Object.entries(byCategory).sort((a, b) => b[1] - a[1])[0] || null;
+    const topModel = Object.entries(byModel).sort((a, b) => b[1] - a[1])[0] || null;
+    const totalParts = Object.values(partFreq).reduce((s, n) => s + n, 0);
+
+    const closedThisMonth = cases.filter(c =>
+      ['shipped', 'scrapped', 'cancelled'].includes(c.status) &&
+      (c.statusHistory || []).some(h => h.date?.startsWith(thisMonth) && ['shipped', 'scrapped', 'cancelled'].includes(h.status))
+    ).length;
+
+    const shippedThisMonth = cases.filter(c => {
+      return c.status === 'shipped' && (c.statusHistory || []).some(h => h.date?.startsWith(thisMonth) && h.status === 'shipped');
+    }).length;
+
+    const cycles = cases.map(c => {
+      const end = c.actualReturn || (c.status === 'shipped' ? today : null);
+      if (!end || !c.receivedDate) return null;
+      return Math.floor((new Date(end) - new Date(c.receivedDate)) / 86400000);
+    }).filter(d => d !== null && d >= 0);
+    const avgCycleDays = cycles.length ? Math.round(cycles.reduce((s, d) => s + d, 0) / cycles.length) : 0;
+
+    return {
+      repeatSerials, warrantyIn, scrapped, swFaults,
+      topPart, topCategory, topModel, totalParts,
+      closedThisMonth, shippedThisMonth, avgCycleDays,
+      scrapRate: cases.length ? Math.round(scrapped / cases.length * 100) : 0,
+      warrantyInRate: cases.length ? Math.round(warrantyIn / cases.length * 100) : 0,
+    };
+  }
+
+  function getRoleKPIs(role, cases, ext, st) {
+    const today = new Date().toISOString().substring(0, 10);
+    const thisMonth = today.substring(0, 7);
+    switch (role) {
+      case 'all': return [
+        { label:'總案件',      value: st.total,              color:'blue', desc:'累計所有案件' },
+        { label:'進行中',      value: st.open,               color:'warn', desc:'尚未關閉案件' },
+        { label:'已逾期',      value: st.overdue,            color: st.overdue > 0 ? 'red' : 'ok', desc:'超過預計回覆日' },
+        { label:'本月完成',    value: ext.closedThisMonth,   color:'info', desc:'出貨+報廢+取消' },
+        { label:'平均在廠天數',value: ext.avgCycleDays + '天', color:'blue', desc:'收件至完成平均' },
+        { label:'報廢率',      value: ext.scrapRate + '%',   color: ext.scrapRate > 10 ? 'red' : 'ok', desc:'累計報廢/總案件' },
+      ];
+      case 'ceo': return [
+        { label:'本月完成',    value: ext.closedThisMonth,   color:'ok',   desc:'出貨結案件數' },
+        { label:'逾期風險',    value: st.overdue,            color: st.overdue > 0 ? 'red' : 'ok', desc:'超出承諾日' },
+        { label:'報廢率',      value: ext.scrapRate + '%',   color: ext.scrapRate > 10 ? 'red' : 'ok', desc:'品質指標' },
+        { label:'平均週轉天數',value: ext.avgCycleDays + '天', color:'blue', desc:'維修效率指標' },
+      ];
+      case 'factory': return [
+        { label:'進行中',      value: st.open,               color:'warn', desc:'需關注的案件' },
+        { label:'逾期未處理',  value: st.overdue,            color: st.overdue > 0 ? 'red' : 'ok', desc:'需立即介入' },
+        { label:'待診斷分配',  value: st.byStatus.received || 0, color:'blue', desc:'剛收件待分配技師' },
+        { label:'測試完畢可出貨', value: st.byStatus.testing || 0, color:'ok', desc:'即將完工' },
+      ];
+      case 'procure': return [
+        { label:'已記錄換件次數', value: ext.totalParts,    color:'blue', desc:'診斷+維修累計換件' },
+        { label:'保固外案件',  value: cases.filter(c => c.warranty === 'out').length, color:'warn', desc:'可能涉及換件費用' },
+        { label:'最高頻零件',  value: ext.topPart ? ext.topPart[0] : '—', color:'info', desc: ext.topPart ? `累計 ${ext.topPart[1]} 次` : '尚無換件記錄' },
+        { label:'待診斷件數',  value: st.byStatus.received || 0, color:'warn', desc:'即將產生換件需求' },
+      ];
+      case 'prod': return [
+        { label:'最高故障大類', value: ext.topCategory ? ext.topCategory[0] : '—', color:'warn', desc: ext.topCategory ? `${ext.topCategory[1]} 件` : '無資料' },
+        { label:'最高故障機種', value: ext.topModel ? ext.topModel[0] : '—',     color:'red',  desc: ext.topModel ? `${ext.topModel[1]} 件` : '無資料' },
+        { label:'報廢件數',    value: ext.scrapped,          color: ext.scrapped > 0 ? 'red' : 'ok', desc:'需分析製程根因' },
+        { label:'本月結案',    value: ext.closedThisMonth,   color:'blue', desc:'本月完成件數' },
+      ];
+      case 'qa': return [
+        { label:'重複序號',    value: ext.repeatSerials,     color: ext.repeatSerials > 0 ? 'red' : 'ok', desc:'同設備多次進廠' },
+        { label:'保固內比例',  value: ext.warrantyInRate + '%', color: ext.warrantyInRate > 50 ? 'warn' : 'blue', desc:'設計/品質問題指標' },
+        { label:'報廢件數',    value: ext.scrapped,          color: ext.scrapped > 0 ? 'red' : 'ok', desc:'本期累計報廢' },
+        { label:'總案件基數',  value: st.total,              color:'blue', desc:'統計基礎母數' },
+      ];
+      case 'logistics': return [
+        { label:'測試完可出貨', value: st.byStatus.testing || 0, color:'ok', desc:'等待安排出貨' },
+        { label:'逾期超SLA',   value: st.overdue,            color: st.overdue > 0 ? 'red' : 'ok', desc:'超過承諾回覆日' },
+        { label:'平均在廠天數', value: ext.avgCycleDays + '天', color:'blue', desc:'週轉效率' },
+        { label:'本月已出貨',  value: ext.shippedThisMonth,  color:'ok', desc:'本月出貨件數' },
+      ];
+      case 'cs': return [
+        { label:'逾期未回覆',  value: st.overdue,            color: st.overdue > 0 ? 'red' : 'ok', desc:'需主動聯繫客戶' },
+        { label:'保固內案件',  value: ext.warrantyIn,        color:'blue', desc:'優先處理保固糾紛' },
+        { label:'進行中案件',  value: st.open,               color:'warn', desc:'客戶等待回覆' },
+        { label:'本月完成通知', value: ext.closedThisMonth,  color:'ok',  desc:'已完成結案' },
+      ];
+      case 'repair': return [
+        { label:'待診斷',      value: st.byStatus.received || 0,   color:'blue', desc:'需分配技師' },
+        { label:'診斷中',      value: st.byStatus.diagnosing || 0, color:'warn', desc:'技師進行中' },
+        { label:'維修中',      value: st.byStatus.repairing || 0,  color:'warn', desc:'換件/調整中' },
+        { label:'測試中',      value: st.byStatus.testing || 0,    color:'ok',   desc:'即將完工' },
+      ];
+      case 'hw': return [
+        { label:'重複序號',    value: ext.repeatSerials,     color: ext.repeatSerials > 0 ? 'red' : 'ok', desc:'可能設計缺陷' },
+        { label:'保固內比例',  value: ext.warrantyInRate + '%', color: ext.warrantyInRate > 50 ? 'red' : 'blue', desc:'設計問題指標' },
+        { label:'最高故障機種', value: ext.topModel ? ext.topModel[0] : '—', color:'warn', desc: ext.topModel ? `${ext.topModel[1]} 件` : '無資料' },
+        { label:'報廢率',      value: ext.scrapRate + '%',   color: ext.scrapRate > 10 ? 'red' : 'ok', desc:'硬體損壞程度' },
+      ];
+      case 'fw': return [
+        { label:'疑似韌體故障', value: ext.swFaults,         color: ext.swFaults > 0 ? 'warn' : 'ok', desc:'含軟體關鍵字案件' },
+        { label:'保固內案件',  value: ext.warrantyIn,        color:'blue', desc:'可能含韌體問題' },
+        { label:'診斷+維修中', value: (st.byStatus.diagnosing || 0) + (st.byStatus.repairing || 0), color:'warn', desc:'可評估OTA修復' },
+        { label:'已換件次數',  value: ext.totalParts,        color:'blue', desc:'可能是軟硬整合問題' },
+      ];
+      default: return [];
+    }
+  }
+
+  function renderCellParts(c) {
+    const parts = [...(c.diagnosis?.parts || []), ...(c.repair?.parts || [])];
+    if (!parts.length) return '<span style="color:var(--text3)">—</span>';
+    return parts.slice(0, 2).map(p =>
+      `<span style="display:inline-block;background:var(--surface2);border-radius:4px;padding:1px 6px;margin:1px;font-family:var(--mono);font-size:11.5px">${esc(p.part)}×${p.qty}</span>`
+    ).join('') + (parts.length > 2 ? `<span style="color:var(--text3);font-size:11px"> +${parts.length - 2}</span>` : '');
+  }
+
+  function renderCell(col, c, hi, today) {
+    const open = !['shipped', 'scrapped', 'cancelled'].includes(c.status);
+    const overdue = open && c.estimatedReturn && c.estimatedReturn < today;
+    const hiCls = hi ? ' rma-col-hi' : '';
+    switch (col) {
+      case 'id':
+        return `<td><span class="rma-id">${c.id}</span></td>`;
+      case 'model':
+        return `<td class="${hiCls}"><div class="rma-model" style="${hi ? 'color:inherit' : ''}">${esc(c.model)}</div>${c.serial ? `<div class="rma-serial">#${esc(c.serial)}</div>` : ''}</td>`;
+      case 'category':
+        return `<td class="${hiCls}"><span class="tag cat" style="--c:${CAT_COLOR[c.category] || '#64748b'}">${esc(c.category)}</span></td>`;
+      case 'customer':
+        return `<td class="${hiCls}"><div style="font-size:13px;font-weight:${hi ? '700' : '400'}">${esc(c.customer) || '<span style="color:var(--text3)">—</span>'}</div>${c.contactName ? `<div style="font-size:11.5px;color:var(--text3)">${esc(c.contactName)}</div>` : ''}</td>`;
+      case 'issue':
+        return `<td class="${hiCls}" style="max-width:200px"><div style="font-size:12.5px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.issueDesc) || '—'}</div></td>`;
+      case 'warranty':
+        return `<td class="${hiCls}"><span style="font-family:var(--mono);font-size:12px;font-weight:700;color:${warrantyColor(c.warranty)}">${warrantyLabel(c.warranty)}</span></td>`;
+      case 'receivedDate':
+        return `<td><span style="font-family:var(--mono);font-size:12.5px;color:var(--text3)">${fmtDate(c.receivedDate)}</span></td>`;
+      case 'estimatedReturn': {
+        const od = c.estimatedReturn && c.estimatedReturn < today && open;
+        return `<td class="${hiCls}"><span style="font-family:var(--mono);font-size:12.5px;font-weight:${hi ? '700' : '400'};color:${od ? 'var(--critical)' : c.estimatedReturn ? 'var(--text2)' : 'var(--text3)'}">${fmtDate(c.estimatedReturn)}</span>${od ? '<span style="display:block;font-size:10px;color:var(--critical)">⚠ 逾期</span>' : ''}</td>`;
+      }
+      case 'days': {
+        const days = daysSince(c.receivedDate);
+        return `<td><span style="font-family:var(--mono);font-size:13px;font-weight:${hi ? '700' : '400'};color:${overdue ? 'var(--critical)' : open ? 'var(--text2)' : 'var(--text3)'}">${days != null ? days + '天' : '—'}</span>${overdue && hi ? '<span style="display:block;font-size:10px;color:var(--critical)">逾期!</span>' : ''}</td>`;
+      }
+      case 'status': {
+        const s = STATUS[c.status] || STATUS.received;
+        return `<td><span class="rma-status-badge" style="--sc:${s.color}">${s.icon} ${s.label}</span></td>`;
+      }
+      case 'parts':
+        return `<td class="${hiCls}"><div style="font-size:12px">${renderCellParts(c)}</div></td>`;
+      case 'techName': {
+        const tech = c.diagnosis?.techName || c.repair?.techName || '';
+        return `<td class="${hiCls}"><span style="font-size:12.5px;color:${tech ? 'var(--text2)' : 'var(--text3)'};font-weight:${hi ? '700' : '400'}">${esc(tech) || '未分配'}</span></td>`;
+      }
+      default: return '<td></td>';
+    }
+  }
+
+  // ─── UI State ───
+  const state = {
+    page: 'list',   // list | new | detail
+    filter: { status: 'all', category: '全部', q: '' },
+    role: 'all',
+    detailId: null,
+    editingDiagnosis: false,
+    editingRepair: false,
+  };
+
+  // ─── Helpers ───
+  const $ = id => document.getElementById(id);
+  const CAT_COLOR = {
+    '監視器':   '#38bdf8',
+    '傳統保全': '#fb923c',
+    '無線保全': '#10b981',
+    '車機系統': '#a78bfa',
+    'AED':      '#f472b6',
+    '門禁':     '#facc15',
+    '其他':     '#64748b',
+  };
+
+  function esc(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function fmtDate(s) {
+    if (!s) return '—';
+    return s;
+  }
+
+  function daysSince(dateStr) {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    const now = new Date();
+    return Math.floor((now - d) / 86400000);
+  }
+
+  function warrantyLabel(w) {
+    return w === 'in' ? '保固內' : w === 'out' ? '保固外' : '待確認';
+  }
+
+  function warrantyColor(w) {
+    return w === 'in' ? 'var(--ok)' : w === 'out' ? 'var(--warn)' : 'var(--text3)';
+  }
+
+  // ─── Render ───
+  function render() {
+    const container = $('rmaContent');
+    if (!container) return;
+
+    if (state.page === 'new') {
+      container.innerHTML = renderNewForm();
+      bindNewForm();
+    } else if (state.page === 'detail') {
+      container.innerHTML = renderDetail(state.detailId);
+      bindDetail();
+    } else {
+      container.innerHTML = renderList();
+      bindList();
+    }
+  }
+
+  // ── List page ──
+  function renderList() {
+    const allCases = load().cases;
+    const st = stats();
+    const ext = computeExtStats(allCases);
+    const cases = listCases(state.filter);
+    const today = new Date().toISOString().substring(0, 10);
+    const role = state.role || 'all';
+    const roleInfo = ROLES[role];
+    const kpis = getRoleKPIs(role, allCases, ext, st);
+    const colCfg = ROLE_COLS[role] || ROLE_COLS.all;
+
+    const pipeStatuses = ['received', 'diagnosing', 'repairing', 'testing', 'shipped'];
+    const pipeTotal = pipeStatuses.reduce((s, k) => s + (st.byStatus[k] || 0), 0) || 1;
+    const showPipe = ['all', 'factory', 'repair', 'logistics'].includes(role);
+
+    const statusTabs = [
+      { key: 'all', label: '全部', count: st.total },
+      ...Object.entries(STATUS).map(([k, v]) => ({ key: k, label: v.label, count: st.byStatus[k] || 0 })),
+    ];
+
+    return `
+      <div class="rma-page">
+
+        <!-- ── Header ── -->
+        <div class="rma-page-h">
+          <div>
+            <div class="page-t">RMA 案件管理</div>
+            <div class="page-d">故障品退修授權 · 追蹤維修狀態 · 建立客戶回報記錄</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button class="btn" onclick="RMA.exportToExcel()">⤓ 匯出 Excel</button>
+            <button class="btn primary" onclick="RMA.goNew()">+ 新增 RMA</button>
+          </div>
+        </div>
+
+        <!-- ── Role switcher ── -->
+        <div class="rma-role-bar">
+          ${Object.entries(ROLES).map(([k, r]) => `
+            <button class="rma-role-chip ${role === k ? 'active' : ''}"
+                    style="${role === k ? `--rc:${r.color}` : ''}"
+                    onclick="RMA.setRole('${k}')" title="${r.desc}">
+              <span class="rma-role-ico">${r.icon}</span>
+              <span class="rma-role-label">${r.short}</span>
+            </button>
+          `).join('')}
+        </div>
+
+        <!-- ── Role context banner ── -->
+        <div class="rma-role-banner" style="--rc:${roleInfo.color}">
+          <span class="rma-role-banner-ico">${roleInfo.icon}</span>
+          <div>
+            <div class="rma-role-banner-t">${roleInfo.label} 視角</div>
+            <div class="rma-role-banner-d">${roleInfo.desc}</div>
+          </div>
+        </div>
+
+        <!-- ── KPI strip (dynamic per role) ── -->
+        <div class="rma-kpi-row" style="grid-template-columns:repeat(${kpis.length},1fr)">
+          ${kpis.map(k => `
+            <div class="rma-kpi rma-kpi-${k.color}" style="--rc:${roleInfo.color}">
+              <div class="rma-kpi-l">${k.label}</div>
+              <div class="rma-kpi-v">${k.value}</div>
+              <div class="rma-kpi-d">${k.desc}</div>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- ── Pipeline flow bar ── -->
+        ${showPipe ? `
+          <div class="rma-pipeline-bar">
+            ${pipeStatuses.map(s => {
+              const n = st.byStatus[s] || 0;
+              const info = STATUS[s];
+              const pct = Math.round(n / pipeTotal * 100);
+              const isDone = s === 'shipped';
+              return `
+                <div class="rma-pipe-seg${isDone ? ' rma-pipe-seg-done' : ''}"
+                     style="flex:${Math.max(n, 0.3)};--sc:${info.color}"
+                     title="${info.label}：${n} 件 (${pct}%)">
+                  <div class="rma-pipe-seg-bar"></div>
+                  <div class="rma-pipe-seg-lbl">
+                    <span>${info.icon}</span>
+                    <span class="rma-pipe-seg-name">${info.label}</span>
+                    <strong>${n}</strong>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        ` : ''}
+
+        <!-- ── Status tabs ── -->
+        <div class="rma-tabs">
+          ${statusTabs.map(t => `
+            <button class="rma-tab ${state.filter.status === t.key ? 'active' : ''}"
+                    onclick="RMA.setFilter('status','${t.key}')">
+              ${t.label} <span class="rma-tab-n">${t.count}</span>
+            </button>
+          `).join('')}
+        </div>
+
+        <!-- ── Toolbar ── -->
+        <div class="rma-toolbar">
+          <div class="rma-search-wrap">
+            <span class="rma-search-ico">⌕</span>
+            <input class="rma-search" id="rmaSearch" type="text"
+              placeholder="搜尋案件號 · 機種 · 序號 · 客戶…"
+              value="${esc(state.filter.q)}" oninput="RMA.setFilter('q',this.value)">
+          </div>
+          <select class="rma-select" onchange="RMA.setFilter('category',this.value)">
+            <option value="全部" ${state.filter.category === '全部' ? 'selected' : ''}>全部大類</option>
+            ${['監視器','傳統保全','無線保全','車機系統','AED','門禁','其他'].map(c =>
+              `<option value="${c}" ${state.filter.category === c ? 'selected' : ''}>${c}</option>`
+            ).join('')}
+          </select>
+          <div class="rma-col-hint">
+            <span class="rma-col-hint-dot" style="background:${roleInfo.color}"></span>
+            ${colCfg.hi.map(c => COL_DEFS[c]?.th || c).join(' · ')} 已強調
+          </div>
+        </div>
+
+        <!-- ── Cases table ── -->
+        ${cases.length === 0 ? `
+          <div class="empty" style="padding:80px 24px">
+            <div class="empty-ico">◌</div>
+            <div class="empty-t">目前沒有符合條件的案件</div>
+            <div style="margin-top:12px">
+              <button class="btn primary" onclick="RMA.goNew()">+ 建立第一筆 RMA</button>
+            </div>
+          </div>
+        ` : `
+          <div class="rma-table-wrap">
+            <table class="rma-table" style="min-width:560px">
+              <thead>
+                <tr>
+                  ${colCfg.cols.map(col => {
+                    const def = COL_DEFS[col];
+                    if (!def) return '';
+                    const hi = colCfg.hi.includes(col);
+                    return `<th style="min-width:${def.w}${hi ? ';color:' + roleInfo.color : ''}">${def.th}${hi ? ' ●' : ''}</th>`;
+                  }).join('')}
+                  <th style="width:24px"></th>
+                </tr>
+              </thead>
+              <tbody>
+                ${cases.map(c => {
+                  const open = !['shipped', 'scrapped', 'cancelled'].includes(c.status);
+                  const overdue = open && c.estimatedReturn && c.estimatedReturn < today;
+                  return `
+                    <tr class="rma-row${overdue ? ' rma-row-overdue' : ''}" onclick="RMA.goDetail('${c.id}')">
+                      ${colCfg.cols.map(col => renderCell(col, c, colCfg.hi.includes(col), today)).join('')}
+                      <td><span style="color:var(--text3);font-size:12px">›</span></td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+          <div class="rma-count-hint">共 ${cases.length} 筆 · ${roleInfo.label}視角</div>
+        `}
+      </div>
+    `;
+  }
+
+
+  // ── New form ──
+  function renderNewForm() {
+    const today = new Date().toISOString().substring(0, 10);
+    return `
+      <div class="rma-page">
+        <div class="rma-page-h">
+          <div>
+            <button class="btn" style="margin-bottom:10px" onclick="RMA.goList()">← 返回列表</button>
+            <div class="page-t">新增 RMA 案件</div>
+          </div>
+        </div>
+
+        <div class="rma-form-card">
+          <div class="rma-form-section">
+            <div class="rma-form-section-t">設備資訊</div>
+            <div class="rma-form-grid">
+              <div class="rma-field">
+                <label class="rma-label">機種品號 *</label>
+                <input class="rma-input" id="fModel" type="text" placeholder="如 IP43A3Z" oninput="RMA.autofillCategory()">
+              </div>
+              <div class="rma-field">
+                <label class="rma-label">序號</label>
+                <input class="rma-input" id="fSerial" type="text" placeholder="機器序號（選填）">
+              </div>
+              <div class="rma-field">
+                <label class="rma-label">大類</label>
+                <select class="rma-input" id="fCategory">
+                  ${['監視器','傳統保全','無線保全','車機系統','AED','門禁','其他'].map(c =>
+                    `<option value="${c}">${c}</option>`
+                  ).join('')}
+                </select>
+              </div>
+              <div class="rma-field">
+                <label class="rma-label">保固狀態</label>
+                <select class="rma-input" id="fWarranty">
+                  <option value="unknown">待確認</option>
+                  <option value="in">保固內</option>
+                  <option value="out">保固外</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="rma-form-section">
+            <div class="rma-form-section-t">客戶資訊</div>
+            <div class="rma-form-grid">
+              <div class="rma-field">
+                <label class="rma-label">客戶 / 公司名稱</label>
+                <input class="rma-input" id="fCustomer" type="text" placeholder="客戶或公司名稱">
+              </div>
+              <div class="rma-field">
+                <label class="rma-label">聯絡人</label>
+                <input class="rma-input" id="fContactName" type="text" placeholder="聯絡人姓名">
+              </div>
+              <div class="rma-field">
+                <label class="rma-label">聯絡電話</label>
+                <input class="rma-input" id="fContactPhone" type="text" placeholder="電話號碼">
+              </div>
+            </div>
+          </div>
+
+          <div class="rma-form-section">
+            <div class="rma-form-section-t">故障說明</div>
+            <div class="rma-field" style="grid-column:1/-1">
+              <label class="rma-label">故障描述 *</label>
+              <textarea class="rma-input rma-textarea" id="fIssueDesc" rows="4" placeholder="詳細描述故障現象、使用條件、客戶反映內容…"></textarea>
+            </div>
+          </div>
+
+          <div class="rma-form-section">
+            <div class="rma-form-section-t">時程 / 備註</div>
+            <div class="rma-form-grid">
+              <div class="rma-field">
+                <label class="rma-label">收件日期</label>
+                <input class="rma-input" id="fReceivedDate" type="date" value="${today}">
+              </div>
+              <div class="rma-field">
+                <label class="rma-label">預計回覆日</label>
+                <input class="rma-input" id="fEstimatedReturn" type="date">
+              </div>
+              <div class="rma-field">
+                <label class="rma-label">負責人員</label>
+                <input class="rma-input" id="fOperator" type="text" placeholder="建案人員名稱">
+              </div>
+            </div>
+            <div class="rma-field" style="margin-top:14px">
+              <label class="rma-label">備註</label>
+              <textarea class="rma-input rma-textarea" id="fNotes" rows="2" placeholder="其他補充資訊…"></textarea>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:8px">
+            <button class="btn" onclick="RMA.goList()">取消</button>
+            <button class="btn primary" id="fSubmit" onclick="RMA.submitNew()">建立 RMA 案件</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // ── Detail page ──
+  function renderDetail(id) {
+    const c = getCase(id);
+    if (!c) return `<div class="empty"><div class="empty-t">找不到案件 ${esc(id)}</div></div>`;
+    const s = STATUS[c.status] || STATUS.received;
+    const today = new Date().toISOString().substring(0, 10);
+    const overdue = !['shipped','scrapped','cancelled'].includes(c.status) && c.estimatedReturn && c.estimatedReturn < today;
+    const days = daysSince(c.receivedDate);
+    const closed = ['shipped','scrapped','cancelled'].includes(c.status);
+
+    // Status pipeline
+    const pipelineHtml = STATUS_ORDER.map((sk, i) => {
+      const sv = STATUS[sk];
+      const done = STATUS_ORDER.indexOf(c.status) >= i || closed;
+      const current = c.status === sk;
+      return `
+        <div class="rma-pipe-step ${done ? 'done' : ''} ${current ? 'current' : ''}">
+          <div class="rma-pipe-dot">${done ? '✓' : sv.icon}</div>
+          <div class="rma-pipe-label">${sv.label}</div>
+        </div>
+        ${i < STATUS_ORDER.length - 1 ? '<div class="rma-pipe-line"></div>' : ''}
+      `;
+    }).join('');
+
+    // Next status button
+    const curIdx = STATUS_ORDER.indexOf(c.status);
+    const nextStatus = (!closed && curIdx >= 0 && curIdx < STATUS_ORDER.length - 1)
+      ? STATUS_ORDER[curIdx + 1] : null;
+
+    const actionButtons = closed
+      ? `<button class="btn" onclick="RMA.reopenCase('${id}')">重新開啟</button>`
+      : `
+        ${nextStatus ? `<button class="btn primary" onclick="RMA.advance('${id}','${nextStatus}')">→ ${STATUS[nextStatus].label}</button>` : ''}
+        <button class="btn" onclick="RMA.advance('${id}','scrapped')">報廢</button>
+        <button class="btn danger" onclick="RMA.advance('${id}','cancelled')">取消案件</button>
+      `;
+
+    return `
+      <div class="rma-page">
+        <div class="rma-page-h" style="margin-bottom:16px">
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <button class="btn" onclick="RMA.goList()">← 返回列表</button>
+            <div>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                <span style="font-family:var(--mono);font-size:22px;font-weight:700;color:var(--accent)">${c.id}</span>
+                <span class="rma-status-badge" style="--sc:${s.color}">${s.icon} ${s.label}</span>
+                ${overdue ? `<span style="font-family:var(--mono);font-size:12px;color:var(--critical);padding:2px 8px;background:var(--critical-soft);border-radius:8px;font-weight:700">⚠ 已逾期</span>` : ''}
+              </div>
+              <div style="font-size:13px;color:var(--text3);margin-top:4px;font-family:var(--mono)">建案：${fmtDate(c.createdAt)} · 收件：${fmtDate(c.receivedDate)} · ${days != null ? days + ' 天' : ''}</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <button class="btn" onclick="RMA.printDetail('${id}')">⤓ 列印</button>
+            ${actionButtons}
+          </div>
+        </div>
+
+        <!-- Status pipeline -->
+        <div class="rma-pipeline-wrap card" style="margin-bottom:20px;padding:20px 24px">
+          <div class="rma-pipe">${pipelineHtml}</div>
+          ${c.status === 'scrapped' ? `<div style="text-align:center;margin-top:10px;font-size:12px;color:var(--critical);font-weight:600">此案件已報廢</div>` : ''}
+          ${c.status === 'cancelled' ? `<div style="text-align:center;margin-top:10px;font-size:12px;color:var(--text3)">此案件已取消</div>` : ''}
+        </div>
+
+        <div class="rma-detail-grid">
+          <!-- Left: device + customer info -->
+          <div>
+            <div class="card rma-info-card" style="margin-bottom:16px">
+              <div class="card-h"><div class="card-t">設備資訊</div>
+                <button class="btn" style="font-size:12px;padding:5px 10px" onclick="RMA.editField('${id}','device')">編輯</button>
+              </div>
+              <div class="rma-info-rows" id="deviceInfo">
+                ${infoRow('機種品號', c.model || '—', 'font-family:var(--mono);font-weight:700;font-size:15px')}
+                ${infoRow('序號', c.serial ? '#' + c.serial : '—', 'font-family:var(--mono)')}
+                ${infoRow('大類', `<span class="tag cat" style="--c:${CAT_COLOR[c.category] || '#64748b'}">${esc(c.category)}</span>`)}
+                ${infoRow('保固狀態', `<span style="color:${warrantyColor(c.warranty)};font-weight:600">${warrantyLabel(c.warranty)}</span>`)}
+              </div>
+            </div>
+
+            <div class="card rma-info-card" style="margin-bottom:16px">
+              <div class="card-h"><div class="card-t">客戶資訊</div>
+                <button class="btn" style="font-size:12px;padding:5px 10px" onclick="RMA.editField('${id}','customer')">編輯</button>
+              </div>
+              <div class="rma-info-rows">
+                ${infoRow('客戶', c.customer || '—')}
+                ${infoRow('聯絡人', c.contactName || '—')}
+                ${infoRow('電話', c.contactPhone || '—', 'font-family:var(--mono)')}
+              </div>
+            </div>
+
+            <div class="card rma-info-card" style="margin-bottom:16px">
+              <div class="card-h"><div class="card-t">時程</div>
+                <button class="btn" style="font-size:12px;padding:5px 10px" onclick="RMA.editField('${id}','schedule')">編輯</button>
+              </div>
+              <div class="rma-info-rows">
+                ${infoRow('收件日', fmtDate(c.receivedDate))}
+                ${infoRow('預計回覆', c.estimatedReturn ? fmtDate(c.estimatedReturn) + (overdue ? ' <span style="color:var(--critical);font-weight:600"> ⚠逾期</span>' : '') : '—')}
+                ${infoRow('實際出貨', c.actualReturn ? fmtDate(c.actualReturn) : '—')}
+                ${infoRow('天數', days != null ? `<span style="font-family:var(--mono)">${days} 天</span>` : '—')}
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: issue + diagnosis + repair -->
+          <div>
+            <div class="card rma-info-card" style="margin-bottom:16px">
+              <div class="card-h"><div class="card-t">故障描述</div>
+                <button class="btn" style="font-size:12px;padding:5px 10px" onclick="RMA.editField('${id}','issue')">編輯</button>
+              </div>
+              <div style="font-size:14px;color:var(--text2);line-height:1.7;white-space:pre-wrap">${esc(c.issueDesc) || '<span style="color:var(--text3)">—</span>'}</div>
+              ${c.notes ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:12px;color:var(--text3)">${esc(c.notes)}</div>` : ''}
+            </div>
+
+            <!-- Diagnosis -->
+            <div class="card rma-info-card" style="margin-bottom:16px" id="diagCard">
+              <div class="card-h">
+                <div class="card-t">診斷結果</div>
+                <button class="btn" style="font-size:12px;padding:5px 10px" onclick="RMA.toggleEditSection('${id}','diag')">
+                  ${state.editingDiagnosis ? '取消' : '填寫 / 編輯'}
+                </button>
+              </div>
+              ${state.editingDiagnosis ? renderDiagnosisForm(c) : renderDiagnosisView(c)}
+            </div>
+
+            <!-- Repair -->
+            <div class="card rma-info-card" style="margin-bottom:16px" id="repairCard">
+              <div class="card-h">
+                <div class="card-t">維修記錄</div>
+                <button class="btn" style="font-size:12px;padding:5px 10px" onclick="RMA.toggleEditSection('${id}','repair')">
+                  ${state.editingRepair ? '取消' : '填寫 / 編輯'}
+                </button>
+              </div>
+              ${state.editingRepair ? renderRepairForm(c) : renderRepairView(c)}
+            </div>
+          </div>
+        </div>
+
+        <!-- Status history -->
+        <div class="card" style="margin-top:4px">
+          <div class="card-h"><div class="card-t">狀態歷程</div></div>
+          <div class="rma-timeline">
+            ${[...c.statusHistory].reverse().map(h => {
+              const hs = STATUS[h.status] || STATUS.received;
+              return `
+                <div class="rma-tl-row">
+                  <div class="rma-tl-dot" style="background:${hs.color}">${hs.icon}</div>
+                  <div class="rma-tl-body">
+                    <div class="rma-tl-title">${hs.label}</div>
+                    ${h.note ? `<div class="rma-tl-note">${esc(h.note)}</div>` : ''}
+                    <div class="rma-tl-meta">${h.date}${h.operator ? '  ·  ' + esc(h.operator) : ''}</div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function infoRow(label, value, style = '') {
+    return `
+      <div class="rma-info-row">
+        <div class="rma-info-l">${label}</div>
+        <div class="rma-info-v" ${style ? `style="${style}"` : ''}>${value}</div>
+      </div>
+    `;
+  }
+
+  function renderDiagnosisView(c) {
+    const d = c.diagnosis;
+    if (!d.faultContent && !d.techName && !d.parts.length) {
+      return `<div class="empty" style="padding:20px 0"><div class="empty-t" style="font-size:12px">尚未填寫診斷資料</div></div>`;
+    }
+    return `
+      <div>
+        ${d.techName || d.diagDate ? `<div style="font-size:12px;color:var(--text3);margin-bottom:8px;font-family:var(--mono)">${esc(d.techName)}${d.diagDate ? '　' + d.diagDate : ''}</div>` : ''}
+        ${d.faultContent ? `<div style="font-size:14px;color:var(--text2);margin-bottom:10px;white-space:pre-wrap">${esc(d.faultContent)}</div>` : ''}
+        ${d.isScrap ? `<div style="color:var(--critical);font-weight:700;font-size:13px;margin-bottom:8px">⚠ 建議報廢</div>` : ''}
+        ${d.parts.length ? `
+          <div style="font-size:11px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:6px">更換零件</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${d.parts.map(p => `<span class="tag">${esc(p.part)} <span class="muted">×${p.qty}</span></span>`).join('')}
+          </div>
+        ` : ''}
+        ${d.notes ? `<div style="margin-top:10px;font-size:12px;color:var(--text3)">${esc(d.notes)}</div>` : ''}
+      </div>
+    `;
+  }
+
+  function renderDiagnosisForm(c) {
+    const d = c.diagnosis;
+    return `
+      <div class="rma-form-inner" id="diagForm">
+        <div class="rma-form-grid" style="grid-template-columns:1fr 1fr">
+          <div class="rma-field">
+            <label class="rma-label">診斷人員</label>
+            <input class="rma-input" id="dTech" type="text" value="${esc(d.techName)}" placeholder="技術員姓名">
+          </div>
+          <div class="rma-field">
+            <label class="rma-label">診斷日期</label>
+            <input class="rma-input" id="dDate" type="date" value="${d.diagDate || ''}">
+          </div>
+        </div>
+        <div class="rma-field">
+          <label class="rma-label">故障原因</label>
+          <textarea class="rma-input rma-textarea" id="dContent" rows="3" placeholder="診斷出的故障原因、損壞零件…">${esc(d.faultContent)}</textarea>
+        </div>
+        <div class="rma-field">
+          <label class="rma-label">更換零件（每行一筆，格式：零件名稱,數量）</label>
+          <textarea class="rma-input rma-textarea" id="dParts" rows="3" placeholder="LMC-FPC-CABLE,1&#10;SENSOR-IR,2">${d.parts.map(p => `${p.part},${p.qty}`).join('\n')}</textarea>
+        </div>
+        <div class="rma-field" style="display:flex;align-items:center;gap:10px">
+          <input type="checkbox" id="dIsScrap" ${d.isScrap ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--critical)">
+          <label for="dIsScrap" style="font-size:13px;color:var(--text2);cursor:pointer">建議報廢（無法修復）</label>
+        </div>
+        <div class="rma-field">
+          <label class="rma-label">備註</label>
+          <input class="rma-input" id="dNotes" type="text" value="${esc(d.notes)}" placeholder="其他補充">
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+          <button class="btn" onclick="RMA.toggleEditSection('${c.id}','diag')">取消</button>
+          <button class="btn primary" onclick="RMA.saveDiagnosis('${c.id}')">儲存診斷</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderRepairView(c) {
+    const r = c.repair;
+    if (!r.notes && !r.techName && !r.parts.length) {
+      return `<div class="empty" style="padding:20px 0"><div class="empty-t" style="font-size:12px">尚未填寫維修記錄</div></div>`;
+    }
+    return `
+      <div>
+        ${r.techName || r.repairDate ? `<div style="font-size:12px;color:var(--text3);margin-bottom:8px;font-family:var(--mono)">${esc(r.techName)}${r.repairDate ? '　' + r.repairDate : ''}</div>` : ''}
+        ${r.parts.length ? `
+          <div style="font-size:11px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:6px">更換零件</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+            ${r.parts.map(p => `<span class="tag">${esc(p.part)} <span class="muted">×${p.qty}</span></span>`).join('')}
+          </div>
+        ` : ''}
+        ${r.notes ? `<div style="font-size:14px;color:var(--text2);white-space:pre-wrap">${esc(r.notes)}</div>` : ''}
+      </div>
+    `;
+  }
+
+  function renderRepairForm(c) {
+    const r = c.repair;
+    return `
+      <div class="rma-form-inner" id="repairForm">
+        <div class="rma-form-grid" style="grid-template-columns:1fr 1fr">
+          <div class="rma-field">
+            <label class="rma-label">維修人員</label>
+            <input class="rma-input" id="rTech" type="text" value="${esc(r.techName)}" placeholder="技術員姓名">
+          </div>
+          <div class="rma-field">
+            <label class="rma-label">維修日期</label>
+            <input class="rma-input" id="rDate" type="date" value="${r.repairDate || ''}">
+          </div>
+        </div>
+        <div class="rma-field">
+          <label class="rma-label">更換零件（每行一筆，格式：零件名稱,數量）</label>
+          <textarea class="rma-input rma-textarea" id="rParts" rows="3" placeholder="LMC-FPC-CABLE,1&#10;SENSOR-IR,2">${r.parts.map(p => `${p.part},${p.qty}`).join('\n')}</textarea>
+        </div>
+        <div class="rma-field">
+          <label class="rma-label">維修記錄 / 備註</label>
+          <textarea class="rma-input rma-textarea" id="rNotes" rows="3" placeholder="維修過程、注意事項…">${esc(r.notes)}</textarea>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+          <button class="btn" onclick="RMA.toggleEditSection('${c.id}','repair')">取消</button>
+          <button class="btn primary" onclick="RMA.saveRepair('${c.id}')">儲存維修記錄</button>
+        </div>
+      </div>
+    `;
+  }
+
+  // ─── Bind events ───
+  function bindList() {}
+  function bindNewForm() {
+    const input = $('fModel');
+    if (input) input.focus();
+  }
+  function bindDetail() {}
+
+  // ─── Actions ───
+  function setFilter(key, val) {
+    state.filter[key] = val;
+    render();
+  }
+
+  function setRole(role) {
+    state.role = role;
+    render();
+  }
+
+  function goList() {
+    state.page = 'list';
+    state.detailId = null;
+    state.editingDiagnosis = false;
+    state.editingRepair = false;
+    render();
+  }
+
+  function goNew() {
+    state.page = 'new';
+    render();
+  }
+
+  function goDetail(id) {
+    state.page = 'detail';
+    state.detailId = id;
+    state.editingDiagnosis = false;
+    state.editingRepair = false;
+    render();
+  }
+
+  function autofillCategory() {
+    const model = ($('fModel') || {}).value || '';
+    const cat = getCategory(model);
+    const sel = $('fCategory');
+    if (sel) sel.value = cat;
+  }
+
+  function submitNew() {
+    const model = ($('fModel') || {}).value || '';
+    const issueDesc = ($('fIssueDesc') || {}).value || '';
+    if (!model.trim()) { alert('請填寫機種品號'); return; }
+    if (!issueDesc.trim()) { alert('請填寫故障描述'); return; }
+    const c = createCase({
+      model: model.trim(),
+      serial: ($('fSerial') || {}).value || '',
+      category: ($('fCategory') || {}).value || '其他',
+      warranty: ($('fWarranty') || {}).value || 'unknown',
+      customer: ($('fCustomer') || {}).value || '',
+      contactName: ($('fContactName') || {}).value || '',
+      contactPhone: ($('fContactPhone') || {}).value || '',
+      issueDesc,
+      receivedDate: ($('fReceivedDate') || {}).value || '',
+      estimatedReturn: ($('fEstimatedReturn') || {}).value || null,
+      operator: ($('fOperator') || {}).value || '',
+      notes: ($('fNotes') || {}).value || '',
+    });
+    goDetail(c.id);
+  }
+
+  function advance(id, newStatus) {
+    const note = prompt(`備註（選填）：`, '') ;
+    if (note === null) return; // cancelled
+    advanceStatus(id, newStatus, note, '');
+    goDetail(id);
+  }
+
+  function reopenCase(id) {
+    advanceStatus(id, 'received', '重新開啟案件', '');
+    updateCase(id, { status: 'received', actualReturn: null });
+    goDetail(id);
+  }
+
+  function toggleEditSection(id, section) {
+    if (section === 'diag') state.editingDiagnosis = !state.editingDiagnosis;
+    if (section === 'repair') state.editingRepair = !state.editingRepair;
+    state.detailId = id;
+    render();
+  }
+
+  function parseParts(text) {
+    return (text || '').split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+      const [part, qty] = l.split(',');
+      return { part: (part || '').trim(), qty: parseFloat(qty) || 1 };
+    }).filter(p => p.part);
+  }
+
+  function saveDiagnosis(id) {
+    const diagnosis = {
+      techName: ($('dTech') || {}).value || '',
+      diagDate: ($('dDate') || {}).value || '',
+      faultContent: ($('dContent') || {}).value || '',
+      parts: parseParts(($('dParts') || {}).value),
+      isScrap: !!($('dIsScrap') || {}).checked,
+      notes: ($('dNotes') || {}).value || '',
+    };
+    updateCase(id, { diagnosis });
+    state.editingDiagnosis = false;
+    goDetail(id);
+  }
+
+  function saveRepair(id) {
+    const repair = {
+      techName: ($('rTech') || {}).value || '',
+      repairDate: ($('rDate') || {}).value || '',
+      parts: parseParts(($('rParts') || {}).value),
+      notes: ($('rNotes') || {}).value || '',
+    };
+    updateCase(id, { repair });
+    state.editingRepair = false;
+    goDetail(id);
+  }
+
+  function editField(id, section) {
+    const c = getCase(id);
+    if (!c) return;
+
+    let fields = '';
+    if (section === 'device') {
+      fields = `
+        <div class="rma-form-grid">
+          <div class="rma-field"><label class="rma-label">機種品號</label><input class="rma-input" id="ef_model" value="${esc(c.model)}"></div>
+          <div class="rma-field"><label class="rma-label">序號</label><input class="rma-input" id="ef_serial" value="${esc(c.serial)}"></div>
+          <div class="rma-field"><label class="rma-label">大類</label>
+            <select class="rma-input" id="ef_category">
+              ${['監視器','傳統保全','無線保全','車機系統','AED','門禁','其他'].map(cat =>
+                `<option value="${cat}" ${c.category===cat?'selected':''}>${cat}</option>`
+              ).join('')}
+            </select>
+          </div>
+          <div class="rma-field"><label class="rma-label">保固</label>
+            <select class="rma-input" id="ef_warranty">
+              <option value="unknown" ${c.warranty==='unknown'?'selected':''}>待確認</option>
+              <option value="in" ${c.warranty==='in'?'selected':''}>保固內</option>
+              <option value="out" ${c.warranty==='out'?'selected':''}>保固外</option>
+            </select>
+          </div>
+        </div>
+      `;
+    } else if (section === 'customer') {
+      fields = `
+        <div class="rma-form-grid">
+          <div class="rma-field"><label class="rma-label">客戶</label><input class="rma-input" id="ef_customer" value="${esc(c.customer)}"></div>
+          <div class="rma-field"><label class="rma-label">聯絡人</label><input class="rma-input" id="ef_contactName" value="${esc(c.contactName)}"></div>
+          <div class="rma-field"><label class="rma-label">電話</label><input class="rma-input" id="ef_contactPhone" value="${esc(c.contactPhone)}"></div>
+        </div>
+      `;
+    } else if (section === 'schedule') {
+      fields = `
+        <div class="rma-form-grid">
+          <div class="rma-field"><label class="rma-label">收件日</label><input class="rma-input" id="ef_receivedDate" type="date" value="${c.receivedDate}"></div>
+          <div class="rma-field"><label class="rma-label">預計回覆</label><input class="rma-input" id="ef_estimatedReturn" type="date" value="${c.estimatedReturn||''}"></div>
+          <div class="rma-field"><label class="rma-label">實際出貨</label><input class="rma-input" id="ef_actualReturn" type="date" value="${c.actualReturn||''}"></div>
+        </div>
+      `;
+    } else if (section === 'issue') {
+      fields = `
+        <div class="rma-field"><label class="rma-label">故障描述</label><textarea class="rma-input rma-textarea" id="ef_issueDesc" rows="4">${esc(c.issueDesc)}</textarea></div>
+        <div class="rma-field" style="margin-top:10px"><label class="rma-label">備註</label><textarea class="rma-input rma-textarea" id="ef_notes" rows="2">${esc(c.notes)}</textarea></div>
+      `;
+    }
+
+    // Modal popup
+    showModal('編輯資訊', `
+      <div style="padding:4px 0">${fields}</div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+        <button class="btn" onclick="RMA.closeModal()">取消</button>
+        <button class="btn primary" onclick="RMA.saveEditField('${id}','${section}')">儲存</button>
+      </div>
+    `);
+  }
+
+  function saveEditField(id, section) {
+    const patch = {};
+    if (section === 'device') {
+      patch.model = ($('ef_model')||{}).value || '';
+      patch.serial = ($('ef_serial')||{}).value || '';
+      patch.category = ($('ef_category')||{}).value || '其他';
+      patch.warranty = ($('ef_warranty')||{}).value || 'unknown';
+    } else if (section === 'customer') {
+      patch.customer = ($('ef_customer')||{}).value || '';
+      patch.contactName = ($('ef_contactName')||{}).value || '';
+      patch.contactPhone = ($('ef_contactPhone')||{}).value || '';
+    } else if (section === 'schedule') {
+      patch.receivedDate = ($('ef_receivedDate')||{}).value || '';
+      patch.estimatedReturn = ($('ef_estimatedReturn')||{}).value || null;
+      patch.actualReturn = ($('ef_actualReturn')||{}).value || null;
+    } else if (section === 'issue') {
+      patch.issueDesc = ($('ef_issueDesc')||{}).value || '';
+      patch.notes = ($('ef_notes')||{}).value || '';
+    }
+    updateCase(id, patch);
+    closeModal();
+    goDetail(id);
+  }
+
+  // ─── Modal ───
+  function showModal(title, bodyHtml) {
+    let el = $('rmaModal');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'rmaModal';
+      document.body.appendChild(el);
+    }
+    el.innerHTML = `
+      <div class="rma-modal-mask" onclick="RMA.closeModal()"></div>
+      <div class="rma-modal">
+        <div class="rma-modal-h">
+          <div class="rma-modal-t">${esc(title)}</div>
+          <button class="drawer-close" onclick="RMA.closeModal()">✕</button>
+        </div>
+        <div class="rma-modal-body">${bodyHtml}</div>
+      </div>
+    `;
+    el.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal() {
+    const el = $('rmaModal');
+    if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+    document.body.style.overflow = '';
+  }
+
+  // ─── Export to Excel ───
+  function exportToExcel() {
+    if (typeof XLSX === 'undefined') { alert('XLSX 函式庫未載入'); return; }
+    const cases = listCases(state.filter);
+    if (!cases.length) { alert('目前沒有可匯出的案件'); return; }
+
+    const header = ['案件號','建案日','機種','序號','大類','客戶','聯絡人','電話','保固','收件日','預計回覆','實際出貨','狀態','故障描述','診斷結果','維修記錄','備註'];
+    const rows = cases.map(c => [
+      c.id, c.createdAt, c.model, c.serial, c.category,
+      c.customer, c.contactName, c.contactPhone,
+      warrantyLabel(c.warranty),
+      c.receivedDate, c.estimatedReturn || '', c.actualReturn || '',
+      STATUS[c.status]?.label || c.status,
+      c.issueDesc,
+      c.diagnosis?.faultContent || '',
+      c.repair?.notes || '',
+      c.notes,
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+    ws['!cols'] = [
+      {wch:16},{wch:10},{wch:12},{wch:14},{wch:8},
+      {wch:16},{wch:10},{wch:14},{wch:8},
+      {wch:10},{wch:10},{wch:10},{wch:8},
+      {wch:36},{wch:36},{wch:36},{wch:24},
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'RMA案件列表');
+
+    const now = new Date();
+    const ds = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+    XLSX.writeFile(wb, `RMA案件清單_${ds}.xlsx`);
+  }
+
+  // ─── Print detail ───
+  function printDetail(id) {
+    const c = getCase(id);
+    if (!c) return;
+    const s = STATUS[c.status] || STATUS.received;
+    const w = window.open('', '_blank');
+    if (!w) { alert('彈出視窗被阻擋'); return; }
+    w.document.write(`<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8">
+    <title>RMA ${c.id}</title>
+    <style>
+      body{font-family:'Noto Sans TC',sans-serif;color:#1e293b;padding:24px;font-size:13px}
+      h1{font-size:22px;margin-bottom:4px}
+      .meta{color:#64748b;font-size:12px;margin-bottom:20px;font-family:monospace}
+      .section{margin-bottom:16px}
+      .section h2{font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#64748b;border-bottom:1px solid #e2e8f0;padding-bottom:4px;margin-bottom:8px}
+      table{width:100%;border-collapse:collapse}
+      td,th{padding:6px 8px;border:1px solid #e2e8f0;font-size:12px;vertical-align:top}
+      th{background:#f8fafc;font-weight:600;width:140px}
+      .status{display:inline-block;padding:2px 10px;border-radius:12px;font-weight:700;background:#f1f5f9}
+      @media print{@page{margin:12mm}}
+    </style></head><body>
+    <h1>RMA 維修授權單 — ${c.id}</h1>
+    <div class="meta">建案：${c.createdAt}　收件：${c.receivedDate}　狀態：${s.label}　列印：${new Date().toLocaleDateString('zh-TW')}</div>
+    <div class="section"><h2>設備 / 客戶</h2>
+    <table><tr><th>機種品號</th><td>${c.model}</td><th>序號</th><td>${c.serial||'—'}</td></tr>
+    <tr><th>大類</th><td>${c.category}</td><th>保固</th><td>${warrantyLabel(c.warranty)}</td></tr>
+    <tr><th>客戶</th><td>${c.customer||'—'}</td><th>聯絡人</th><td>${c.contactName||'—'}</td></tr>
+    <tr><th>電話</th><td colspan="3">${c.contactPhone||'—'}</td></tr></table></div>
+    <div class="section"><h2>故障描述</h2><p>${c.issueDesc||'—'}</p></div>
+    <div class="section"><h2>診斷結果</h2>
+    <p>${c.diagnosis?.faultContent||'—'}</p>
+    ${c.diagnosis?.parts?.length?`<p>更換零件：${c.diagnosis.parts.map(p=>p.part+'×'+p.qty).join('、')}</p>`:''}
+    </div>
+    <div class="section"><h2>維修記錄</h2>
+    <p>${c.repair?.notes||'—'}</p>
+    ${c.repair?.parts?.length?`<p>更換零件：${c.repair.parts.map(p=>p.part+'×'+p.qty).join('、')}</p>`:''}
+    </div>
+    <div style="margin-top:40px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px">
+      <div style="border-top:1px solid #cbd5e1;padding-top:8px">收件確認：</div>
+      <div style="border-top:1px solid #cbd5e1;padding-top:8px">維修技術員：</div>
+      <div style="border-top:1px solid #cbd5e1;padding-top:8px">出貨確認：</div>
+    </div>
+    <script>setTimeout(()=>window.print(),600)<\/script></body></html>`);
+    w.document.close();
+  }
+
+  // ─── Init ───
+  function init() {
+    render();
+  }
+
+  return {
+    init, render, goList, goNew, goDetail,
+    setFilter, setRole, autofillCategory, submitNew,
+    advance, reopenCase,
+    toggleEditSection, saveDiagnosis, saveRepair,
+    editField, saveEditField,
+    showModal, closeModal,
+    exportToExcel, printDetail,
+    // exposed for external callers
+    stats, listCases, getCase,
+  };
+})();
+
+</script>
+<script>
+// ─── Mode switching ───
+let currentMode = 'analysis';
+let uzMode = 'analysis';
+
+function uzSelectMode(mode) {
+  uzMode = mode;
+  document.getElementById('uzModeA').classList.toggle('active', mode === 'analysis');
+  document.getElementById('uzModeR').classList.toggle('active', mode === 'rma');
+  document.getElementById('uzAnalysisSection').style.display = mode === 'analysis' ? '' : 'none';
+  document.getElementById('uzRmaSection').style.display = mode === 'rma' ? '' : 'none';
+}
+
+function openRmaMode() {
+  document.getElementById('uploadZone').style.display = 'none';
+  document.getElementById('modeBar').style.display = 'flex';
+  switchMode('rma');
+}
+
+function switchMode(mode) {
+  currentMode = mode;
+  document.getElementById('modeAnalysis').classList.toggle('active', mode === 'analysis');
+  document.getElementById('modeRma').classList.toggle('active', mode === 'rma');
+
+  const dash = document.getElementById('dash');
+  const rmaDash = document.getElementById('rmaDash');
+  const uploadZone = document.getElementById('uploadZone');
+  const modeBar = document.getElementById('modeBar');
+
+  if (mode === 'analysis') {
+    const db = RepairDB.load();
+    const hasData = Object.keys(db.months).length > 0;
+    if (hasData) {
+      uploadZone.style.display = 'none';
+      dash.classList.add('active');
+      rmaDash.style.display = 'none';
+      modeBar.style.display = 'flex';
+    } else {
+      // No data yet — show upload zone
+      uploadZone.style.display = 'flex';
+      uzSelectMode('analysis');
+      dash.classList.remove('active');
+      rmaDash.style.display = 'none';
+      modeBar.style.display = 'none';
+    }
+  } else {
+    uploadZone.style.display = 'none';
+    dash.classList.remove('active');
+    rmaDash.style.display = 'block';
+    modeBar.style.display = 'flex';
+    // Init RMA content container
+    const rmaContent = document.getElementById('rmaContent');
+    if (rmaContent) {
+      RMA.render();
+    }
+    // Badge
+    updateRmaBadge();
+  }
+}
+
+function updateRmaBadge() {
+  const st = RMA.stats();
+  const badge = document.getElementById('rmaBadge');
+  if (badge) {
+    if (st.open > 0) {
+      badge.textContent = st.open;
+      badge.style.display = '';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+}
+
+// On load, restore last mode — called by Auth after successful login
+function onAuthSuccess() {
+  const db = RepairDB.load();
+  const hasAnalysisData = Object.keys(db.months).length > 0;
+  const rmaDb = RMA.stats();
+
+  if (rmaDb.total > 0 || hasAnalysisData) {
+    document.getElementById('modeBar').style.display = 'flex';
+    if (hasAnalysisData) {
+      switchMode('analysis');
+    } else {
+      switchMode('rma');
+    }
+  } else {
+    document.getElementById('uploadZone').style.display = 'flex';
+  }
+
+  updateRmaBadge();
+}
+</script>
+
+<!-- ═══════════════ Admin Panel Modal ═══════════════ -->
+<div id="adminPanel" class="ap-overlay" style="display:none" onclick="if(event.target===this)Auth.closeAdminPanel()">
+  <div class="ap-box">
+    <div class="ap-hdr">
+      <div class="ap-title">⚙ 帳號管理</div>
+      <button class="ap-close" onclick="Auth.closeAdminPanel()">✕</button>
+    </div>
+    <div class="ap-body">
+      <!-- Add user -->
+      <div class="ap-sec-t">新增帳號</div>
+      <div class="ap-add-row">
+        <input class="ls-input" type="text" id="newUserInput" placeholder="帳號（預設密碼同帳號）"
+          onkeydown="if(event.key==='Enter')Auth.addUser()">
+        <button class="btn primary" onclick="Auth.addUser()">新增</button>
+      </div>
+      <div class="ls-err" id="addUserErr" style="margin-bottom:8px"></div>
+      <!-- User list -->
+      <div class="ap-sec-t" style="margin-top:18px">帳號列表</div>
+      <div id="userListEl" class="ap-user-list"></div>
+      <div class="ap-note">重置密碼 → 密碼恢復為帳號名稱，對方下次登入需重設。操作後請記得「☁ 發布到雲端」讓同步生效。</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
+, overline: '成本設定', title: '單價設定',
+      bodyHtml: body + `<div style="margin-top:20px"><button class="btn primary" onclick="App.saveCostConfig()">儲存設定</button> <span class="muted" style="font-size:12px;margin-left:8px">儲存後記得「☁ 發布到雲端」讓設定同步</span></div>`,
+    });
+  }
+  function saveCostConfig() {
+    const cats = ['監視器', '傳統保全', '無線保全', '車機系統', 'AED', '門禁', '其他'];
+    const cfg = loadCostCfg();
+    cfg.categories = {};
+    for (const c of cats) {
+      const v = parseFloat(document.getElementById('cc_' + c)?.value);
+      if (!isNaN(v) && v > 0) cfg.categories[c] = v;
+    }
+    cfg.laborPerRepair = parseFloat(document.getElementById('cc_labor')?.value) || 0;
+    cfg.scrapDefault = parseFloat(document.getElementById('cc_default')?.value) || 0;
+    saveCostCfg(cfg);
+    closeDrawer();
+    if (state.currentPage === 'cost') renderCost();
+  }
+
   // ─────────────── Init ───────────────
   async function init() {
     // 1. Fetch cloud data first (needed to seed users before login screen)
@@ -5757,6 +8481,8 @@ window.App = (function () {
     openDashboard, openUpload, switchPage,
     setMonth, setCategory, setModel,
     setAnalysisRole,
+    openCapaForm, setCapaStatus, deleteCapa,
+    openCostConfig, saveCostConfig,
     toggleRank, toggleRankRow,
     dismissAlertPulse, dismissCrossMonthPulse,
     generateReport: () => RepairReport.generate(state.db),
