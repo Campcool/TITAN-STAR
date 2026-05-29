@@ -11,7 +11,7 @@
     date:    ['檢修日期', '測試日期', '日期'],
     model:   ['器材品號', '故障品號', '品號', '器材名稱'],
     mfg:     ['製造日期', '生產日期'],
-    batch:   ['製令品號', '製令批號', '批號'],
+    batch:   ['製令品號', '製令批號', '製令', '批號'],
     serial:  ['機器序號', '產品序號', '序號'],
     reason:  ['故障原因', '報廢內容'],
     content: ['故障內容', '報廢原因'],
@@ -152,6 +152,28 @@
     return t;
   }
 
+  // Extract the ORIGIN (出廠) year-month from a 製令 number.
+  // 製令 = the unit's "ID card": YYMMDD + 3-digit batch seq, 2-digit AD year.
+  //   191125030 → 2019-11 (batch #030)   250410057 → 2025-04 (batch #057)
+  // The 製令 NEVER changes — it marks the original factory batch.
+  function parseOrderMonth(s) {
+    if (s == null) return '';
+    const t = String(s).trim();
+    const m = t.match(/^(\d{2})(\d{2})(\d{2})\d{0,3}$/);
+    if (m && +m[2] >= 1 && +m[2] <= 12) return `20${m[1]}-${m[2]}`;
+    return '';
+  }
+
+  // Classify a unit as 全新 (brand new) vs 整新 (refurbished).
+  //   製造日期 is re-stamped on refurbishment; 製令 is the original birth batch.
+  //   mfg month == origin month → 全新 (never refurbished)
+  //   mfg month != origin month → 整新 (re-worked after the original batch)
+  // Needs BOTH fields; otherwise condition is unknown ('').
+  function classifyCondition(mfgMonth, orderMonth) {
+    if (!mfgMonth || !orderMonth) return '';
+    return mfgMonth === orderMonth ? '全新' : '整新';
+  }
+
   function findCol(headers, aliases) {
     for (const alias of aliases) {
       const idx = headers.findIndex(h => h && String(h).includes(alias));
@@ -281,14 +303,21 @@
         const qty2 = parseFloat(get(r, cols.qty2)) || (part2 ? 1 : 0);
         const qty3 = parseFloat(get(r, cols.qty3)) || (part3 ? 1 : 0);
 
+        const mfg = parseMfgMonth(get(r, cols.mfg));   // 製造/整新年月
+        const batch = get(r, cols.batch);               // 製令（出廠身分證）
+        const orderMonth = parseOrderMonth(batch);      // 製令→出廠年月
+        const condition = classifyCondition(mfg, orderMonth); // 全新/整新/''
+
         records.push({
           sheet: sheetName,
           date,
           model,
           modelRaw,
           category: getCategory(model),
-          mfg: parseMfgMonth(get(r, cols.mfg)),
-          batch: get(r, cols.batch),
+          mfg,
+          batch,
+          orderMonth,
+          condition,
           serial: get(r, cols.serial),
           reason,
           reasonRaw,
@@ -416,6 +445,8 @@
     normalizePart,
     parseDate,
     parseMfgMonth,
+    parseOrderMonth,
+    classifyCondition,
     getCategory,
     partCategoryByPno,
     cleanCode,

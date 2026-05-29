@@ -853,43 +853,117 @@
     return { list, total, uncategorized };
   }
 
-  // ─── Manufacture-batch analysis (製造批次分析)
-  // Uses record.mfg (YYYY-MM). Surfaces two systemic-quality signals:
-  //   • 批次集中: one mfg month dominates a model's failures → suspect production lot
-  //   • 新品早夭: mfg month == repair month → units failing the same period they were made
+  const YM = /^\d{4}-\d{2}$/;
+  const ym = v => (v && YM.test(v)) ? v : null;
+  const topEntry = map => {
+    let best = null;
+    for (const [m, c] of map) if (!best || c > best.count) best = { month: m, count: c };
+    return best;
+  };
+  const toBatches = map => Array.from(map.entries()).map(([m, c]) => ({ month: m, count: c })).sort((a, b) => b.count - a.count);
+
+  // ─── Manufacture-batch analysis (製造批次 / 出廠批次)
+  // Two date dimensions per unit:
+  //   • orderMonth (製令)   = ORIGINAL factory batch — never changes ("身分證")
+  //   • mfg        (製造日期) = RE-STAMPED on refurbishment (= origin if never re-worked)
+  // Condition: 全新 (mfg==order) vs 整新 (mfg!=order).
+  // Signals (per model):
+  //   • 出廠批次集中: one 製令 origin month dominates → 元件/製程瑕疵落在該原始批次
+  //   • 製造批次集中: one 製造日期 month dominates (neutral; 製令 disambiguates birth vs refurb)
+  //   • 全新早夭:   全新品且 出廠月==檢修月 → 原廠新品早夭（原始生產/來料責任）
+  //   • 整新後即壞: 整新品且 整新月==檢修月 → 整新製程責任
   function batchAnalysis(records, opts) {
     const minN = (opts && opts.minN) || 5;
     const conc = (opts && opts.conc) || 0.4;
     const byModel = new Map();
     for (const r of records) {
-      if (!byModel.has(r.model)) byModel.set(r.model, { model: r.model, category: r.category, total: 0, dated: 0, batches: new Map(), earlyFail: 0 });
+      if (!byModel.has(r.model)) byModel.set(r.model, {
+        model: r.model, category: r.category, total: 0,
+        dated: 0, withOrder: 0, brandNew: 0, refurb: 0,
+        originB: new Map(), mfgB: new Map(),
+        earlyNew: 0, earlyRefurb: 0, earlyMfgOnly: 0,
+      });
       const e = byModel.get(r.model);
       e.total++;
-      const mfg = (r.mfg && /^\d{4}-\d{2}$/.test(r.mfg)) ? r.mfg : null;
-      if (mfg) {
-        e.dated++;
-        e.batches.set(mfg, (e.batches.get(mfg) || 0) + 1);
-        const rm = String(r.date || '').slice(0, 7);
-        if (rm && mfg === rm) e.earlyFail++;
-      }
+      const mfg = ym(r.mfg);
+      const order = ym(r.orderMonth);
+      const rm = String(r.date || '').slice(0, 7);
+      if (mfg) { e.dated++; e.mfgB.set(mfg, (e.mfgB.get(mfg) || 0) + 1); }
+      if (order) { e.withOrder++; e.originB.set(order, (e.originB.get(order) || 0) + 1); }
+      if (r.condition === '全新') { e.brandNew++; if (order && order === rm) e.earlyNew++; }
+      else if (r.condition === '整新') { e.refurb++; if (mfg && mfg === rm) e.earlyRefurb++; }
+      else if (mfg && !order && mfg === rm) { e.earlyMfgOnly++; }  // ambiguous: 缺製令無法判定全新/整新
     }
     const out = [];
     for (const e of byModel.values()) {
-      const batches = Array.from(e.batches.entries()).map(([m, c]) => ({ month: m, count: c })).sort((a, b) => b.count - a.count);
-      const topBatch = batches[0] || null;
-      const topPct = topBatch && e.dated ? topBatch.count / e.dated : 0;
-      const earlyPct = e.dated ? e.earlyFail / e.dated : 0;
+      const topOrigin = topEntry(e.originB);
+      const topMfg = topEntry(e.mfgB);
+      const topOriginPct = topOrigin && e.withOrder ? topOrigin.count / e.withOrder : 0;
+      const topMfgPct = topMfg && e.dated ? topMfg.count / e.dated : 0;
       const flags = [];
-      if (e.dated >= minN && topPct >= conc) flags.push('批次集中');
-      if (e.dated >= minN && earlyPct >= conc) flags.push('新品早夭');
+      if (e.withOrder >= minN && topOriginPct >= conc) flags.push('出廠批次集中');
+      // 製造日期集中 — neutral: without 製令 we can't say if it's a birth-batch or a refurb梯次
+      if (e.dated >= minN && topMfgPct >= conc) flags.push('製造批次集中');
+      if (e.earlyNew >= minN) flags.push('全新早夭');
+      if (e.earlyRefurb >= minN) flags.push('整新後即壞');
       out.push({
-        model: e.model, category: e.category, total: e.total, dated: e.dated,
-        coverage: e.total ? e.dated / e.total : 0,
-        batches: batches.slice(0, 8), topBatch, topPct, earlyFail: e.earlyFail, earlyPct, flags,
+        model: e.model, category: e.category, total: e.total,
+        dated: e.dated, withOrder: e.withOrder,
+        brandNew: e.brandNew, refurb: e.refurb,
+        unknownCond: e.total - e.brandNew - e.refurb,
+        originBatches: toBatches(e.originB).slice(0, 8),
+        mfgBatches: toBatches(e.mfgB).slice(0, 8),
+        topOrigin, topOriginPct, topMfg, topMfgPct,
+        earlyNew: e.earlyNew, earlyRefurb: e.earlyRefurb, earlyMfgOnly: e.earlyMfgOnly,
+        flags,
       });
     }
     out.sort((a, b) => (b.flags.length - a.flags.length) || (b.total - a.total));
     return out;
+  }
+
+  // ─── 全新 vs 整新 overall split + scrap by condition
+  function conditionSummary(records) {
+    const c = { 全新: 0, 整新: 0, 未知: 0 };
+    const scrap = { 全新: 0, 整新: 0, 未知: 0 };
+    for (const r of records) {
+      const k = r.condition === '全新' ? '全新' : r.condition === '整新' ? '整新' : '未知';
+      c[k]++; if (r.isScrap) scrap[k]++;
+    }
+    const total = records.length;
+    const known = c.全新 + c.整新;
+    return {
+      total, known,
+      brandNew: c.全新, refurb: c.整新, unknown: c.未知,
+      brandNewPct: total ? c.全新 / total : 0,
+      refurbPct: total ? c.整新 / total : 0,
+      unknownPct: total ? c.未知 / total : 0,
+      scrap,
+      brandNewScrapPct: c.全新 ? scrap.全新 / c.全新 : 0,
+      refurbScrapPct: c.整新 ? scrap.整新 / c.整新 : 0,
+    };
+  }
+
+  // ─── 出廠批次 Pareto (依製令出廠年月) — 元件瑕疵落點
+  // Which ORIGINAL production batches (by 製令 year-month) generate the most failures?
+  // Optionally scoped to one model. Returns sorted [{month, count, pct, scrap, models}].
+  function originBatchPareto(records, opts) {
+    const model = opts && opts.model;
+    const byMonth = new Map();
+    let total = 0;
+    for (const r of records) {
+      if (model && r.model !== model) continue;
+      const o = ym(r.orderMonth);
+      if (!o) continue;
+      total++;
+      if (!byMonth.has(o)) byMonth.set(o, { count: 0, scrap: 0, models: new Set() });
+      const e = byMonth.get(o);
+      e.count++; if (r.isScrap) e.scrap++; e.models.add(r.model);
+    }
+    const list = Array.from(byMonth.entries())
+      .map(([month, e]) => ({ month, count: e.count, pct: total ? e.count / total : 0, scrap: e.scrap, models: Array.from(e.models) }))
+      .sort((a, b) => b.count - a.count || (a.month < b.month ? 1 : -1));
+    return { list, total };
   }
 
   // Expose
@@ -920,6 +994,8 @@
     costAnalysis,
     componentCategoryPareto,
     batchAnalysis,
+    conditionSummary,
+    originBatchPareto,
     FAULT_TAXONOMY,
   };
 })();

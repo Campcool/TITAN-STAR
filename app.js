@@ -957,20 +957,22 @@ window.App = (function () {
       ],
     },
     batch: {
-      what: '依每筆維修的「製造日期（製造/生產年月）」分群，找出兩種系統性品質訊號：① 批次集中 — 單一製造月份佔某機種「有製造日期」筆數 ≥ 40%（n≥5），疑似特定生產批/來料批不良；② 新品早夭 — 製造月份＝檢修月份 ≥ 40%，代表新品出廠即故障。表格列出每個機種的最大製造批次、新品早夭比例與標記。',
-      meaning: '製造日期是鎖定責任歸屬的關鍵維度。故障若集中在「同一個製造批」→ 製造/來料批問題（責任：製造課＋採購/IQC）；故障若「製造當月就壞」→ 出廠檢驗失效（責任：研發/製造）；故障若製造日期「分散在多年」→ 多半是老機台自然老化或現場使用/環境因素，非製造品質問題。沒有製造日期的機種（如使用製令品號者）無法批次分析。',
-      who: '品檢主管：批次集中或新品早夭的機種應立刻啟動 8D / CAPA，並考慮擋批。製造主管：新品早夭直指出廠檢驗漏洞。採購/IQC：批次集中疑似來料批不良，需追溯供應商批號。研發：新品早夭且零件大類集中（如連接器斷損）為設計強度問題。董事長：新品早夭件數是出廠品質的紅線指標。',
+      what: '用器材的兩個日期維度做批次分析：① 製令 = 器材「身分證」(格式 YYMMDD+批次序號)，代表「原始出廠年月批次」，永不改變；② 製造日期 = 整新時重新貼上的日期（若從未整新則 = 製令年月）。本頁自動判定每台「全新 vs 整新」，並偵測：出廠批次集中、製造批次集中、全新早夭、整新後即壞，把責任落點分到「原廠/來料」或「整新單位」。',
+      meaning: '全新 vs 整新（製造日期年月 是否等於 製令出廠年月）是責任歸屬的分水嶺：全新品故障 → 原始生產批/來料元件瑕疵（責任：當期生產＋採購/IQC）；整新品故障 → 整新製程問題（責任：整新單位）。「出廠批次分析」回答「哪一年的哪一批元件瑕疵」——故障集中在某個製令出廠年月，代表該原始批次的元件或製程有系統性問題（例：ZSPMG31 故障集中在 2019-11、2020-01 出廠批，磁簧開關批次瑕疵）。',
+      who: '品檢主管：出廠批次集中或早夭的機種立刻啟動 8D/CAPA，並依全新/整新把責任分清楚。製造主管：全新早夭直指 OQC 出廠檢驗漏洞與特定生產梯次。整新單位：整新後即壞、整新品的製造批次集中是整新製程的責任。採購/IQC：出廠批次集中＝該年該批來料元件嫌疑，追溯供應商批號。研發：全新早夭＋零件大類集中（如連接器斷損）為設計強度問題。董事長：全新早夭件數是出廠品質紅線。',
       kpis: [
-        { name:'批次集中度', formula:'該機種最大製造月份筆數 ÷ 該機種有製造日期筆數', benchmark:'≥40%（n≥5）標記為「批次集中」', tip:'集中度高且製造月份明確 → 拿著該批號追溯產線與來料' },
-        { name:'新品早夭率', formula:'（製造月份＝檢修月份的筆數）÷ 有製造日期筆數', benchmark:'≥40% 標記「新品早夭」；任何 >0 都值得追', tip:'新品早夭是最嚴重訊號：客戶剛收到就壞，殺傷品牌信任' },
-        { name:'製造日期涵蓋率', formula:'有製造日期筆數 ÷ 全部維修筆數', benchmark:'越高分析越可信；偏低代表登錄缺漏', tip:'涵蓋率低的機種請提醒維修單位確實登錄製造日期' },
+        { name:'出廠批次集中度', formula:'該機種最大「製令出廠年月」筆數 ÷ 該機種有製令筆數', benchmark:'≥40%（n≥5）標記「出廠批次集中」', tip:'集中的出廠年月＝拿該批序號追原始產線與來料元件批' },
+        { name:'製造批次集中度', formula:'該機種最大「製造日期年月」筆數 ÷ 該機種有製造日期筆數', benchmark:'≥40%（n≥5）標記「製造批次集中」', tip:'需搭配製令才能確認是出廠批還是整新梯次；含製令後 整新品的此集中即整新梯次問題' },
+        { name:'全新早夭件數', formula:'全新品（製造=製令年月）且 出廠月=檢修月 的筆數', benchmark:'任何 >0 都嚴重；≥5 標記', tip:'客戶剛收到新品就壞，責任在原廠出廠檢驗' },
+        { name:'整新後即壞件數', formula:'整新品（製造≠製令年月）且 整新月=檢修月 的筆數', benchmark:'任何 >0 都要追；≥5 標記', tip:'整新完當月又壞，責任在整新製程/驗收' },
+        { name:'製令涵蓋率', formula:'有製令筆數 ÷ 全部維修筆數', benchmark:'越高分析越準；偏低代表工廠尚未補齊製令', tip:'請工廠在各機種 sheet 補上製令欄，全新/整新判定才會完整' },
       ],
       tips: [
-        '看到「批次集中」標記 → 抄下該製造月份，到生產記錄找該批的料號批號/產線/作業員',
-        '看到「新品早夭」標記 → 這是出廠檢驗（OQC）的破口，應立即檢討該機種的出廠測試項目',
-        '製造日期分散在多年的機種（如 SCX0051）多為老機回廠，屬正常維護，不必當品質異常處理',
-        '若某機種顯示「無製造日期」，多半是該 sheet 用「製令品號」而非「製造日期」，可請產線補登',
-        '建議把本頁的批次集中機種，與「零件大類根因」一起看 — 批次＋零件大類即可定位根因與責任',
+        '看「出廠批次分析」長條圖：某個製令年月特別高 → 該原始批次元件瑕疵，責任落在當期生產與來料',
+        '全新早夭（紅）→ OQC 出廠檢驗破口，檢討該機種出廠測試；整新後即壞（橙）→ 整新製程/驗收問題',
+        '同時具備「製令＋製造日期」才能判定全新/整新；目前多數機種只有其一，請工廠陸續補齊製令',
+        '製令格式為 YYMMDD＋3碼批次序號（2位西元年），例 250410057 = 2025-04 第057批',
+        '把本頁的批次集中機種，搭配「零件大類根因」一起看 — 出廠批次＋故障零件大類即可精準定位根因與責任',
       ],
     },
     risk: {
@@ -1524,56 +1526,111 @@ window.App = (function () {
     `).join('') + (cc.uncategorized ? `<div class="comp-cat-foot">未能歸類 ${cc.uncategorized} 件（品號不在料號表）</div>` : '');
   }
 
-  // ─────────────── Manufacture batch analysis ───────────────
+  // ─────────────── Manufacture / origin batch analysis ───────────────
   function renderBatch() {
     const f = currentFilter();
     const records = RepairAnalyzer.getRecords(state.db, f);
     const rows = RepairAnalyzer.batchAnalysis(records);
+    const cond = RepairAnalyzer.conditionSummary(records);
     const flagged = rows.filter(r => r.flags.length);
-    const datedTotal = rows.reduce((s, r) => s + r.dated, 0);
-    const total = rows.reduce((s, r) => s + r.total, 0);
-    const earlyTotal = rows.reduce((s, r) => s + r.earlyFail, 0);
-    $('batchMeta').textContent = `${rows.length} 機種 · ${datedTotal}/${total} 筆有製造日期`;
+    const total = records.length;
+    const withOrder = rows.reduce((s, r) => s + r.withOrder, 0);
+    const dated = rows.reduce((s, r) => s + r.dated, 0);
+    const earlyNew = rows.reduce((s, r) => s + r.earlyNew, 0);
+    const earlyRefurb = rows.reduce((s, r) => s + r.earlyRefurb, 0);
+    $('batchMeta').textContent = `${rows.length} 機種 · 製令 ${withOrder}/${total} · 製造日期 ${dated}/${total}`;
 
     const badge = $('batchBadge');
     if (badge) { if (flagged.length) { badge.style.display = ''; badge.textContent = flagged.length; } else badge.style.display = 'none'; }
 
     $('batchKpi').innerHTML = `
-      <div class="kpi k-warn"><div class="kpi-h"><div class="kpi-l">批次風險機種</div><div class="kpi-ico">⊞</div></div>
-        <div class="kpi-v">${flagged.length}</div><div class="kpi-d"><span class="muted">含批次集中 / 新品早夭</span></div></div>
-      <div class="kpi k-red"><div class="kpi-h"><div class="kpi-l">新品早夭件數</div><div class="kpi-ico">⏱</div></div>
-        <div class="kpi-v">${earlyTotal}</div><div class="kpi-d"><span class="muted">製造月 = 檢修月</span></div></div>
-      <div class="kpi k-info"><div class="kpi-h"><div class="kpi-l">製造日期涵蓋率</div><div class="kpi-ico">%</div></div>
-        <div class="kpi-v">${total ? Math.round(datedTotal / total * 100) : 0}%</div><div class="kpi-d"><span class="muted">${datedTotal}/${total} 筆</span></div></div>
-      <div class="kpi k-blue"><div class="kpi-h"><div class="kpi-l">受檢機種</div><div class="kpi-ico">#</div></div>
-        <div class="kpi-v">${rows.length}</div><div class="kpi-d"><span class="muted">本範圍</span></div></div>
+      <div class="kpi k-red"><div class="kpi-h"><div class="kpi-l">全新早夭件數</div><div class="kpi-ico">⏱</div></div>
+        <div class="kpi-v">${earlyNew}</div><div class="kpi-d"><span class="muted">全新品 · 出廠月=檢修月（原廠責任）</span></div></div>
+      <div class="kpi k-warn"><div class="kpi-h"><div class="kpi-l">整新後即壞</div><div class="kpi-ico">♻</div></div>
+        <div class="kpi-v">${earlyRefurb}</div><div class="kpi-d"><span class="muted">整新品 · 整新月=檢修月（整新責任）</span></div></div>
+      <div class="kpi k-info"><div class="kpi-h"><div class="kpi-l">批次風險機種</div><div class="kpi-ico">⊞</div></div>
+        <div class="kpi-v">${flagged.length}</div><div class="kpi-d"><span class="muted">出廠/製造批次集中或早夭</span></div></div>
+      <div class="kpi k-blue"><div class="kpi-h"><div class="kpi-l">製令涵蓋率</div><div class="kpi-ico">%</div></div>
+        <div class="kpi-v">${total ? Math.round(withOrder / total * 100) : 0}%</div><div class="kpi-d"><span class="muted">${withOrder}/${total} 筆有製令</span></div></div>
     `;
 
+    // ── Condition doughnut (全新/整新/未知) ──
+    const cc = $('conditionChart');
+    if (cc) {
+      state.charts.condition = new Chart(cc.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: ['全新', '整新', '未知（缺製令或製造日期）'],
+          datasets: [{ data: [cond.brandNew, cond.refurb, cond.unknown], backgroundColor: [COLORS.accent, COLORS.warn, COLORS.surface2], borderColor: COLORS.bg, borderWidth: 2 }],
+        },
+        options: { maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: COLORS.text2, font: { size: 11 } } } } },
+      });
+    }
+    $('conditionNote').innerHTML = cond.known
+      ? `<div class="bn-line">可判定 ${cond.known} 筆：全新 ${cond.brandNew}（報廢率 ${(cond.brandNewScrapPct * 100).toFixed(0)}%）· 整新 ${cond.refurb}（報廢率 ${(cond.refurbScrapPct * 100).toFixed(0)}%）。<b>全新故障→原廠/來料責任；整新故障→整新製程責任。</b></div>`
+      : `<div class="bn-line muted">目前 ${total} 筆中無單筆同時具備「製令 + 製造日期」，暫無法判定全新/整新。待工廠補齊製令後即自動分類。</div>`;
+
+    // ── Origin-batch Pareto (元件瑕疵落點) ──
+    const ob = RepairAnalyzer.originBatchPareto(records);
+    const oc = $('originBatchChart');
+    if (oc && ob.list.length) {
+      const top = ob.list.slice(0, 12).slice().sort((a, b) => a.month < b.month ? -1 : 1);
+      state.charts.originBatch = new Chart(oc.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: top.map(b => b.month),
+          datasets: [{ label: '故障件數', data: top.map(b => b.count), backgroundColor: top.map(b => b.pct >= 0.2 ? COLORS.critical + 'cc' : COLORS.accent + 'cc'), borderColor: top.map(b => b.pct >= 0.2 ? COLORS.critical : COLORS.accent), borderWidth: 0, borderRadius: 3 }],
+        },
+        options: {
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.parsed.y} 件 · ${(top[c.dataIndex].pct * 100).toFixed(1)}% · 機種 ${top[c.dataIndex].models.join(',')}` } } },
+          scales: { x: { ticks: { color: COLORS.text3, font: { size: 10 }, maxRotation: 50, minRotation: 40 }, grid: { display: false } }, y: { ticks: { color: COLORS.text3 }, grid: { color: COLORS.border } } },
+        },
+      });
+      const t = ob.list[0];
+      $('originNote').innerHTML = `<div class="bn-line">共 ${ob.total} 筆有製令。<b>故障最集中的原始出廠批次：${t.month}（${t.count} 件 · ${(t.pct * 100).toFixed(0)}%）</b> → 該批的元件/製程瑕疵嫌疑最大，責任落點：${t.month} 當期的生產與來料。</div>`;
+    } else {
+      if (oc) oc.parentElement.style.display = 'none';
+      $('originNote').innerHTML = `<div class="bn-line muted">本範圍無製令資料，無法做出廠批次分析。</div>`;
+    }
+
+    // ── Per-model risk table ──
     const body = $('batchBody');
-    const shown = rows.filter(r => r.dated > 0);
+    const shown = rows.filter(r => r.withOrder > 0 || r.dated > 0);
+    const fmtBatch = (top, pct, batches) => {
+      if (!top) return '<span class="muted">—</span>';
+      const cls = pct >= 0.4 ? 'bad' : pct >= 0.25 ? 'warn' : '';
+      const bar = batches.slice(0, 5).map(b => `<span class="bb-seg" title="${b.month}: ${b.count}">${b.month.slice(2)}·${b.count}</span>`).join('');
+      return `<span class="pct ${cls}">${top.month} · ${(pct * 100).toFixed(0)}%</span><div class="batch-bar">${bar}</div>`;
+    };
+    const flagCls = { '出廠批次集中': 'bc', '製造批次集中': 'rb', '全新早夭': 'ef', '整新後即壞': 'rf' };
     body.innerHTML = shown.map((r, i) => {
-      const bt = r.topBatch;
-      const concCls = r.topPct >= 0.4 ? 'bad' : r.topPct >= 0.25 ? 'warn' : '';
-      const earlyCls = r.earlyPct >= 0.4 ? 'bad' : r.earlyPct >= 0.2 ? 'warn' : '';
-      const flagTags = r.flags.map(fl => `<span class="batch-flag ${fl === '新品早夭' ? 'ef' : 'bc'}">${fl}</span>`).join(' ') || '<span class="muted">—</span>';
-      const batchBar = r.batches.slice(0, 5).map(b => `<span class="bb-seg" title="${b.month}: ${b.count}">${b.month.slice(2)}·${b.count}</span>`).join('');
+      const flagTags = r.flags.map(fl => `<span class="batch-flag ${flagCls[fl] || 'bc'}">${fl}</span>`).join(' ') || '<span class="muted">—</span>';
+      const condBar = (r.brandNew || r.refurb)
+        ? `<span class="cond-new">全新${r.brandNew}</span> / <span class="cond-ref">整新${r.refurb}</span>${r.unknownCond ? `<span class="muted"> /未知${r.unknownCond}</span>` : ''}`
+        : `<span class="muted">未知 ${r.total}</span>`;
+      const earlyCell = `${r.earlyNew ? `<span class="pct bad">全新${r.earlyNew}</span>` : ''}${r.earlyRefurb ? ` <span class="pct warn">整新${r.earlyRefurb}</span>` : ''}${r.earlyMfgOnly ? ` <span class="muted" title="缺製令無法判定">?${r.earlyMfgOnly}</span>` : ''}` || '<span class="muted">—</span>';
       return `
         <tr${r.flags.length ? ' class="row-flag"' : ''}>
           <td class="num muted">${i + 1}</td>
           <td><span class="strong">${escapeHtml(r.model)}</span><div class="muted" style="font-size:10.5px">${escapeHtml(r.category)}</div></td>
           <td class="num" style="text-align:right;font-weight:700">${r.total}</td>
-          <td class="num" style="text-align:right">${r.dated}<div class="muted" style="font-size:10px">${Math.round(r.coverage * 100)}%</div></td>
-          <td>${bt ? `<span class="pct ${concCls}">${bt.month} · ${(r.topPct * 100).toFixed(0)}%</span><div class="batch-bar">${batchBar}</div>` : '<span class="muted">—</span>'}</td>
-          <td class="num" style="text-align:right"><span class="pct ${earlyCls}">${r.earlyFail}</span><div class="muted" style="font-size:10px">${(r.earlyPct * 100).toFixed(0)}%</div></td>
+          <td style="font-size:11px">${condBar}</td>
+          <td>${fmtBatch(r.topOrigin, r.topOriginPct, r.originBatches)}</td>
+          <td>${fmtBatch(r.topMfg, r.topMfgPct, r.mfgBatches)}</td>
+          <td style="text-align:right;font-size:11px">${earlyCell}</td>
           <td>${flagTags}</td>
         </tr>`;
     }).join('');
 
-    const noMfg = rows.filter(r => r.dated === 0).map(r => r.model);
+    const noData = rows.filter(r => r.withOrder === 0 && r.dated === 0).map(r => r.model);
     $('batchNote').innerHTML = `
-      <div class="bn-line"><span class="batch-flag bc">批次集中</span> 單一製造月份佔該機種「有製造日期」筆數 ≥ 40%（n≥5）→ 疑似特定生產批/來料問題，責任：製造課 + 採購/IQC。</div>
-      <div class="bn-line"><span class="batch-flag ef">新品早夭</span> 製造月份 = 檢修月份 ≥ 40% → 新品出廠即故障，責任：研發/製造（出廠檢驗）。</div>
-      ${noMfg.length ? `<div class="bn-line muted">無製造日期欄位（無法批次分析）：${noMfg.join('、')}　— 多為使用製令品號的機種或登錄缺漏。</div>` : ''}
+      <div class="bn-line"><span class="batch-flag bc">出廠批次集中</span> 單一製令出廠年月佔該機種「有製令」筆數 ≥ 40% → 該<b>原始批次</b>元件/製程瑕疵，責任：當期生產 + 來料/IQC。</div>
+      <div class="bn-line"><span class="batch-flag rb">製造批次集中</span> 單一製造日期年月佔「有製造日期」≥ 40% → 該批集中故障；<b>需製令才能區分是出廠批還是整新梯次</b>。</div>
+      <div class="bn-line"><span class="batch-flag ef">全新早夭</span> 全新品（製造=製令年月）且出廠月=檢修月 → 新品出廠即壞，責任：研發/製造（OQC 出廠檢驗）。</div>
+      <div class="bn-line"><span class="batch-flag rf">整新後即壞</span> 整新品（製造≠製令年月）且整新月=檢修月 → 整新後立即故障，責任：整新製程/檢驗。</div>
+      <div class="bn-line muted">「早夭」欄的 <b>?N</b> 代表有製造日期但缺製令，製造當月即故障 N 件 — 補上製令後即可判定屬全新早夭或整新後即壞。</div>
+      ${noData.length ? `<div class="bn-line muted">無製令也無製造日期（無法批次分析）：${noData.join('、')}　— 請提醒登錄單位補齊。</div>` : ''}
     `;
   }
 

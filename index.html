@@ -421,24 +421,37 @@
           <div class="page-h">
             <div>
               <div class="page-t">製造批次分析</div>
-              <div class="page-d">依製造日期分群 · 偵測批次集中與新品早夭 · 鎖定製造/來料責任</div>
+              <div class="page-d">製令(出廠批次) + 製造日期(整新) · 全新/整新研判 · 元件瑕疵落點 · 製程梯次</div>
             </div>
             <div class="page-meta" id="batchMeta"></div>
           </div>
           <div class="kpi-grid" id="batchKpi"></div>
+          <div class="batch-2col">
+            <div class="card sec">
+              <div class="card-h"><div class="card-t">🆕 全新 vs ♻ 整新 故障佔比</div></div>
+              <div class="chart-wrap short"><canvas id="conditionChart"></canvas></div>
+              <div class="batch-note" id="conditionNote"></div>
+            </div>
+            <div class="card sec">
+              <div class="card-h"><div class="card-t">🏭 出廠批次分析（元件瑕疵落點）</div><div class="card-sub">依製令出廠年月 · 故障集中的原始批次=元件/製程瑕疵</div></div>
+              <div class="chart-wrap short"><canvas id="originBatchChart"></canvas></div>
+              <div class="batch-note" id="originNote"></div>
+            </div>
+          </div>
           <div class="card sec">
-            <div class="card-h"><div class="card-t">⚠ 批次風險機種</div><div class="card-sub">單一製造月份佔比 ≥ 40% = 批次集中；製造月=檢修月 = 新品早夭</div></div>
+            <div class="card-h"><div class="card-t">⚠ 批次風險機種</div><div class="card-sub">出廠/整新單月佔比≥40%=批次集中；全新且出廠月=檢修月=全新早夭；整新且整新月=檢修月=整新後即壞</div></div>
             <div class="tbl-wrap">
               <table class="tbl">
                 <thead>
                   <tr>
-                    <th style="width:36px">#</th>
+                    <th style="width:34px">#</th>
                     <th>機種</th>
-                    <th class="right" style="width:70px">維修</th>
-                    <th class="right" style="width:96px">有製造日</th>
+                    <th class="right" style="width:60px">維修</th>
+                    <th style="width:110px">全新/整新</th>
+                    <th>最大出廠批次</th>
                     <th>最大製造批次</th>
-                    <th class="right" style="width:90px">新品早夭</th>
-                    <th style="width:120px">標記</th>
+                    <th class="right" style="width:140px">早夭</th>
+                    <th style="width:130px">標記</th>
                   </tr>
                 </thead>
                 <tbody id="batchBody"></tbody>
