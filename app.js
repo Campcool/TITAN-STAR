@@ -90,19 +90,21 @@ window.App = (function () {
       return;
     }
 
+    const results = [];
     for (let i = 0; i < xlsxFiles.length; i++) {
       const f = xlsxFiles[i];
-      showLoad(`正在讀取 ${f.name}...`, `${i + 1} / ${xlsxFiles.length}`);
+      showLoad(`正在讀取 ${f.name}…`, `${i + 1} / ${xlsxFiles.length} 個檔案`);
       try {
         const monthData = await RepairParser.parseFile(f);
         if (!monthData.records.length) {
-          alert(`${f.name}：未偵測到維修資料`);
+          results.push({ ok: false, name: f.name, error: '未偵測到維修資料' });
           continue;
         }
         RepairDB.addMonth(monthData);
+        results.push({ ok: true, name: f.name, records: monthData.records.length, month: monthData.monthLabel });
       } catch (err) {
         console.error(err);
-        alert(`${f.name} 讀取失敗：${err.message}`);
+        results.push({ ok: false, name: f.name, error: err.message });
       }
     }
 
@@ -110,27 +112,153 @@ window.App = (function () {
     $('fileInput').value = '';
     state.db = RepairDB.load();
     renderUploadList();
+
+    if (results.some(r => !r.ok)) {
+      const errs = results.filter(r => !r.ok).map(r => `• ${r.name}：${r.error}`).join('\n');
+      alert(`部分檔案讀取失敗：\n${errs}`);
+    }
+  }
+
+  function storageKB() {
+    try {
+      const raw = localStorage.getItem('repair_db_v2') || '';
+      return Math.round(raw.length * 2 / 1024);
+    } catch { return 0; }
   }
 
   function renderUploadList() {
     const months = Object.values(state.db.months).sort((a, b) => a.monthLabel.localeCompare(b.monthLabel));
+    const uzMonths = $('uzMonths');
     if (!months.length) {
-      $('uzMonths').style.display = 'none';
+      uzMonths.style.display = 'none';
       return;
     }
-    $('uzMonths').style.display = 'block';
-    $('uzMonthList').innerHTML = months.map(m => {
-      const denomTotal = Object.values(m.denominators || {}).reduce((a, b) => a + b, 0);
-      return `
-        <div class="uz-month-row">
-          <div>
-            <div class="uz-month-label">${fmt.monthLabel(m.monthLabel)}</div>
-            <div class="uz-month-meta">${m.records.length.toLocaleString()} 筆紀錄 · 整新數 ${denomTotal.toLocaleString()} · ${m.fileName}</div>
-          </div>
-          <button class="uz-month-del" onclick="App.removeMonth('${m.monthLabel}')">移除</button>
+    uzMonths.style.display = 'block';
+
+    const kb = storageKB();
+    const pct = Math.min(Math.round(kb / 51200 * 100), 100); // 5 MB max
+    const totalRecords = months.reduce((s, m) => s + m.records.length, 0);
+
+    $('uzMonthList').innerHTML = `
+      <!-- Storage bar -->
+      <div class="uz-storage-bar">
+        <div class="uz-storage-info">
+          <span>本機儲存空間</span>
+          <span class="uz-storage-val">${kb.toLocaleString()} KB / ~5 MB</span>
         </div>
-      `;
-    }).join('');
+        <div class="uz-storage-track">
+          <div class="uz-storage-fill" style="width:${pct}%;background:${pct>80?'var(--critical)':pct>50?'var(--warn)':'var(--ok)'}"></div>
+        </div>
+      </div>
+
+      <!-- Month cards -->
+      <div class="uz-month-grid">
+        ${months.map(m => {
+          const denomTotal = Object.values(m.denominators || {}).reduce((a, b) => a + b, 0);
+          // Model breakdown: top 4 by record count
+          const modelCount = {};
+          for (const r of m.records) {
+            const k = r.model || '其他';
+            modelCount[k] = (modelCount[k] || 0) + 1;
+          }
+          const topModels = Object.entries(modelCount).sort((a, b) => b[1] - a[1]).slice(0, 5);
+          const catCount = {};
+          for (const r of m.records) {
+            catCount[r.category || '其他'] = (catCount[r.category || '其他'] || 0) + 1;
+          }
+          const topCat = Object.entries(catCount).sort((a, b) => b[1] - a[1])[0];
+          const scrapCount = m.records.filter(r => (r.faultCause || '').includes('報廢') || (r.faultCause || '').includes('600')).length;
+          return `
+            <div class="uz-month-card">
+              <div class="uz-month-card-h">
+                <div>
+                  <div class="uz-month-big">${fmt.monthLabel(m.monthLabel)}</div>
+                  <div class="uz-month-file">${m.fileName}</div>
+                </div>
+                <button class="uz-month-del" onclick="App.removeMonth('${m.monthLabel}')" title="移除此月份">✕</button>
+              </div>
+              <div class="uz-month-stats">
+                <div class="uz-month-stat">
+                  <div class="uz-month-stat-v">${m.records.length.toLocaleString()}</div>
+                  <div class="uz-month-stat-l">維修筆數</div>
+                </div>
+                <div class="uz-month-stat">
+                  <div class="uz-month-stat-v">${denomTotal.toLocaleString()}</div>
+                  <div class="uz-month-stat-l">整新數</div>
+                </div>
+                <div class="uz-month-stat">
+                  <div class="uz-month-stat-v" style="color:${scrapCount>0?'var(--critical)':'var(--ok)'}">${scrapCount}</div>
+                  <div class="uz-month-stat-l">報廢件</div>
+                </div>
+                <div class="uz-month-stat">
+                  <div class="uz-month-stat-v">${Object.keys(modelCount).length}</div>
+                  <div class="uz-month-stat-l">機種數</div>
+                </div>
+              </div>
+              <div class="uz-month-models">
+                ${topModels.map(([k, n]) =>
+                  `<span class="uz-model-chip" title="${k}">${k} <em>${n}</em></span>`
+                ).join('')}
+                ${Object.keys(modelCount).length > 5 ? `<span class="uz-model-chip uz-model-more">+${Object.keys(modelCount).length - 5}</span>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      <!-- Summary + CTA -->
+      <div class="uz-cta-row">
+        <div class="uz-cta-summary">
+          共 <strong>${months.length}</strong> 個月份 · <strong>${totalRecords.toLocaleString()}</strong> 筆記錄
+        </div>
+        <div class="uz-cta-btns">
+          <button class="btn" onclick="App.exportData()" title="匯出所有資料為 JSON 備份檔">⤓ 備份資料</button>
+          <label class="btn" style="cursor:pointer" title="從 JSON 備份檔還原">
+            ⤒ 還原備份<input type="file" id="jsonInput" accept=".json" style="display:none" onchange="App.importData(this)">
+          </label>
+          <button class="btn danger" onclick="App.clearAll()">清除全部</button>
+          <button class="btn primary uz-enter-btn" onclick="App.openDashboard()">進入分析報表 →</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function exportData() {
+    try {
+      const raw = localStorage.getItem('repair_db_v2');
+      if (!raw) { alert('目前沒有資料可備份'); return; }
+      const blob = new Blob([raw], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const now = new Date();
+      const ds = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+      a.href = url;
+      a.download = `TITAN-STAR備份_${ds}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('匯出失敗：' + e.message);
+    }
+  }
+
+  function importData(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (!data.months) throw new Error('不是有效的備份格式');
+        localStorage.setItem('repair_db_v2', e.target.result);
+        state.db = RepairDB.load();
+        renderUploadList();
+        alert(`✓ 還原成功：${Object.keys(data.months).length} 個月份已載入`);
+      } catch (err) {
+        alert('還原失敗：' + err.message);
+      }
+      input.value = '';
+    };
+    reader.readAsText(file);
   }
 
   function removeMonth(mk) {
@@ -1638,7 +1766,7 @@ window.App = (function () {
   document.addEventListener('DOMContentLoaded', init);
 
   return {
-    handleFiles, removeMonth, clearAll, confirmClear,
+    handleFiles, removeMonth, clearAll, confirmClear, exportData, importData,
     openDashboard, openUpload, switchPage,
     setMonth, setCategory, setModel,
     toggleRank, toggleRankRow,

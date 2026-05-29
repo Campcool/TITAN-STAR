@@ -134,47 +134,89 @@ button, input, select { font-family: inherit; }
   font-size: 14px; pointer-events: none;
 }
 
-.uz-months {
-  margin-top: 28px; padding: 24px;
-  background: var(--surface); border-radius: 14px; border: 1px solid var(--border);
+.uz-months { margin-top: 24px; }
+
+/* ── Storage bar ── */
+.uz-storage-bar {
+  padding: 12px 16px; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: 10px; margin-bottom: 16px;
 }
-.uz-months-h {
-  display: flex; align-items: center; justify-content: space-between;
+.uz-storage-info {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px; color: var(--text3); margin-bottom: 8px;
+}
+.uz-storage-val { font-family: var(--mono); font-weight: 600; color: var(--text2); }
+.uz-storage-track {
+  height: 5px; background: var(--surface3, var(--border2));
+  border-radius: 3px; overflow: hidden;
+}
+.uz-storage-fill { height: 100%; border-radius: 3px; transition: width .4s ease; }
+
+/* ── Month cards grid ── */
+.uz-month-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px; margin-bottom: 16px;
+}
+.uz-month-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 18px 20px;
+  transition: border-color .15s;
+}
+.uz-month-card:hover { border-color: var(--border2); }
+.uz-month-card-h {
+  display: flex; align-items: flex-start; justify-content: space-between;
   margin-bottom: 14px;
 }
-.uz-months-t { font-size: 14.5px; color: var(--text3); letter-spacing: .12em; text-transform: uppercase; font-weight: 600; }
-.uz-months-clear {
-  background: none; border: none; color: var(--text3);
-  font-size: 14.5px; cursor: pointer; padding: 4px 8px; border-radius: 6px;
+.uz-month-big {
+  font-family: var(--mono); font-size: 22px; font-weight: 700;
+  color: var(--accent); line-height: 1.1;
 }
-.uz-months-clear:hover { color: var(--critical); background: var(--critical-soft); }
-
-.uz-month-row {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 14px; background: var(--surface2); border-radius: 8px;
-  margin-bottom: 6px; cursor: default;
-  border: 1px solid var(--border);
-}
-.uz-month-row:last-child { margin-bottom: 0; }
-.uz-month-label { font-family: var(--mono); font-size: 15px; font-weight: 700; color: var(--accent); }
-.uz-month-meta { font-size: 14.5px; color: var(--text3); margin-top: 2px; font-family: var(--mono); }
+.uz-month-file { font-size: 11.5px; color: var(--text3); margin-top: 3px; font-family: var(--mono); }
 .uz-month-del {
   background: none; border: 1px solid var(--border);
-  color: var(--text3); font-size: 14.5px; padding: 6px 10px; border-radius: 6px;
-  cursor: pointer; transition: all .2s;
+  color: var(--text3); font-size: 12px; padding: 4px 8px; border-radius: 6px;
+  cursor: pointer; transition: all .15s; flex-shrink: 0;
 }
 .uz-month-del:hover { color: var(--critical); border-color: var(--critical); }
-
-.uz-cta {
-  margin-top: 18px;
-  display: flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 14px;
-  background: var(--accent-soft);
-  border: 1px solid var(--accent-strong); border-radius: 10px;
-  color: var(--accent); font-weight: 600; font-size: 14px;
-  cursor: pointer; transition: all .2s;
+.uz-month-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 8px; margin-bottom: 12px;
 }
-.uz-cta:hover { background: var(--accent-strong); }
+.uz-month-stat { text-align: center; }
+.uz-month-stat-v {
+  font-family: var(--mono); font-size: 20px; font-weight: 700;
+  color: var(--text); line-height: 1.1;
+}
+.uz-month-stat-l { font-size: 10.5px; color: var(--text3); margin-top: 2px; }
+.uz-month-models { display: flex; flex-wrap: wrap; gap: 4px; }
+.uz-model-chip {
+  font-family: var(--mono); font-size: 11px;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text3); border-radius: 6px; padding: 2px 7px;
+  white-space: nowrap;
+}
+.uz-model-chip em { font-style: normal; color: var(--accent); margin-left: 3px; }
+.uz-model-more { color: var(--text3); font-style: normal; }
+
+/* ── CTA row ── */
+.uz-cta-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+  padding: 16px 0 4px;
+  border-top: 1px solid var(--border);
+}
+.uz-cta-summary { font-size: 13.5px; color: var(--text3); }
+.uz-cta-summary strong { color: var(--text); }
+.uz-cta-btns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.uz-enter-btn { font-size: 14px; padding: 10px 22px; }
+
+/* keep old .uz-cta for any legacy reference */
+.uz-cta {
+  margin-top: 18px; display: flex; align-items: center; justify-content: center;
+  padding: 14px; background: var(--accent-soft);
+  border: 1px solid var(--accent-strong); border-radius: 10px;
+  color: var(--accent); font-weight: 600; font-size: 14px; cursor: pointer;
+}
 
 /* ══════════════════════ Loading overlay ══════════════════════ */
 .load-ov {
