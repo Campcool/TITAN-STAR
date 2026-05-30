@@ -783,6 +783,9 @@ button, input, select { font-family: inherit; }
 .divider { height: 1px; background: var(--border); margin: 24px 0; }
 .muted { color: var(--text3); }
 .no-wrap { white-space: nowrap; }
+.mom-up { color: var(--critical); font-weight: 600; }
+.mom-dn { color: var(--ok); font-weight: 600; }
+.section-title { font-size: 14px; font-weight: 700; color: var(--text2); margin-bottom: 10px; letter-spacing: .03em; text-transform: uppercase; }
 .txt-mono { font-family: var(--mono); }
 
 /* Responsive */

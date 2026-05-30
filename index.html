@@ -385,6 +385,7 @@
             <div class="card-h"><div class="card-t">主要零件月份趨勢 (前 6)</div></div>
             <div class="chart-wrap tall"><canvas id="partTrendChart"></canvas></div>
           </div>
+          <div class="sec" id="trendMomTable"></div>
         </div>
 
         <!-- Reason -->
@@ -562,7 +563,8 @@
               <div class="page-d">原始記錄瀏覽（前 500 筆）</div>
             </div>
             <div style="display:flex;gap:8px;align-items:center">
-              <input class="detail-search-inp" type="text" id="detailSearch" placeholder="🔍 序號搜尋…" oninput="App.searchDetail(this.value)">
+              <input class="detail-search-inp" type="text" id="detailSearch" placeholder="🔍 序號 / 機種 / 故障原因…" oninput="App.searchDetail(this.value)">
+              <button class="btn sm" onclick="App.exportDetailCsv()" title="匯出當前篩選結果為 CSV">⤓ 匯出 CSV</button>
               <div class="page-meta" id="detailMeta"></div>
             </div>
           </div>

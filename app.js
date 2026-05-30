@@ -2238,6 +2238,43 @@ window.App = (function () {
         },
       },
     });
+
+    // MoM (Month-over-Month) summary table
+    const momEl = $('trendMomTable');
+    if (momEl && trend.length >= 2) {
+      const rows = trend.map((t, i) => {
+        if (i === 0) return null;
+        const prev = trend[i - 1];
+        const cntDelta = t.count - prev.count;
+        const rateDelta = (t.faultPct - prev.faultPct).toFixed(2);
+        const scrapDelta = t.scrap - prev.scrap;
+        const cntCls = cntDelta > 0 ? 'mom-up' : cntDelta < 0 ? 'mom-dn' : '';
+        const rateCls = parseFloat(rateDelta) > 0 ? 'mom-up' : parseFloat(rateDelta) < 0 ? 'mom-dn' : '';
+        const scrapCls = scrapDelta > 0 ? 'mom-up' : scrapDelta < 0 ? 'mom-dn' : '';
+        const fmt_delta = (n, unit='') => n === 0 ? `<span class="muted">—</span>` : `<span class="${n > 0 ? 'mom-up' : 'mom-dn'}">${n > 0 ? '▲' : '▼'}${Math.abs(n)}${unit}</span>`;
+        return `<tr>
+          <td>${fmt.monthLabel(t.month)}</td>
+          <td class="right">${t.count}</td>
+          <td class="right">${fmt_delta(cntDelta)}</td>
+          <td class="right">${t.faultPct.toFixed(2)}%</td>
+          <td class="right">${fmt_delta(parseFloat(rateDelta), '%')}</td>
+          <td class="right">${t.scrap}</td>
+          <td class="right">${fmt_delta(scrapDelta)}</td>
+        </tr>`;
+      }).filter(Boolean).reverse().join('');
+      momEl.innerHTML = `
+        <div class="section-title">月環比變化（最新月份在前）</div>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr>
+            <th>月份</th><th class="right">維修件數</th><th class="right">環比</th>
+            <th class="right">故障率</th><th class="right">環比</th>
+            <th class="right">報廢件數</th><th class="right">環比</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>`;
+    } else if (momEl) {
+      momEl.innerHTML = '';
+    }
   }
 
   // ─────────────── Reason ───────────────
@@ -2441,10 +2478,17 @@ window.App = (function () {
   function renderDetail() {
     const f = currentFilter();
     const allRecords = RepairAnalyzer.getRecords(state.db, f);
-    const sq = state.detailSearch || '';
+    const sq = (state.detailSearch || '').toLowerCase();
     const records = sq
-      ? allRecords.filter(r => (r.serial || '').toLowerCase().includes(sq.toLowerCase()) ||
-          (r.model || '').toLowerCase().includes(sq.toLowerCase()))
+      ? allRecords.filter(r =>
+          (r.serial || '').toLowerCase().includes(sq) ||
+          (r.model || '').toLowerCase().includes(sq) ||
+          (r.modelDisplay || '').toLowerCase().includes(sq) ||
+          (r.reason || '').toLowerCase().includes(sq) ||
+          (r.content || '').toLowerCase().includes(sq) ||
+          (r.part1 || '').toLowerCase().includes(sq) ||
+          (r.part2 || '').toLowerCase().includes(sq) ||
+          (r.part3 || '').toLowerCase().includes(sq))
       : allRecords;
     $('detailMeta').textContent = sq
       ? `搜尋「${sq}」：${records.length} 筆 / 共 ${allRecords.length.toLocaleString()} 筆`
@@ -3610,6 +3654,39 @@ window.App = (function () {
     URL.revokeObjectURL(url);
   }
 
+  function exportDetailCsv() {
+    const f = currentFilter();
+    const allRecords = RepairAnalyzer.getRecords(state.db, f);
+    const sq = (state.detailSearch || '').toLowerCase();
+    const records = sq
+      ? allRecords.filter(r =>
+          (r.serial || '').toLowerCase().includes(sq) ||
+          (r.model || '').toLowerCase().includes(sq) ||
+          (r.reason || '').toLowerCase().includes(sq) ||
+          (r.content || '').toLowerCase().includes(sq) ||
+          (r.part1 || '').toLowerCase().includes(sq) ||
+          (r.part2 || '').toLowerCase().includes(sq) ||
+          (r.part3 || '').toLowerCase().includes(sq))
+      : allRecords;
+    const rows = [['月份','日期','機種','序號','故障原因','故障內容','是否報廢','製令','製造日期','零件一','數量一','零件二','數量二','零件三','數量三']];
+    for (const r of records) {
+      rows.push([
+        r._monthKey || '', r.date || '', r.modelDisplay || r.model || '', r.serial || '',
+        r.reason || '', r.content || '', r.isScrap ? '是' : '否',
+        r.batch || '', r.mfg || '',
+        r.part1 || '', r.qty1 || '', r.part2 || '', r.qty2 || '', r.part3 || '', r.qty3 || '',
+      ]);
+    }
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `維修明細${sq ? '_' + sq : ''}_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function exportFmeaUnclassified() {
     const f = currentFilter();
     const records = RepairAnalyzer.getRecords(state.db, f);
@@ -3674,6 +3751,7 @@ window.App = (function () {
     saveFmeaOverride,
     resetFmeaOverrides,
     exportCostCsv,
+    exportDetailCsv,
     exportFmeaUnclassified,
   };
 })();

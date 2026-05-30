@@ -799,6 +799,9 @@ button, input, select { font-family: inherit; }
 .divider { height: 1px; background: var(--border); margin: 24px 0; }
 .muted { color: var(--text3); }
 .no-wrap { white-space: nowrap; }
+.mom-up { color: var(--critical); font-weight: 600; }
+.mom-dn { color: var(--ok); font-weight: 600; }
+.section-title { font-size: 14px; font-weight: 700; color: var(--text2); margin-bottom: 10px; letter-spacing: .03em; text-transform: uppercase; }
 .txt-mono { font-family: var(--mono); }
 
 /* Responsive */
@@ -3076,6 +3079,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
             <div class="card-h"><div class="card-t">主要零件月份趨勢 (前 6)</div></div>
             <div class="chart-wrap tall"><canvas id="partTrendChart"></canvas></div>
           </div>
+          <div class="sec" id="trendMomTable"></div>
         </div>
 
         <!-- Reason -->
@@ -3253,7 +3257,8 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
               <div class="page-d">原始記錄瀏覽（前 500 筆）</div>
             </div>
             <div style="display:flex;gap:8px;align-items:center">
-              <input class="detail-search-inp" type="text" id="detailSearch" placeholder="🔍 序號搜尋…" oninput="App.searchDetail(this.value)">
+              <input class="detail-search-inp" type="text" id="detailSearch" placeholder="🔍 序號 / 機種 / 故障原因…" oninput="App.searchDetail(this.value)">
+              <button class="btn sm" onclick="App.exportDetailCsv()" title="匯出當前篩選結果為 CSV">⤓ 匯出 CSV</button>
               <div class="page-meta" id="detailMeta"></div>
             </div>
           </div>
@@ -4462,15 +4467,58 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
 
   // ─── 故障根因分類樹：部位 → 模式（關鍵字規則）───
   const FAULT_TAXONOMY = {
-    '電源系統': { kws: ['電源','電供','變壓','adapter','power','電池','充電','供電','穩壓','保險絲'], color:'#f59e0b' },
-    '主板/PCB': { kws: ['主板','母板','pcb','電路板','板子','ic','晶片','bga','電容','電阻','二極','電晶','焊','短路','斷路','開路'], color:'#ef4444' },
-    '顯示/螢幕': { kws: ['螢幕','面板','顯示','lcd','背光','液晶','觸控','panel','花屏','黑屏'], color:'#38bdf8' },
-    '儲存/記憶': { kws: ['硬碟','hdd','ssd','記憶','ram','emmc','儲存','flash','sd卡','讀寫'], color:'#a78bfa' },
-    '感測/鏡頭': { kws: ['鏡頭','感測','sensor','ccd','cmos','對焦','紅外','ir','pir','收訊'], color:'#34d399' },
-    '機構/外觀': { kws: ['外殼','機構','按鍵','卡榫','破裂','變形','刮傷','螺絲','接頭','端子','排線','連接'], color:'#94a2b6' },
-    '運輸損傷': { kws: ['撞傷','摔落','包裝不良','碰損','壓損','包材','運輸損','出貨損','物流損'], color:'#f97316' },
-    '通訊/網路': { kws: ['網路','wifi','藍牙','zigbee','rf','天線','訊號','通訊','連線','斷線','lan','poe'], color:'#22d3ee' },
-    '韌體/軟體': { kws: ['韌體','軟體','firmware','程式','當機','重啟','異常關機','無回應','升級','版本','設定','系統','ota'], color:'#818cf8' },
+    '電源系統': { kws: [
+      '電源','電供','變壓','adapter','power','電池','充電','供電','穩壓','保險絲',
+      '電壓','過壓','低壓','欠壓','突波','ac','dc','充不進','無電','電源板','開機電',
+      '短路保護','過電流','限流','電源模組','ups','電源異常','電源供應',
+    ], color:'#f59e0b' },
+    '主板/PCB': { kws: [
+      '主板','母板','pcb','電路板','板子','ic','晶片','bga','電容','電阻','二極',
+      '電晶','焊','短路','斷路','開路','假焊','虛焊','冷焊','銅箔','走線','過孔',
+      '基板','smt','dip','主機板','cpu','mcu','芯片','損板','板壞','板故障',
+      '元件燒','燒毀','燒焦','炸裂','異常發熱','過熱','熱當',
+    ], color:'#ef4444' },
+    '顯示/螢幕': { kws: [
+      '螢幕','面板','顯示','lcd','背光','液晶','觸控','panel','花屏','黑屏',
+      '無顯示','閃屏','畫面','顯示器','白屏','綠屏','色偏','亮度','dead pixel',
+      'oled','顯示模組','顯示板','螢幕破','屏幕','顯示不正常','顯示異常',
+    ], color:'#38bdf8' },
+    '儲存/記憶': { kws: [
+      '硬碟','hdd','ssd','記憶','ram','emmc','儲存','flash','sd卡','讀寫',
+      'rom','eeprom','nand','nor','記憶體','記憶錯誤','存取失敗','memory',
+      '資料遺失','存儲','讀取失敗','寫入失敗','格式化','損壞磁區',
+    ], color:'#a78bfa' },
+    '感測/鏡頭': { kws: [
+      '鏡頭','感測','sensor','ccd','cmos','對焦','紅外','ir','pir','收訊',
+      '影像','攝像','camera','圖像','偵測','感應','偵煙','偵溫','溫感',
+      '震動感測','加速度計','陀螺儀','光感','人體感應','動態偵測','誤報',
+    ], color:'#34d399' },
+    '機構/外觀': { kws: [
+      '外殼','機構','按鍵','卡榫','破裂','變形','刮傷','螺絲','接頭','端子','排線','連接',
+      '插槽','插座','接觸不良','鬆動','歪斜','卡住','開關','滾輪','轉軸','鉸鏈',
+      '接觸','接觸差','彈片','彈腳','公頭','母頭','裂縫','塑膠','外觀損','掉落損',
+      '散熱','散熱片','風扇','機殼','鎖固','組裝','鈑金',
+    ], color:'#94a2b6' },
+    '運輸損傷': { kws: [
+      '撞傷','摔落','包裝不良','碰損','壓損','包材','運輸損','出貨損','物流損',
+      '運輸','出貨','入庫損','碰撞','跌落','包裝破','泡棉','保護不足','撞凹',
+    ], color:'#f97316' },
+    '通訊/網路': { kws: [
+      '網路','wifi','藍牙','zigbee','rf','天線','訊號','通訊','連線','斷線','lan','poe',
+      '無線','有線','以太網','乙太網','tcp','ip','udp','mqtt','lte','4g','gprs',
+      '訊號弱','收不到訊號','斷網','連線中斷','pairing','配對','連不上','離線',
+      'zigbee模組','rf模組','無線模組','通訊模組','連線失敗','網路異常',
+    ], color:'#22d3ee' },
+    '韌體/軟體': { kws: [
+      '韌體','軟體','firmware','程式','當機','重啟','異常關機','無回應','升級','版本','設定','系統','ota',
+      '死機','閃退','重開機','更新失敗','升級失敗','系統異常','無法開機','boot',
+      '軔體','app','應用程式','程式異常','程式錯誤','跑掉','跑當','hang',
+      '設定消失','參數','初始化','factory reset','還原','日誌','log',
+    ], color:'#818cf8' },
+    '電磁/靜電': { kws: [
+      'esd','靜電','靜電損','雷擊','突波損','surge','電磁','干擾','emi','emc',
+      '雷突波','接地','漏電','靜電放電','感應電','雜訊干擾',
+    ], color:'#fb7185' },
   };
 
   function classifyFault(text) {
@@ -7047,6 +7095,43 @@ window.App = (function () {
         },
       },
     });
+
+    // MoM (Month-over-Month) summary table
+    const momEl = $('trendMomTable');
+    if (momEl && trend.length >= 2) {
+      const rows = trend.map((t, i) => {
+        if (i === 0) return null;
+        const prev = trend[i - 1];
+        const cntDelta = t.count - prev.count;
+        const rateDelta = (t.faultPct - prev.faultPct).toFixed(2);
+        const scrapDelta = t.scrap - prev.scrap;
+        const cntCls = cntDelta > 0 ? 'mom-up' : cntDelta < 0 ? 'mom-dn' : '';
+        const rateCls = parseFloat(rateDelta) > 0 ? 'mom-up' : parseFloat(rateDelta) < 0 ? 'mom-dn' : '';
+        const scrapCls = scrapDelta > 0 ? 'mom-up' : scrapDelta < 0 ? 'mom-dn' : '';
+        const fmt_delta = (n, unit='') => n === 0 ? `<span class="muted">—</span>` : `<span class="${n > 0 ? 'mom-up' : 'mom-dn'}">${n > 0 ? '▲' : '▼'}${Math.abs(n)}${unit}</span>`;
+        return `<tr>
+          <td>${fmt.monthLabel(t.month)}</td>
+          <td class="right">${t.count}</td>
+          <td class="right">${fmt_delta(cntDelta)}</td>
+          <td class="right">${t.faultPct.toFixed(2)}%</td>
+          <td class="right">${fmt_delta(parseFloat(rateDelta), '%')}</td>
+          <td class="right">${t.scrap}</td>
+          <td class="right">${fmt_delta(scrapDelta)}</td>
+        </tr>`;
+      }).filter(Boolean).reverse().join('');
+      momEl.innerHTML = `
+        <div class="section-title">月環比變化（最新月份在前）</div>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr>
+            <th>月份</th><th class="right">維修件數</th><th class="right">環比</th>
+            <th class="right">故障率</th><th class="right">環比</th>
+            <th class="right">報廢件數</th><th class="right">環比</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>`;
+    } else if (momEl) {
+      momEl.innerHTML = '';
+    }
   }
 
   // ─────────────── Reason ───────────────
@@ -7250,10 +7335,17 @@ window.App = (function () {
   function renderDetail() {
     const f = currentFilter();
     const allRecords = RepairAnalyzer.getRecords(state.db, f);
-    const sq = state.detailSearch || '';
+    const sq = (state.detailSearch || '').toLowerCase();
     const records = sq
-      ? allRecords.filter(r => (r.serial || '').toLowerCase().includes(sq.toLowerCase()) ||
-          (r.model || '').toLowerCase().includes(sq.toLowerCase()))
+      ? allRecords.filter(r =>
+          (r.serial || '').toLowerCase().includes(sq) ||
+          (r.model || '').toLowerCase().includes(sq) ||
+          (r.modelDisplay || '').toLowerCase().includes(sq) ||
+          (r.reason || '').toLowerCase().includes(sq) ||
+          (r.content || '').toLowerCase().includes(sq) ||
+          (r.part1 || '').toLowerCase().includes(sq) ||
+          (r.part2 || '').toLowerCase().includes(sq) ||
+          (r.part3 || '').toLowerCase().includes(sq))
       : allRecords;
     $('detailMeta').textContent = sq
       ? `搜尋「${sq}」：${records.length} 筆 / 共 ${allRecords.length.toLocaleString()} 筆`
@@ -8419,6 +8511,39 @@ window.App = (function () {
     URL.revokeObjectURL(url);
   }
 
+  function exportDetailCsv() {
+    const f = currentFilter();
+    const allRecords = RepairAnalyzer.getRecords(state.db, f);
+    const sq = (state.detailSearch || '').toLowerCase();
+    const records = sq
+      ? allRecords.filter(r =>
+          (r.serial || '').toLowerCase().includes(sq) ||
+          (r.model || '').toLowerCase().includes(sq) ||
+          (r.reason || '').toLowerCase().includes(sq) ||
+          (r.content || '').toLowerCase().includes(sq) ||
+          (r.part1 || '').toLowerCase().includes(sq) ||
+          (r.part2 || '').toLowerCase().includes(sq) ||
+          (r.part3 || '').toLowerCase().includes(sq))
+      : allRecords;
+    const rows = [['月份','日期','機種','序號','故障原因','故障內容','是否報廢','製令','製造日期','零件一','數量一','零件二','數量二','零件三','數量三']];
+    for (const r of records) {
+      rows.push([
+        r._monthKey || '', r.date || '', r.modelDisplay || r.model || '', r.serial || '',
+        r.reason || '', r.content || '', r.isScrap ? '是' : '否',
+        r.batch || '', r.mfg || '',
+        r.part1 || '', r.qty1 || '', r.part2 || '', r.qty2 || '', r.part3 || '', r.qty3 || '',
+      ]);
+    }
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `維修明細${sq ? '_' + sq : ''}_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function exportFmeaUnclassified() {
     const f = currentFilter();
     const records = RepairAnalyzer.getRecords(state.db, f);
@@ -8483,6 +8608,7 @@ window.App = (function () {
     saveFmeaOverride,
     resetFmeaOverrides,
     exportCostCsv,
+    exportDetailCsv,
     exportFmeaUnclassified,
   };
 })();
