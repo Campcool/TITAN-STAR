@@ -8285,7 +8285,8 @@ window.App = (function () {
   function modelDrillContent(modelName, focusMonth) {
     const history = RepairAnalyzer.modelHistory(state.db, modelName);
     const sortedMonths = state.selectedMonths.slice().sort();
-    const curMonth = focusMonth || sortedMonths[sortedMonths.length - 1];
+    const isAll = focusMonth === '__all__';
+    const curMonth = isAll ? '__all__' : (focusMonth || sortedMonths[sortedMonths.length - 1]);
     const cur = history.find(h => h.month === curMonth) || { count: 0, denom: 0, topParts: [] };
 
     // Aggregate: total over all months
@@ -8294,8 +8295,18 @@ window.App = (function () {
     const totalScrap = history.reduce((s, h) => s + (h.scrap || 0), 0);
     const totalRate = totalDenom ? totalCount / totalDenom : null;
 
-    // Top parts for focused month
-    const max = cur.topParts[0]?.count || 1;
+    // Cumulative top parts: merge counts across all months
+    const aggMap = {};
+    for (const h of history) {
+      for (const p of (h.topParts || [])) aggMap[p.name] = (aggMap[p.name] || 0) + p.count;
+    }
+    const allTopParts = Object.entries(aggMap).map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+
+    // Parts shown depend on focus: single month vs cumulative
+    const shownParts = isAll ? allTopParts : cur.topParts;
+    const partsTitle = isAll ? '累計最常更換零件' : `${fmt.monthLabel(curMonth)} 最常更換零件`;
+    const max = shownParts[0]?.count || 1;
 
     // Month navigation tabs (allow switching within drawer)
     const allMonths = Object.keys(state.db.months).sort();
@@ -8323,7 +8334,7 @@ window.App = (function () {
         <div class="drawer-sec-t"><span class="strong">月份故障率比較</span></div>
         <div class="dh-grid">
           ${history.map((h, i) => {
-            const isCurrent = h.month === curMonth;
+            const isCurrent = !isAll && h.month === curMonth;
             const prev = i > 0 ? history[i - 1].faultRate : null;
             const delta = prev != null && h.faultRate != null ? (h.faultRate - prev) * 100 : null;
             const pCls = h.faultRate == null ? '' : h.faultRate >= 0.1 ? 'bad' : h.faultRate >= 0.05 ? 'warn' : 'good';
@@ -8337,8 +8348,8 @@ window.App = (function () {
               </div>
             `;
           }).join('')}
-          <div class="dh-month-card" style="background:var(--surface3);border-color:var(--border2)">
-            <div class="m" style="color:var(--text2)">累計</div>
+          <div class="dh-month-card dh-cumulative ${isAll ? 'current' : ''}" style="cursor:pointer" onclick="App.openModelDrawer('${escapeAttr(modelName)}','__all__')">
+            <div class="m" style="${isAll ? '' : 'color:var(--text2)'}">累計</div>
             <div class="v">${totalCount}</div>
             <div class="d">/ ${totalDenom || '—'}</div>
             ${totalRate != null ? `<div class="p ${totalRate >= 0.1 ? 'bad' : totalRate >= 0.05 ? 'warn' : 'good'}">${(totalRate * 100).toFixed(1)}%</div>` : ''}
@@ -8347,11 +8358,11 @@ window.App = (function () {
         </div>
       </div>
 
-      ${cur.topParts.length > 0 ? `
+      ${shownParts.length > 0 ? `
         <div class="drawer-sec">
-          <div class="drawer-sec-t"><span class="strong">${fmt.monthLabel(curMonth)} 最常更換零件</span> <span class="count-tag">${cur.topParts.length} 種</span></div>
+          <div class="drawer-sec-t"><span class="strong">${partsTitle}</span> <span class="count-tag">${shownParts.length} 種</span></div>
           <div class="barlist">
-            ${cur.topParts.map(p => `
+            ${shownParts.map(p => `
               <div class="barlist-row" style="cursor:pointer" onclick="App.openPartDrawer('${escapeAttr(p.name)}')">
                 <div class="barlist-name">${escapeHtml(p.name)}</div>
                 <div class="barlist-track"><div style="width:${(p.count / max * 100).toFixed(0)}%"></div></div>
