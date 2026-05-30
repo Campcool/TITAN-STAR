@@ -4071,7 +4071,13 @@ window.Auth = (function () {
     const adminBtn = document.getElementById('adminPanelBtn');
     if (adminBtn) adminBtn.style.display = session.isAdmin ? '' : 'none';
     // Trigger app restore (defined in index.html inline script)
-    if (typeof onAuthSuccess === 'function') onAuthSuccess();
+    try {
+      if (typeof onAuthSuccess === 'function') onAuthSuccess();
+    } catch(e) {
+      // Fallback: show upload zone if onAuthSuccess fails
+      const uz = document.getElementById('uploadZone');
+      if (uz) uz.style.display = 'flex';
+    }
   }
 
   // ─── Auth actions ───

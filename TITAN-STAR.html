@@ -8968,7 +8968,13 @@ window.Auth = (function () {
     const adminBtn = document.getElementById('adminPanelBtn');
     if (adminBtn) adminBtn.style.display = session.isAdmin ? '' : 'none';
     // Trigger app restore (defined in index.html inline script)
-    if (typeof onAuthSuccess === 'function') onAuthSuccess();
+    try {
+      if (typeof onAuthSuccess === 'function') onAuthSuccess();
+    } catch(e) {
+      // Fallback: show upload zone if onAuthSuccess fails
+      const uz = document.getElementById('uploadZone');
+      if (uz) uz.style.display = 'flex';
+    }
   }
 
   // ─── Auth actions ───
@@ -11149,22 +11155,34 @@ function updateRmaBadge() {
 
 // On load, restore last mode — called by Auth after successful login
 function onAuthSuccess() {
-  const db = RepairDB.load();
-  const hasAnalysisData = Object.keys(db.months).length > 0;
-  const rmaDb = RMA.stats();
+  try {
+    App.renderUploadList();
+  } catch(e) {}
 
-  if (rmaDb.total > 0 || hasAnalysisData) {
-    document.getElementById('modeBar').style.display = 'flex';
-    if (hasAnalysisData) {
-      switchMode('analysis');
+  try {
+    const db = RepairDB.load();
+    const hasAnalysisData = Object.keys(db.months).length > 0;
+    let rmaTotal = 0;
+    try { rmaTotal = RMA.stats().total; } catch(e) {}
+
+    if (rmaTotal > 0 || hasAnalysisData) {
+      document.getElementById('modeBar').style.display = 'flex';
+      if (hasAnalysisData) {
+        switchMode('analysis');
+      } else {
+        switchMode('rma');
+      }
     } else {
-      switchMode('rma');
+      document.getElementById('modeBar').style.display = 'none';
+      document.getElementById('uploadZone').style.display = 'flex';
     }
-  } else {
+
+    try { updateRmaBadge(); } catch(e) {}
+  } catch(e) {
+    // 萬一出錯，直接顯示上傳區
+    document.getElementById('modeBar').style.display = 'none';
     document.getElementById('uploadZone').style.display = 'flex';
   }
-
-  updateRmaBadge();
 }
 </script>
 
