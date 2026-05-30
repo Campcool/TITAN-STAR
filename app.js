@@ -4277,7 +4277,7 @@ window.Auth = (function () {
     const errEl = document.getElementById('loginErr');
     errEl.textContent = '';
 
-    if (!username) { errEl.textContent = '請輸入帳號（工號）'; return; }
+    if (!username) { errEl.textContent = '請輸入員工編號'; return; }
 
     // admin 帳號永遠允許
     const isAdmin = (username === ADMIN_ID);

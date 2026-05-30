@@ -216,3 +216,28 @@ input:focus, select:focus, textarea:focus {
 .ph-icon-btn { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-strong); }
 .help-modal { background: var(--surface); border-color: var(--border); }
 .help-modal-h { border-color: var(--border); }
+
+/* ── 頂部 mode-bar 與 subbar ── */
+.mode-bar {
+  background: rgba(237,236,234,.92) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+.mode-tab { color: var(--text2) !important; }
+.mode-tab.active, .mode-tab:hover { color: var(--accent) !important; background: var(--accent-soft) !important; }
+.mode-bar-r .btn { color: var(--text2) !important; border-color: var(--border) !important; background: var(--surface2) !important; }
+.mode-bar-r .btn:hover { color: var(--text) !important; background: var(--surface3) !important; }
+.topbar-btn { background: var(--accent) !important; color: #fff !important; border-color: transparent !important; }
+.s-icon { background: linear-gradient(180deg, var(--accent) 0%, #6E9C68 100%) !important; }
+.mode-bar-user { color: var(--text3) !important; }
+.subbar {
+  background: var(--surface) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+.chip { background: var(--surface2) !important; color: var(--text2) !important; border-color: var(--border) !important; }
+.chip.active { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
+.subbar-toggle { color: var(--text2) !important; }
+.sb-label { color: var(--text3) !important; }
+.snav-item { color: var(--text2) !important; }
+.snav-item:hover { background: var(--surface2) !important; color: var(--text) !important; }
+.snav-item.active { background: var(--accent-soft) !important; color: var(--accent) !important; }
+.snav-h, .snav-sep { border-color: var(--border) !important; color: var(--text3) !important; }
