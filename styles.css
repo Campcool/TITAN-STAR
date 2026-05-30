@@ -297,9 +297,11 @@ button, input, select { font-family: inherit; }
   position: sticky; top: var(--header); z-index: 90;
 }
 .subbar-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.subbar-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.subbar.collapsed .subbar-head { margin-bottom: 0; }
 .subbar-toggle {
   display: flex; align-items: center; justify-content: space-between;
-  width: 100%; padding: 0; margin-bottom: 10px;
+  width: 100%; padding: 0;
   background: none; border: none; cursor: pointer;
   color: var(--text3); font-size: 12.5px; font-weight: 500;
   letter-spacing: .08em; text-transform: uppercase;

@@ -115,7 +115,7 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   @page { size: A4; margin: 14mm 12mm; }
-  html, body { font-family: 'Inter', 'Noto Sans TC', system-ui, sans-serif; color: #1e293b; line-height: 1.6; background: #f8fafc; font-size: ${d.fontScale === 'lg' ? '17px' : d.fontScale === 'sm' ? '13px' : '15px'}; }
+  html, body { font-family: 'Inter', 'Noto Sans TC', system-ui, sans-serif; color: #1e293b; line-height: 1.6; background: #f8fafc; font-size: ${d.fontScale === 'lg' ? '23px' : d.fontScale === 'sm' ? '14px' : '16px'}; }
   body { padding: 16px; }
   .doc { max-width: 100%; background: white; padding: 32px 40px; box-shadow: none; }
   @media (min-width: 1100px) { .doc { padding: 40px 60px; } }

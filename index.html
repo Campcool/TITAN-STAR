@@ -159,11 +159,13 @@
 
   <!-- Sub-bar: month + category chips -->
   <div class="subbar" id="subbar">
-    <button class="subbar-toggle" id="subbarToggle" onclick="App.toggleSubbar()" aria-label="展開/收合篩選">
-      <button class="nav-toggle" id="navToggle" onclick="event.stopPropagation();App.toggleNav()" aria-label="開啟選單">☰</button>
-      <span id="subbarSummaryText">篩選</span>
-      <span class="subbar-arrow" id="subbarArrow">▲</span>
-    </button>
+    <div class="subbar-head">
+      <button class="nav-toggle" id="navToggle" onclick="App.toggleNav()" aria-label="開啟選單">☰</button>
+      <button class="subbar-toggle" id="subbarToggle" onclick="App.toggleSubbar()" aria-label="展開/收合篩選">
+        <span id="subbarSummaryText">篩選</span>
+        <span class="subbar-arrow" id="subbarArrow">▲</span>
+      </button>
+    </div>
     <div id="subbarBody">
       <div class="subbar-row" id="monthChips"></div>
       <div class="subbar-row" id="catChips"></div>

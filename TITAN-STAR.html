@@ -313,9 +313,11 @@ button, input, select { font-family: inherit; }
   position: sticky; top: var(--header); z-index: 90;
 }
 .subbar-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.subbar-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.subbar.collapsed .subbar-head { margin-bottom: 0; }
 .subbar-toggle {
   display: flex; align-items: center; justify-content: space-between;
-  width: 100%; padding: 0; margin-bottom: 10px;
+  width: 100%; padding: 0;
   background: none; border: none; cursor: pointer;
   color: var(--text3); font-size: 12.5px; font-weight: 500;
   letter-spacing: .08em; text-transform: uppercase;
@@ -3089,11 +3091,13 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
 
   <!-- Sub-bar: month + category chips -->
   <div class="subbar" id="subbar">
-    <button class="subbar-toggle" id="subbarToggle" onclick="App.toggleSubbar()" aria-label="展開/收合篩選">
-      <button class="nav-toggle" id="navToggle" onclick="event.stopPropagation();App.toggleNav()" aria-label="開啟選單">☰</button>
-      <span id="subbarSummaryText">篩選</span>
-      <span class="subbar-arrow" id="subbarArrow">▲</span>
-    </button>
+    <div class="subbar-head">
+      <button class="nav-toggle" id="navToggle" onclick="App.toggleNav()" aria-label="開啟選單">☰</button>
+      <button class="subbar-toggle" id="subbarToggle" onclick="App.toggleSubbar()" aria-label="展開/收合篩選">
+        <span id="subbarSummaryText">篩選</span>
+        <span class="subbar-arrow" id="subbarArrow">▲</span>
+      </button>
+    </div>
     <div id="subbarBody">
       <div class="subbar-row" id="monthChips"></div>
       <div class="subbar-row" id="catChips"></div>
@@ -9682,7 +9686,7 @@ window.Auth = (function () {
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   @page { size: A4; margin: 14mm 12mm; }
-  html, body { font-family: 'Inter', 'Noto Sans TC', system-ui, sans-serif; color: #1e293b; line-height: 1.6; background: #f8fafc; font-size: ${d.fontScale === 'lg' ? '17px' : d.fontScale === 'sm' ? '13px' : '15px'}; }
+  html, body { font-family: 'Inter', 'Noto Sans TC', system-ui, sans-serif; color: #1e293b; line-height: 1.6; background: #f8fafc; font-size: ${d.fontScale === 'lg' ? '23px' : d.fontScale === 'sm' ? '14px' : '16px'}; }
   body { padding: 16px; }
   .doc { max-width: 100%; background: white; padding: 32px 40px; box-shadow: none; }
   @media (min-width: 1100px) { .doc { padding: 40px 60px; } }
