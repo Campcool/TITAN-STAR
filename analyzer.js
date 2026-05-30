@@ -845,7 +845,10 @@
     let scrapCount = 0;
 
     for (const r of records) {
-      const labor = laborPerRepair;
+      // 若記錄有實際工時欄位，用實際工時估算；否則用設定單價
+      const labor = r.labor_hours != null && laborPerRepair > 0
+        ? r.labor_hours * laborPerRepair
+        : laborPerRepair;
       laborCost += labor;
       let sc = 0;
       if (r.isScrap) { sc = unitPrice(r); scrapCost += sc; scrapCount++; }
