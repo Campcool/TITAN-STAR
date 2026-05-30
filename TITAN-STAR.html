@@ -5690,7 +5690,8 @@ window.App = (function () {
     const months = Object.keys(state.db.months).sort();
     const denomTotal = Object.values(state.db.months).reduce((s, m) => s + Object.values(m.denominators || {}).reduce((a, b) => a + b, 0), 0);
     const recCount = Object.values(state.db.months).reduce((s, m) => s + m.records.length, 0);
-    $('hdrSub').textContent = `${months.length} 個月 · ${recCount.toLocaleString()} 筆紀錄 · 整新數 ${denomTotal.toLocaleString()}`;
+    // 資料庫摘要改顯示於第二列（subbar），此處清空避免重複
+    $('hdrSub').textContent = '';
 
     renderFilters();
     renderAnalysisRoleBar();
@@ -5813,7 +5814,7 @@ window.App = (function () {
     if (state.db) {
       const allMonthKeys = Object.keys(state.db.months).sort();
       const totalRecords = Object.values(state.db.months).reduce((s, m) => s + (m.records ? m.records.length : 0), 0);
-      const totalRefurb = Object.values(state.db.months).reduce((s, m) => s + (m.records ? m.records.filter(r => r.isRefurb || r.condition === '整新').length : 0), 0);
+      const totalRefurb = Object.values(state.db.months).reduce((s, m) => s + Object.values(m.denominators || {}).reduce((a, b) => a + b, 0), 0);
       if (allMonthKeys.length) {
         const labels = allMonthKeys.map(m => { const [y, mo] = m.split('-'); return `${parseInt(y)-1911}/${mo}`; });
         dbLine.textContent = `資料庫：${labels.join('、')} (${allMonthKeys.length}個月 · ${totalRecords.toLocaleString()}筆紀錄${totalRefurb > 0 ? ` · 整新數 ${totalRefurb.toLocaleString()}` : ''})`;
