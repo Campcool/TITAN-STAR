@@ -190,7 +190,7 @@ window.App = (function () {
       if (!Object.keys(db.months || {}).length) { alert('目前沒有資料可發布,請先上傳報表'); return; }
       const payload = {
         months: db.months,
-        users: Auth.exportUsers(),
+        // users 帳號資料不輸出至公開 data.json（僅存本機 localStorage）
         capa: JSON.parse(localStorage.getItem('titan_capa_v1') || '[]'),
         costCfg: JSON.parse(localStorage.getItem('titan_cost_cfg_v1') || 'null'),
         publishedAt: new Date().toISOString(),
@@ -263,7 +263,7 @@ window.App = (function () {
             catCount[r.category || '其他'] = (catCount[r.category || '其他'] || 0) + 1;
           }
           const topCat = Object.entries(catCount).sort((a, b) => b[1] - a[1])[0];
-          const scrapCount = m.records.filter(r => (r.faultCause || '').includes('報廢') || (r.faultCause || '').includes('600')).length;
+          const scrapCount = m.records.filter(r => r.isScrap).length;
           return `
             <div class="uz-month-card">
               <div class="uz-month-card-h">
@@ -447,9 +447,19 @@ window.App = (function () {
     if (!valid.includes(size)) size = 'md';
     document.documentElement.setAttribute('data-fontscale', size);
     try { localStorage.setItem('titan_display_size', size); } catch (e) { /* ignore */ }
+    // Chart.js 字級同步（zoom 無法放大 canvas 內部字型）
+    const chartFontSize = { sm: 13, md: 15, lg: 17 }[size] || 15;
+    if (typeof Chart !== 'undefined') {
+      Chart.defaults.font.size = chartFontSize;
+      Chart.defaults.plugins.legend.labels.font = { size: chartFontSize };
+      // 強制重繪所有已存在的圖表
+      Object.values(typeof state !== 'undefined' && state.charts ? state.charts : {}).forEach(c => {
+        if (c && typeof c.update === 'function') { c.options.plugins.legend.labels.font = { size: chartFontSize }; c.update(); }
+      });
+    }
     syncDisplaySizeButtons();
-    // 重繪圖表以套用新尺寸
-    if (typeof renderPage === 'function' && state.currentPage) {
+    // 重繪頁面圖表
+    if (state && state.currentPage) {
       try { renderPage(); } catch (e) { /* best effort */ }
     }
   }
@@ -3052,7 +3062,9 @@ window.App = (function () {
       if (state.charts.spc) { state.charts.spc.destroy(); state.charts.spc = null; }
       return;
     }
-    note.innerHTML = `中心線 CL = <strong>${spc.mean.toFixed(2)}%</strong> · 管制上限 UCL(3σ) = <strong style="color:var(--critical)">${spc.ucl.toFixed(2)}%</strong> · σ = ${spc.sigma.toFixed(2)}`
+    const spcConfColor = { ready: 'var(--ok)', trial: 'var(--warn)', exploratory: 'var(--critical)' }[spc.confidence];
+    note.innerHTML = `<span style="color:${spcConfColor};font-weight:600">【${spc.confidenceLabel}】</span>　`
+      + `中心線 CL = <strong>${spc.mean.toFixed(2)}%</strong> · UCL(3σ) = <strong style="color:var(--critical)">${spc.ucl.toFixed(2)}%</strong> · σ = ${spc.sigma.toFixed(2)}`
       + (spc.outCount > 0 ? ` · <strong style="color:var(--critical)">${spc.outCount} 個月超出管制界限 ⚠</strong>` : ` · <span style="color:var(--ok)">製程穩定</span>`);
 
     const labels = spc.points.map(p => fmt.monthLabel(p.month));
@@ -3094,11 +3106,12 @@ window.App = (function () {
       const dirIco = fc.trendDir === 'up' ? '↗' : fc.trendDir === 'down' ? '↘' : '→';
       const dirColor = fc.trendDir === 'up' ? 'var(--critical)' : fc.trendDir === 'down' ? 'var(--ok)' : 'var(--text2)';
       $('forecastCard').innerHTML = `
-        <div class="card-h"><div class="card-t">下月維修量預測</div></div>
+        <div class="card-h"><div class="card-t">下月維修量${fc.confidence === 'estimate' ? '短期估算' : '預測'}</div></div>
+        ${fc.confidence === 'estimate' ? `<div class="data-notice warn" style="margin-bottom:10px"><span class="dn-ico">⚠</span><div>${escapeHtml(fc.confidenceLabel)}</div></div>` : ''}
         <div class="forecast-row">
           <div class="forecast-main">
             <div class="forecast-v" style="color:${dirColor}">${dirIco} ${fc.forecast}</div>
-            <div class="forecast-l">預估件數（線性回歸 + 3月移動平均）</div>
+            <div class="forecast-l">${fc.confidence === 'estimate' ? '估算' : '預估'}件數（線性回歸 + 3月移動平均）</div>
           </div>
           <div class="forecast-detail">
             <div><span class="muted">上月實際</span> <strong>${fc.lastCount}</strong></div>

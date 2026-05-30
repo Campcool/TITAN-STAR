@@ -3450,7 +3450,12 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
     if (s == null) return '';
     const t = String(s).trim();
     const m = t.match(/^(\d{2})(\d{2})(\d{2})\d{0,3}$/);
-    if (m && +m[2] >= 1 && +m[2] <= 12) return `20${m[1]}-${m[2]}`;
+    if (m && +m[2] >= 1 && +m[2] <= 12) {
+      // pivot：YY < 50 → 20xx（2000–2049），YY >= 50 → 19xx（1950–1999）
+      const yy = parseInt(m[1], 10);
+      const yyyy = yy < 50 ? 2000 + yy : 1900 + yy;
+      return `${yyyy}-${m[2]}`;
+    }
     return '';
   }
 
@@ -3494,7 +3499,8 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
       if (headerMatch) {
         const [, year, month, model] = headerMatch;
         if (!monthLabel) monthLabel = `${year}-${String(month).padStart(2,'0')}`;
-        currentModel = model.toUpperCase();
+        // 與 record.model 對齊：去除連字號/底線/空格
+        currentModel = model.toUpperCase().replace(/[-_\s]/g, '');
         // Find 整新數
         const denomIdx = cells.findIndex(c => c.includes('整新數'));
         if (denomIdx >= 0 && cells[denomIdx + 1]) {
@@ -3577,7 +3583,9 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
 
         const date = parseDate(dateRaw) || dateRaw;
         const modelRaw = get(r, cols.model) || sheetName;
-        const model = cleanCode(modelRaw).toUpperCase() || sheetName.toUpperCase();
+        const modelDisplay = cleanCode(modelRaw).toUpperCase() || sheetName.toUpperCase();
+        // modelKey：去除所有連字號、底線、空格，用於跨資料集 join（分母、排行、批次）
+        const model = modelDisplay.replace(/[-_\s]/g, '');
         const reasonRaw = get(r, cols.reason);
         const reason = cleanCode(reasonRaw);
         const content = cleanCode(get(r, cols.content));
@@ -3601,7 +3609,8 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
         records.push({
           sheet: sheetName,
           date,
-          model,
+          model,          // 正規化 key（無連字號/底線），用於所有 join
+          modelDisplay,   // 顯示用（保留原始大小寫與格式）
           modelRaw,
           category: getCategory(model),
           mfg,
@@ -3772,12 +3781,14 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
       const m = db.months[mk];
       if (!m) continue;
       for (const r of m.records) {
+        // 正規化 model key（向下相容舊版 data.json，去除連字號/底線/空格）
+        const modelKey = r.model ? r.model.replace(/[-_\s]/g, '') : r.model;
         if (category && category !== '全部' && r.category !== category) continue;
-        if (model && model !== '全部' && r.model !== model) continue;
+        if (model && model !== '全部' && modelKey !== model.replace(/[-_\s]/g, '')) continue;
         if (dateFrom && r.date && r.date < dateFrom) continue;
         if (dateTo && r.date && r.date > dateTo) continue;
         if (scrapOnly && !r.isScrap) continue;
-        out.push({ ...r, _monthKey: mk });
+        out.push({ ...r, model: modelKey, _monthKey: mk });
       }
     }
     return out;
@@ -3796,8 +3807,9 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
       if (!m) continue;
       byMonthModel[mk] = m.denominators || {};
       for (const [model, n] of Object.entries(m.denominators || {})) {
-        // Sum across months — represents total units refurbished over the selected period
-        byModel[model] = (byModel[model] || 0) + n;
+        // 正規化 key，與 record.model 對齊（去除連字號/底線/空格）
+        const key = model.replace(/[-_\s]/g, '');
+        byModel[key] = (byModel[key] || 0) + n;
       }
     }
     const total = Object.values(byModel).reduce((a, b) => a + b, 0);
@@ -4404,6 +4416,11 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
     const lcl = Math.max(0, mean - 3 * sigma);
     const uclW = mean + 2 * sigma; // 警告線 (2σ)
 
+    // 信度分級：< 6 個月為探索性，6–11 個月為試算，≥ 12 個月才視為正式管制
+    const n = trend.length;
+    const confidence = n >= 12 ? 'ready' : n >= 6 ? 'trial' : 'exploratory';
+    const confidenceLabel = { ready: '正式管制', trial: '試算管制界限（建議繼續蒐集至12個月）', exploratory: '探索性趨勢（資料不足6個月，不宜作為管制結論）' }[confidence];
+
     const points = trend.map(t => {
       let status = 'normal';
       if (t.faultPct > ucl) status = 'out';        // 超出管制界限
@@ -4412,7 +4429,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
     });
 
     return {
-      ready: true, mean, sigma, ucl, lcl, uclW, points,
+      ready: true, confidence, confidenceLabel, mean, sigma, ucl, lcl, uclW, points,
       outCount: points.filter(p => p.status === 'out').length,
     };
   }
@@ -4524,8 +4541,12 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
     const lastCount = counts[counts.length - 1];
     const trendDir = b > 0.5 ? 'up' : b < -0.5 ? 'down' : 'flat';
 
+    // 信度分級：< 6 個月僅為方向性估算，不宜作為產能或採購決策依據
+    const confidence = n >= 6 ? 'forecast' : 'estimate';
+    const confidenceLabel = n >= 6 ? '預測' : `短期估算（資料僅 ${n} 個月，信度低，建議持續蒐集至6個月以上）`;
+
     return {
-      ready: true, forecast, linearPred, ma, lastCount, trendDir,
+      ready: true, confidence, confidenceLabel, forecast, linearPred, ma, lastCount, trendDir,
       slope: b,
       deltaPct: lastCount ? ((forecast - lastCount) / lastCount) * 100 : 0,
       nextMonthLabel: trend.length ? null : null,
@@ -4952,7 +4973,7 @@ window.App = (function () {
       if (!Object.keys(db.months || {}).length) { alert('目前沒有資料可發布,請先上傳報表'); return; }
       const payload = {
         months: db.months,
-        users: Auth.exportUsers(),
+        // users 帳號資料不輸出至公開 data.json（僅存本機 localStorage）
         capa: JSON.parse(localStorage.getItem('titan_capa_v1') || '[]'),
         costCfg: JSON.parse(localStorage.getItem('titan_cost_cfg_v1') || 'null'),
         publishedAt: new Date().toISOString(),
@@ -5025,7 +5046,7 @@ window.App = (function () {
             catCount[r.category || '其他'] = (catCount[r.category || '其他'] || 0) + 1;
           }
           const topCat = Object.entries(catCount).sort((a, b) => b[1] - a[1])[0];
-          const scrapCount = m.records.filter(r => (r.faultCause || '').includes('報廢') || (r.faultCause || '').includes('600')).length;
+          const scrapCount = m.records.filter(r => r.isScrap).length;
           return `
             <div class="uz-month-card">
               <div class="uz-month-card-h">
@@ -5209,9 +5230,19 @@ window.App = (function () {
     if (!valid.includes(size)) size = 'md';
     document.documentElement.setAttribute('data-fontscale', size);
     try { localStorage.setItem('titan_display_size', size); } catch (e) { /* ignore */ }
+    // Chart.js 字級同步（zoom 無法放大 canvas 內部字型）
+    const chartFontSize = { sm: 13, md: 15, lg: 17 }[size] || 15;
+    if (typeof Chart !== 'undefined') {
+      Chart.defaults.font.size = chartFontSize;
+      Chart.defaults.plugins.legend.labels.font = { size: chartFontSize };
+      // 強制重繪所有已存在的圖表
+      Object.values(typeof state !== 'undefined' && state.charts ? state.charts : {}).forEach(c => {
+        if (c && typeof c.update === 'function') { c.options.plugins.legend.labels.font = { size: chartFontSize }; c.update(); }
+      });
+    }
     syncDisplaySizeButtons();
-    // 重繪圖表以套用新尺寸
-    if (typeof renderPage === 'function' && state.currentPage) {
+    // 重繪頁面圖表
+    if (state && state.currentPage) {
       try { renderPage(); } catch (e) { /* best effort */ }
     }
   }
@@ -7814,7 +7845,9 @@ window.App = (function () {
       if (state.charts.spc) { state.charts.spc.destroy(); state.charts.spc = null; }
       return;
     }
-    note.innerHTML = `中心線 CL = <strong>${spc.mean.toFixed(2)}%</strong> · 管制上限 UCL(3σ) = <strong style="color:var(--critical)">${spc.ucl.toFixed(2)}%</strong> · σ = ${spc.sigma.toFixed(2)}`
+    const spcConfColor = { ready: 'var(--ok)', trial: 'var(--warn)', exploratory: 'var(--critical)' }[spc.confidence];
+    note.innerHTML = `<span style="color:${spcConfColor};font-weight:600">【${spc.confidenceLabel}】</span>　`
+      + `中心線 CL = <strong>${spc.mean.toFixed(2)}%</strong> · UCL(3σ) = <strong style="color:var(--critical)">${spc.ucl.toFixed(2)}%</strong> · σ = ${spc.sigma.toFixed(2)}`
       + (spc.outCount > 0 ? ` · <strong style="color:var(--critical)">${spc.outCount} 個月超出管制界限 ⚠</strong>` : ` · <span style="color:var(--ok)">製程穩定</span>`);
 
     const labels = spc.points.map(p => fmt.monthLabel(p.month));
@@ -7856,11 +7889,12 @@ window.App = (function () {
       const dirIco = fc.trendDir === 'up' ? '↗' : fc.trendDir === 'down' ? '↘' : '→';
       const dirColor = fc.trendDir === 'up' ? 'var(--critical)' : fc.trendDir === 'down' ? 'var(--ok)' : 'var(--text2)';
       $('forecastCard').innerHTML = `
-        <div class="card-h"><div class="card-t">下月維修量預測</div></div>
+        <div class="card-h"><div class="card-t">下月維修量${fc.confidence === 'estimate' ? '短期估算' : '預測'}</div></div>
+        ${fc.confidence === 'estimate' ? `<div class="data-notice warn" style="margin-bottom:10px"><span class="dn-ico">⚠</span><div>${escapeHtml(fc.confidenceLabel)}</div></div>` : ''}
         <div class="forecast-row">
           <div class="forecast-main">
             <div class="forecast-v" style="color:${dirColor}">${dirIco} ${fc.forecast}</div>
-            <div class="forecast-l">預估件數（線性回歸 + 3月移動平均）</div>
+            <div class="forecast-l">${fc.confidence === 'estimate' ? '估算' : '預估'}件數（線性回歸 + 3月移動平均）</div>
           </div>
           <div class="forecast-detail">
             <div><span class="muted">上月實際</span> <strong>${fc.lastCount}</strong></div>

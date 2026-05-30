@@ -14,12 +14,14 @@
       const m = db.months[mk];
       if (!m) continue;
       for (const r of m.records) {
+        // 正規化 model key（向下相容舊版 data.json，去除連字號/底線/空格）
+        const modelKey = r.model ? r.model.replace(/[-_\s]/g, '') : r.model;
         if (category && category !== '全部' && r.category !== category) continue;
-        if (model && model !== '全部' && r.model !== model) continue;
+        if (model && model !== '全部' && modelKey !== model.replace(/[-_\s]/g, '')) continue;
         if (dateFrom && r.date && r.date < dateFrom) continue;
         if (dateTo && r.date && r.date > dateTo) continue;
         if (scrapOnly && !r.isScrap) continue;
-        out.push({ ...r, _monthKey: mk });
+        out.push({ ...r, model: modelKey, _monthKey: mk });
       }
     }
     return out;
@@ -38,8 +40,9 @@
       if (!m) continue;
       byMonthModel[mk] = m.denominators || {};
       for (const [model, n] of Object.entries(m.denominators || {})) {
-        // Sum across months — represents total units refurbished over the selected period
-        byModel[model] = (byModel[model] || 0) + n;
+        // 正規化 key，與 record.model 對齊（去除連字號/底線/空格）
+        const key = model.replace(/[-_\s]/g, '');
+        byModel[key] = (byModel[key] || 0) + n;
       }
     }
     const total = Object.values(byModel).reduce((a, b) => a + b, 0);
@@ -646,6 +649,11 @@
     const lcl = Math.max(0, mean - 3 * sigma);
     const uclW = mean + 2 * sigma; // 警告線 (2σ)
 
+    // 信度分級：< 6 個月為探索性，6–11 個月為試算，≥ 12 個月才視為正式管制
+    const n = trend.length;
+    const confidence = n >= 12 ? 'ready' : n >= 6 ? 'trial' : 'exploratory';
+    const confidenceLabel = { ready: '正式管制', trial: '試算管制界限（建議繼續蒐集至12個月）', exploratory: '探索性趨勢（資料不足6個月，不宜作為管制結論）' }[confidence];
+
     const points = trend.map(t => {
       let status = 'normal';
       if (t.faultPct > ucl) status = 'out';        // 超出管制界限
@@ -654,7 +662,7 @@
     });
 
     return {
-      ready: true, mean, sigma, ucl, lcl, uclW, points,
+      ready: true, confidence, confidenceLabel, mean, sigma, ucl, lcl, uclW, points,
       outCount: points.filter(p => p.status === 'out').length,
     };
   }
@@ -766,8 +774,12 @@
     const lastCount = counts[counts.length - 1];
     const trendDir = b > 0.5 ? 'up' : b < -0.5 ? 'down' : 'flat';
 
+    // 信度分級：< 6 個月僅為方向性估算，不宜作為產能或採購決策依據
+    const confidence = n >= 6 ? 'forecast' : 'estimate';
+    const confidenceLabel = n >= 6 ? '預測' : `短期估算（資料僅 ${n} 個月，信度低，建議持續蒐集至6個月以上）`;
+
     return {
-      ready: true, forecast, linearPred, ma, lastCount, trendDir,
+      ready: true, confidence, confidenceLabel, forecast, linearPred, ma, lastCount, trendDir,
       slope: b,
       deltaPct: lastCount ? ((forecast - lastCount) / lastCount) * 100 : 0,
       nextMonthLabel: trend.length ? null : null,

@@ -160,7 +160,12 @@
     if (s == null) return '';
     const t = String(s).trim();
     const m = t.match(/^(\d{2})(\d{2})(\d{2})\d{0,3}$/);
-    if (m && +m[2] >= 1 && +m[2] <= 12) return `20${m[1]}-${m[2]}`;
+    if (m && +m[2] >= 1 && +m[2] <= 12) {
+      // pivot：YY < 50 → 20xx（2000–2049），YY >= 50 → 19xx（1950–1999）
+      const yy = parseInt(m[1], 10);
+      const yyyy = yy < 50 ? 2000 + yy : 1900 + yy;
+      return `${yyyy}-${m[2]}`;
+    }
     return '';
   }
 
@@ -204,7 +209,8 @@
       if (headerMatch) {
         const [, year, month, model] = headerMatch;
         if (!monthLabel) monthLabel = `${year}-${String(month).padStart(2,'0')}`;
-        currentModel = model.toUpperCase();
+        // 與 record.model 對齊：去除連字號/底線/空格
+        currentModel = model.toUpperCase().replace(/[-_\s]/g, '');
         // Find 整新數
         const denomIdx = cells.findIndex(c => c.includes('整新數'));
         if (denomIdx >= 0 && cells[denomIdx + 1]) {
@@ -287,7 +293,9 @@
 
         const date = parseDate(dateRaw) || dateRaw;
         const modelRaw = get(r, cols.model) || sheetName;
-        const model = cleanCode(modelRaw).toUpperCase() || sheetName.toUpperCase();
+        const modelDisplay = cleanCode(modelRaw).toUpperCase() || sheetName.toUpperCase();
+        // modelKey：去除所有連字號、底線、空格，用於跨資料集 join（分母、排行、批次）
+        const model = modelDisplay.replace(/[-_\s]/g, '');
         const reasonRaw = get(r, cols.reason);
         const reason = cleanCode(reasonRaw);
         const content = cleanCode(get(r, cols.content));
@@ -311,7 +319,8 @@
         records.push({
           sheet: sheetName,
           date,
-          model,
+          model,          // 正規化 key（無連字號/底線），用於所有 join
+          modelDisplay,   // 顯示用（保留原始大小寫與格式）
           modelRaw,
           category: getCategory(model),
           mfg,
