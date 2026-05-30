@@ -2758,8 +2758,8 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
   </div>
   <div class="mode-bar-r" id="modeBtns">
     <span class="mode-bar-user" id="modeBarUser"></span>
+    <button class="btn theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="切換色系">🌙 深色</button>
     <button class="btn" id="adminPanelBtn" style="display:none" onclick="Auth.openAdminPanel()">⚙ 帳號管理</button>
-    <button class="btn danger" onclick="Auth.logout()">登出</button>
   </div>
 </div>
 
@@ -9695,6 +9695,9 @@ window.Auth = (function () {
 
 </script>
 <script>
+window.__morandiCSS__ = "/* ════════════════════════════════════════════════════════════════════\n   TITAN-STAR — 莫蘭迪/大地色系主題\n   疊加在 styles.css 之後；只覆蓋 :root 色彩變數，其餘 UI 結構不變\n   ════════════════════════════════════════════════════════════════════ */\n\n:root {\n  /* ── 底色系：溫潤米白，護眼不刺眼 ── */\n  --bg:       #EDECEA;   /* 大地米白底 */\n  --surface:  #F8F7F5;   /* 卡片近白 */\n  --surface2: #EEECEA;   /* 次表面淺米 */\n  --surface3: #E2E0DC;   /* 三級灰 */\n  --hover:    rgba(0,0,0,0.04);\n\n  /* ── 邊框：柔和陰影邊 ── */\n  --border:  rgba(0,0,0,0.09);\n  --border2: rgba(0,0,0,0.16);\n\n  /* ── 文字：暖灰黑層次 ── */\n  --text:      #28241F;  /* 深暖黑，主要文字 */\n  --text2:     #514D47;  /* 中暖灰，次要文字 */\n  --text3:     #857F77;  /* 輕灰棕，標籤/輔助 */\n  --text-mute: #ADA89F;  /* 最淡，placeholder */\n\n  /* ── 強調色：霧霾藍（主要互動/連結/高亮） ── */\n  --accent:        #5B82A6;\n  --accent-soft:   rgba(91,130,166,0.10);\n  --accent-strong: rgba(91,130,166,0.22);\n\n  /* ── 嚴重警示：柔和磚紅 ── */\n  --critical:        #C26360;\n  --critical-soft:   rgba(194,99,96,0.10);\n  --critical-strong: rgba(194,99,96,0.20);\n\n  /* ── 警告：暖琥珀褐 ── */\n  --warn:        #B8833A;\n  --warn-soft:   rgba(184,131,58,0.10);\n  --warn-strong: rgba(184,131,58,0.20);\n\n  /* ── 達標/正常：鼠尾草綠 ── */\n  --ok:      #6E9C68;\n  --ok-soft: rgba(110,156,104,0.12);\n\n  /* ── 資訊/中性：暖灰褐 ── */\n  --info:      #8C8275;\n  --info-soft: rgba(140,130,117,0.12);\n}\n\n/* ──────────────────────────────────────────────────────────────────\n   深色主題中寫死的白色系元素，在淺色主題需要反轉\n   ────────────────────────────────────────────────────────────────── */\n\n/* 整體底色已由 :root --bg 控制，body 跟著走 */\nbody {\n  background: var(--bg);\n  color: var(--text);\n}\n\n/* ── 頂部 Logo 漸層 → 改為品牌藍方向 ── */\n.uz-logo, .logo-badge {\n  background: linear-gradient(135deg, var(--accent), #7A9EBF) !important;\n  color: #fff !important;\n}\n\n/* ── 主 nav sidebar ── */\n#sidebar {\n  background: var(--surface) !important;\n  border-right: 1px solid var(--border) !important;\n}\n.nav-item { color: var(--text2) !important; }\n.nav-item:hover { background: var(--surface2) !important; color: var(--text) !important; }\n.nav-item.active {\n  background: var(--accent-soft) !important;\n  color: var(--accent) !important;\n  border-left-color: var(--accent) !important;\n}\n\n/* ── 頁面 header ── */\n#pageHeader {\n  background: var(--surface) !important;\n  border-bottom: 1px solid var(--border) !important;\n}\n.page-title { color: var(--text) !important; }\n\n/* ── 卡片 ── */\n.card, .sum-card, .kpi-card, .trend-card {\n  background: var(--surface) !important;\n  border-color: var(--border) !important;\n  box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;\n}\n\n/* ── KPI 數字：保留語意色，不改 ── */\n\n/* ── 表格 ── */\ntable thead th {\n  background: var(--surface2) !important;\n  color: var(--text2) !important;\n  border-color: var(--border2) !important;\n}\ntable tbody tr:nth-child(even) { background: rgba(0,0,0,0.025) !important; }\ntable tbody tr:hover { background: var(--accent-soft) !important; }\ntable td, table th { border-color: var(--border) !important; }\n\n/* ── 按鈕 ── */\n.btn-primary, .sum-card-go {\n  background: var(--accent) !important;\n  color: #fff !important;\n}\n.btn-primary:hover, .sum-card-go:hover {\n  background: #4A6F93 !important;\n}\n.btn-outline, .sum-card-capa {\n  border-color: var(--accent) !important;\n  color: var(--accent) !important;\n  background: transparent !important;\n}\n.btn-outline:hover, .sum-card-capa:hover {\n  background: var(--accent-soft) !important;\n}\n\n/* ── 輸入框 ── */\ninput, select, textarea {\n  background: var(--surface) !important;\n  color: var(--text) !important;\n  border-color: var(--border2) !important;\n}\ninput:focus, select:focus, textarea:focus {\n  border-color: var(--accent) !important;\n  outline: none !important;\n  box-shadow: 0 0 0 2px var(--accent-soft) !important;\n}\n\n/* ── 抽屜/Modal ── */\n#drawer, .modal-panel {\n  background: var(--surface) !important;\n  border-left: 1px solid var(--border) !important;\n}\n\n/* ── 搜尋列 ── */\n.search-bar, #detailSearch {\n  background: var(--surface2) !important;\n  border-color: var(--border) !important;\n  color: var(--text) !important;\n}\n\n/* ── 標籤 Chip ── */\n.chip, .tag, .badge {\n  background: var(--surface2) !important;\n  color: var(--text2) !important;\n  border-color: var(--border) !important;\n}\n\n/* ── COPQ onboarding 步驟 ── */\n.ob-step { background: var(--surface2) !important; color: var(--text3) !important; }\n.ob-step.ob-active { background: var(--accent-soft) !important; color: var(--accent) !important; }\n.ob-num { background: var(--surface3) !important; color: var(--text2) !important; }\n.ob-step.ob-active .ob-num { background: var(--accent) !important; color: #fff !important; }\n\n/* ── CEO 摘要框 ── */\n.exec-brief {\n  background: var(--accent-soft) !important;\n  border-left: 4px solid var(--accent) !important;\n}\n.eb-label { color: var(--accent) !important; }\n.eb-text  { color: var(--text) !important; }\n\n/* ── CAPA 表單 ── */\n.capa-row { border-bottom-color: var(--border) !important; }\n.capa-id  { color: var(--text3) !important; }\n\n/* ── data quality panel ── */\n.dq-item { background: var(--surface2) !important; }\n.dq-ok   { color: var(--ok) !important; }\n.dq-warn { color: var(--warn) !important; }\n.dq-bad  { color: var(--critical) !important; }\n\n/* ── 上傳區 ── */\n.uz-card { background: var(--surface) !important; border-color: var(--border2) !important; }\n.uz-card.drag { border-color: var(--accent) !important; background: var(--accent-soft) !important; }\n\n/* ── 分頁/子選單列 ── */\n.sub-nav, .tab-bar {\n  background: var(--surface2) !important;\n  border-bottom-color: var(--border) !important;\n}\n.sub-nav-item.active, .tab-item.active {\n  color: var(--accent) !important;\n  border-bottom-color: var(--accent) !important;\n}\n\n/* ── 月份卡片 ── */\n.uz-month-card {\n  background: var(--surface) !important;\n  border-color: var(--border) !important;\n}\n.uz-month-card:hover { border-color: var(--border2) !important; }\n\n/* ── scroll bar（Webkit） ── */\n::-webkit-scrollbar { width: 6px; height: 6px; }\n::-webkit-scrollbar-track { background: var(--surface2); }\n::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }\n::-webkit-scrollbar-thumb:hover { background: var(--text-mute); }\n";
+</script>
+<script>
 // ════════════════════════════════════════════════════════════════════
 // RMA Management Module
 // Create / track / resolve return merchandise authorization cases.
@@ -11035,6 +11038,40 @@ window.RMA = (function () {
 
 </script>
 <script>
+// ─── Theme toggle（深色 ↔ 莫蘭迪淺色）───
+const THEME_KEY = 'titan_theme';
+const MORANDI_ID = 'morandiTheme';
+
+function applyTheme(theme) {
+  const existing = document.getElementById(MORANDI_ID);
+  const btn = document.getElementById('themeToggleBtn');
+  if (theme === 'morandi') {
+    if (!existing) {
+      const style = document.createElement('style');
+      style.id = MORANDI_ID;
+      style.textContent = window.__morandiCSS__ || '';
+      document.head.appendChild(style);
+    }
+    if (btn) btn.textContent = '☀ 莫蘭迪';
+  } else {
+    if (existing) existing.remove();
+    if (btn) btn.textContent = '🌙 深色';
+  }
+}
+
+function toggleTheme() {
+  const current = localStorage.getItem(THEME_KEY) || 'dark';
+  const next = current === 'dark' ? 'morandi' : 'dark';
+  localStorage.setItem(THEME_KEY, next);
+  applyTheme(next);
+}
+
+// 初始化：讀取儲存的主題
+(function() {
+  const saved = localStorage.getItem(THEME_KEY) || 'morandi'; // 預設莫蘭迪
+  applyTheme(saved);
+})();
+
 // ─── Mode switching ───
 let currentMode = 'analysis';
 let uzMode = 'analysis';

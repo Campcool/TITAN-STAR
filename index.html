@@ -50,8 +50,8 @@
   </div>
   <div class="mode-bar-r" id="modeBtns">
     <span class="mode-bar-user" id="modeBarUser"></span>
+    <button class="btn theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="切換色系">🌙 深色</button>
     <button class="btn" id="adminPanelBtn" style="display:none" onclick="Auth.openAdminPanel()">⚙ 帳號管理</button>
-    <button class="btn danger" onclick="Auth.logout()">登出</button>
   </div>
 </div>
 
@@ -589,6 +589,40 @@
 <script src="report.js"></script>
 <script src="rma.js"></script>
 <script>
+// ─── Theme toggle（深色 ↔ 莫蘭迪淺色）───
+const THEME_KEY = 'titan_theme';
+const MORANDI_ID = 'morandiTheme';
+
+function applyTheme(theme) {
+  const existing = document.getElementById(MORANDI_ID);
+  const btn = document.getElementById('themeToggleBtn');
+  if (theme === 'morandi') {
+    if (!existing) {
+      const style = document.createElement('style');
+      style.id = MORANDI_ID;
+      style.textContent = window.__morandiCSS__ || '';
+      document.head.appendChild(style);
+    }
+    if (btn) btn.textContent = '☀ 莫蘭迪';
+  } else {
+    if (existing) existing.remove();
+    if (btn) btn.textContent = '🌙 深色';
+  }
+}
+
+function toggleTheme() {
+  const current = localStorage.getItem(THEME_KEY) || 'dark';
+  const next = current === 'dark' ? 'morandi' : 'dark';
+  localStorage.setItem(THEME_KEY, next);
+  applyTheme(next);
+}
+
+// 初始化：讀取儲存的主題
+(function() {
+  const saved = localStorage.getItem(THEME_KEY) || 'morandi'; // 預設莫蘭迪
+  applyTheme(saved);
+})();
+
 // ─── Mode switching ───
 let currentMode = 'analysis';
 let uzMode = 'analysis';
