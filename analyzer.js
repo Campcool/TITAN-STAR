@@ -667,6 +667,7 @@
     '儲存/記憶': { kws: ['硬碟','hdd','ssd','記憶','ram','emmc','儲存','flash','sd卡','讀寫'], color:'#a78bfa' },
     '感測/鏡頭': { kws: ['鏡頭','感測','sensor','ccd','cmos','對焦','紅外','ir','pir','收訊'], color:'#34d399' },
     '機構/外觀': { kws: ['外殼','機構','按鍵','卡榫','破裂','變形','刮傷','螺絲','接頭','端子','排線','連接'], color:'#94a2b6' },
+    '運輸損傷': { kws: ['撞傷','摔落','包裝不良','碰損','壓損','包材','運輸損','出貨損','物流損'], color:'#f97316' },
     '通訊/網路': { kws: ['網路','wifi','藍牙','zigbee','rf','天線','訊號','通訊','連線','斷線','lan','poe'], color:'#22d3ee' },
     '韌體/軟體': { kws: ['韌體','軟體','firmware','程式','當機','重啟','異常關機','無回應','升級','版本','設定','系統','ota'], color:'#818cf8' },
   };
@@ -812,6 +813,159 @@
     };
   }
 
+  // ─── Component-category Pareto (故障零件大類根因)
+  // Rolls the per-month 故障零件總數 catalogue (品號) up into 大類 via RepairParser,
+  // so we can see the NATURE of failures (連接器 / 電源 / IC / 開關 / 機構…).
+  function componentCategoryPareto(db, filter) {
+    const { months } = filter || {};
+    const monthKeys = months && months.length ? months : Object.keys(db.months);
+    const inScope = new Set(getRecords(db, filter).map(r => r.model));
+    const pcat = (typeof window !== 'undefined' && window.RepairParser && window.RepairParser.partCategoryByPno)
+      ? window.RepairParser.partCategoryByPno : (() => null);
+    const cat = new Map();          // 大類 → { count, parts: Map }
+    let uncategorized = 0, total = 0;
+    for (const mk of monthKeys) {
+      const m = db.months[mk];
+      if (!m || !m.partCatalog) continue;
+      for (const [model, parts] of Object.entries(m.partCatalog)) {
+        if (inScope.size && !inScope.has(model)) continue;
+        for (const p of parts) {
+          const q = Number(p.count) || 0;
+          if (!q) continue;
+          total += q;
+          const c = pcat(p.code);
+          if (!c) { uncategorized += q; continue; }
+          if (!cat.has(c)) cat.set(c, { count: 0, parts: new Map() });
+          const e = cat.get(c);
+          e.count += q;
+          const label = String(p.name || p.code || '').trim();
+          if (label) e.parts.set(label, (e.parts.get(label) || 0) + q);
+        }
+      }
+    }
+    const list = Array.from(cat.entries())
+      .map(([name, e]) => ({
+        name, count: e.count, pct: total ? e.count / total : 0,
+        topParts: Array.from(e.parts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5)
+          .map(([n, c]) => ({ name: n, count: c })),
+      }))
+      .sort((a, b) => b.count - a.count);
+    return { list, total, uncategorized };
+  }
+
+  const YM = /^\d{4}-\d{2}$/;
+  const ym = v => (v && YM.test(v)) ? v : null;
+  const topEntry = map => {
+    let best = null;
+    for (const [m, c] of map) if (!best || c > best.count) best = { month: m, count: c };
+    return best;
+  };
+  const toBatches = map => Array.from(map.entries()).map(([m, c]) => ({ month: m, count: c })).sort((a, b) => b.count - a.count);
+
+  // ─── Manufacture-batch analysis (製造批次 / 出廠批次)
+  // Two date dimensions per unit:
+  //   • orderMonth (製令)   = ORIGINAL factory batch — never changes ("身分證")
+  //   • mfg        (製造日期) = RE-STAMPED on refurbishment (= origin if never re-worked)
+  // Condition: 全新 (mfg==order) vs 整新 (mfg!=order).
+  // Signals (per model):
+  //   • 出廠批次集中: one 製令 origin month dominates → 元件/製程瑕疵落在該原始批次
+  //   • 製造批次集中: one 製造日期 month dominates (neutral; 製令 disambiguates birth vs refurb)
+  //   • 全新早夭:   全新品且 出廠月==檢修月 → 原廠新品早夭（原始生產/來料責任）
+  //   • 整新後即壞: 整新品且 整新月==檢修月 → 整新製程責任
+  function batchAnalysis(records, opts) {
+    const minN = (opts && opts.minN) || 5;
+    const conc = (opts && opts.conc) || 0.4;
+    const byModel = new Map();
+    for (const r of records) {
+      if (!byModel.has(r.model)) byModel.set(r.model, {
+        model: r.model, category: r.category, total: 0,
+        dated: 0, withOrder: 0, brandNew: 0, refurb: 0,
+        originB: new Map(), mfgB: new Map(),
+        earlyNew: 0, earlyRefurb: 0, earlyMfgOnly: 0,
+      });
+      const e = byModel.get(r.model);
+      e.total++;
+      const mfg = ym(r.mfg);
+      const order = ym(r.orderMonth);
+      const rm = String(r.date || '').slice(0, 7);
+      if (mfg) { e.dated++; e.mfgB.set(mfg, (e.mfgB.get(mfg) || 0) + 1); }
+      if (order) { e.withOrder++; e.originB.set(order, (e.originB.get(order) || 0) + 1); }
+      if (r.condition === '全新') { e.brandNew++; if (order && order === rm) e.earlyNew++; }
+      else if (r.condition === '整新') { e.refurb++; if (mfg && mfg === rm) e.earlyRefurb++; }
+      else if (mfg && !order && mfg === rm) { e.earlyMfgOnly++; }  // ambiguous: 缺製令無法判定全新/整新
+    }
+    const out = [];
+    for (const e of byModel.values()) {
+      const topOrigin = topEntry(e.originB);
+      const topMfg = topEntry(e.mfgB);
+      const topOriginPct = topOrigin && e.withOrder ? topOrigin.count / e.withOrder : 0;
+      const topMfgPct = topMfg && e.dated ? topMfg.count / e.dated : 0;
+      const flags = [];
+      if (e.withOrder >= minN && topOriginPct >= conc) flags.push('出廠批次集中');
+      // 製造日期集中 — neutral: without 製令 we can't say if it's a birth-batch or a refurb梯次
+      if (e.dated >= minN && topMfgPct >= conc) flags.push('製造批次集中');
+      if (e.earlyNew >= minN) flags.push('全新早夭');
+      if (e.earlyRefurb >= minN) flags.push('整新後即壞');
+      out.push({
+        model: e.model, category: e.category, total: e.total,
+        dated: e.dated, withOrder: e.withOrder,
+        brandNew: e.brandNew, refurb: e.refurb,
+        unknownCond: e.total - e.brandNew - e.refurb,
+        originBatches: toBatches(e.originB).slice(0, 8),
+        mfgBatches: toBatches(e.mfgB).slice(0, 8),
+        topOrigin, topOriginPct, topMfg, topMfgPct,
+        earlyNew: e.earlyNew, earlyRefurb: e.earlyRefurb, earlyMfgOnly: e.earlyMfgOnly,
+        flags,
+      });
+    }
+    out.sort((a, b) => (b.flags.length - a.flags.length) || (b.total - a.total));
+    return out;
+  }
+
+  // ─── 全新 vs 整新 overall split + scrap by condition
+  function conditionSummary(records) {
+    const c = { 全新: 0, 整新: 0, 未知: 0 };
+    const scrap = { 全新: 0, 整新: 0, 未知: 0 };
+    for (const r of records) {
+      const k = r.condition === '全新' ? '全新' : r.condition === '整新' ? '整新' : '未知';
+      c[k]++; if (r.isScrap) scrap[k]++;
+    }
+    const total = records.length;
+    const known = c.全新 + c.整新;
+    return {
+      total, known,
+      brandNew: c.全新, refurb: c.整新, unknown: c.未知,
+      brandNewPct: total ? c.全新 / total : 0,
+      refurbPct: total ? c.整新 / total : 0,
+      unknownPct: total ? c.未知 / total : 0,
+      scrap,
+      brandNewScrapPct: c.全新 ? scrap.全新 / c.全新 : 0,
+      refurbScrapPct: c.整新 ? scrap.整新 / c.整新 : 0,
+    };
+  }
+
+  // ─── 出廠批次 Pareto (依製令出廠年月) — 元件瑕疵落點
+  // Which ORIGINAL production batches (by 製令 year-month) generate the most failures?
+  // Optionally scoped to one model. Returns sorted [{month, count, pct, scrap, models}].
+  function originBatchPareto(records, opts) {
+    const model = opts && opts.model;
+    const byMonth = new Map();
+    let total = 0;
+    for (const r of records) {
+      if (model && r.model !== model) continue;
+      const o = ym(r.orderMonth);
+      if (!o) continue;
+      total++;
+      if (!byMonth.has(o)) byMonth.set(o, { count: 0, scrap: 0, models: new Set() });
+      const e = byMonth.get(o);
+      e.count++; if (r.isScrap) e.scrap++; e.models.add(r.model);
+    }
+    const list = Array.from(byMonth.entries())
+      .map(([month, e]) => ({ month, count: e.count, pct: total ? e.count / total : 0, scrap: e.scrap, models: Array.from(e.models) }))
+      .sort((a, b) => b.count - a.count || (a.month < b.month ? 1 : -1));
+    return { list, total };
+  }
+
   // Expose
   window.RepairAnalyzer = {
     getRecords,
@@ -838,6 +992,10 @@
     fmeaAnalysis,
     forecastNextMonth,
     costAnalysis,
+    componentCategoryPareto,
+    batchAnalysis,
+    conditionSummary,
+    originBatchPareto,
     FAULT_TAXONOMY,
   };
 })();

@@ -65,6 +65,7 @@ window.App = (function () {
     currentPage: 'overview',
     analysisRole: 'all',
     charts: {},               // chart instance refs
+    detailSearch: '',
   };
 
   // ─────────────── Helpers ───────────────
@@ -508,13 +509,31 @@ window.App = (function () {
     renderFilters();
     renderAnalysisRoleBar();
     updateAlertBadge();
+    updateSummaryBadge();
     renderPage();
   }
+
+  // What each role should focus on — shown in the global banner on every page.
+  const ROLE_FOCUS = {
+    all:      '全域核心指標與最嚴重異常',
+    ceo:      '戰略績效、財務曝險與紅線異常',
+    factory:  '跨部門待協調事項與產能積壓',
+    procure:  '高用量零件、出廠批次來料瑕疵與安全庫存',
+    prod:     '高故障/高報廢機種、製程與批次缺陷',
+    qa:       '重複維修、批次/早夭、CAPA 與保固責任',
+    logistics:'報廢影響出貨、重工循環與流量',
+    cs:       '跨月重複故障客戶、保固曝險與客訴風險',
+    repair:   '主力備料、報廢主因與返修品質',
+    hw:       '設計缺陷、元件可靠性與 ECO 候選',
+    fw:       '韌體關鍵字故障與 OTA 候選',
+    finance:  '品質成本 COPQ、報廢金額與改善 ROI',
+    sales:    '產品口碑紅黃綠燈與可推廣機種',
+  };
 
   function setAnalysisRole(role) {
     state.analysisRole = role;
     renderAnalysisRoleBar();
-    if (state.currentPage === 'overview') renderPage();
+    renderPage();   // role now affects every page (summary / overview / per-page banner)
   }
 
   function renderAnalysisRoleBar() {
@@ -529,6 +548,22 @@ window.App = (function () {
         <span class="ar-chip-t">${r.short}</span>
       </button>`;
     }).join('');
+    renderGlobalRoleBanner();
+  }
+
+  function renderGlobalRoleBanner() {
+    const el = $('globalRoleBanner');
+    if (!el) return;
+    const r = ANALYSIS_ROLES[state.analysisRole] || ANALYSIS_ROLES.all;
+    const focus = ROLE_FOCUS[state.analysisRole] || ROLE_FOCUS.all;
+    const isAll = state.analysisRole === 'all';
+    el.style.setProperty('--rc', r.color);
+    el.innerHTML = `
+      <span class="grole-ico" style="color:${r.color}">${r.icon}</span>
+      <span class="grole-label">${r.label}視角</span>
+      <span class="grole-focus">重點關注：${focus}</span>
+      ${isAll ? '' : `<button class="grole-sum" onclick="App.switchPage('summary')">★ 我的摘要 →</button>`}
+    `;
   }
 
   // ─── Role-specific insight engine ───
@@ -720,10 +755,34 @@ window.App = (function () {
       case 'sales': {
         // 產品口碑紅黃綠燈
         const ranks = RepairAnalyzer.modelRank(records, RepairAnalyzer.getDenominators(state.db, currentFilter()), state.db, state.selectedMonths);
+
+        // Compute consecutive green months for each model
+        const stableModels = [];
+        const improvedModels = [];
+        for (const r of ranks) {
+          if (!r.history || r.history.length < 2) continue;
+          const hist = r.history.filter(h => h.denom > 0);
+          if (hist.length < 2) continue;
+          let consecutive = 0;
+          for (let i = hist.length - 1; i >= 0; i--) {
+            if (hist[i].faultRate != null && hist[i].faultRate < 0.05) consecutive++;
+            else break;
+          }
+          if (consecutive >= 2) stableModels.push({ model: r.model, months: consecutive });
+          const last = hist[hist.length - 1];
+          const prev = hist[hist.length - 2];
+          if (last.faultRate != null && last.faultRate < 0.05 &&
+              prev.faultRate != null && prev.faultRate >= 0.05) {
+            improvedModels.push(r.model);
+          }
+        }
+
         const risky = ranks.filter(r => (r.faultRate||0) >= 0.1 || r.scrap > 0).slice(0,3);
         const stable = ranks.filter(r => (r.faultRate!=null) && r.faultRate < 0.05).slice(0,3);
         if (risky.length) addCard('●','var(--critical)','需謹慎銷售（紅燈）',`${risky.map(r=>r.model).join('、')} 故障率偏高或有報廢，對外溝通宜保守`,'口碑');
-        if (stable.length) addCard('●','var(--ok)','可安心主推（綠燈）',`${stable.map(r=>r.model).join('、')} 故障率低且穩定，適合作為主力推廣機種`,'推廣');
+        if (stableModels.length) addCard('●','var(--ok)','可安心主推（穩定 ≥2月）',`${stableModels.slice(0,4).map(m=>`${m.model}(${m.months}月)`).join('、')} 持續低故障，適合主力推廣`,'推廣');
+        else if (stable.length) addCard('●','var(--ok)','可安心主推（綠燈）',`${stable.map(r=>r.model).join('、')} 故障率低且穩定，適合作為主力推廣機種`,'推廣');
+        if (improvedModels.length) addCard('↗','var(--accent)','近期改善機種',`${improvedModels.slice(0,3).join('、')} 從高故障轉為穩定，是業務說故事的好素材`,'改善');
         if (crossSerial.length > 0) addCard('⇄','var(--critical)','客戶信心風險',`<strong>${crossSerial.length}</strong> 台跨月重複故障，這是客戶實際感受到的「不可靠」，恐影響續單`,'客戶');
         if (topModel) addCard('⚙','var(--warn)','主訴機種',`${topModel[0]} 維修量最高（${topModel[1]}件），業務應準備對應客戶說明`,'溝通');
         break;
@@ -785,6 +844,215 @@ window.App = (function () {
     };
   }
 
+  // ═══════════════ Manager Summary (per-role digest report) ═══════════════
+  // Gather findings from EVERY analysis engine, tag each with the roles that
+  // care + a drill-down page; the summary page then filters by role and groups
+  // by severity — so each manager sees a clean, prioritised "to-track" list.
+  const SEV_RANK = { critical: 0, warn: 1, info: 2 };
+  const PAGE_NAME = { summary:'主管摘要', overview:'總覽', alerts:'異常偵測', parts:'零件 Pareto', cross:'跨機種矩陣', trend:'月份趨勢', reason:'故障原因', quality:'品質/SPC', batch:'製造批次', risk:'風險/根因', capa:'CAPA', cost:'成本量化', scrap:'報廢/重修', detail:'明細' };
+
+  function gatherFindings(records, kpis, anoms) {
+    const f = currentFilter();
+    const findings = [];
+    const add = (o) => findings.push(o);
+
+    // (1) Anomalies → role-tagged
+    const anomRoles = (a) => {
+      const t = a.title || '';
+      const roles = new Set(['factory']);
+      if (a.severity === 'critical') ['ceo', 'qa'].forEach(r => roles.add(r));
+      if (t.includes('零件') || t.includes('用量')) ['procure', 'repair'].forEach(r => roles.add(r));
+      if (t.includes('故障') || t.includes('機種')) ['prod', 'sales'].forEach(r => roles.add(r));
+      if (t.includes('重複')) ['qa', 'cs', 'repair', 'hw'].forEach(r => roles.add(r));
+      if (t.includes('報廢')) ['prod', 'finance', 'logistics'].forEach(r => roles.add(r));
+      if (t.includes('保固')) ['qa', 'cs'].forEach(r => roles.add(r));
+      return Array.from(roles);
+    };
+    for (const a of anoms) {
+      add({ sev: a.severity === 'critical' ? 'critical' : a.severity === 'warn' ? 'warn' : 'info',
+        area: '異常偵測', icon: a.icon || '!', title: a.title,
+        detail: `${a.subject || ''}${a.message ? '：' + a.message : ''}`,
+        action: '至「異常偵測」查看完整清單與下鑽', page: 'alerts', roles: anomRoles(a) });
+    }
+
+    // (2) Manufacture/origin-batch flags
+    const batch = RepairAnalyzer.batchAnalysis(records);
+    for (const b of batch) {
+      for (const fl of b.flags) {
+        let sev = 'warn', roles = ['qa', 'prod'], action = '';
+        if (fl === '全新早夭') { sev = 'critical'; roles = ['prod', 'hw', 'qa', 'ceo']; action = '檢討該機種 OQC 出廠檢驗項目，擋下問題批'; }
+        else if (fl === '整新後即壞') { sev = 'critical'; roles = ['repair', 'qa']; action = '檢討整新製程與整新後驗收'; }
+        else if (fl === '出廠批次集中') { roles = ['procure', 'hw', 'qa', 'prod']; action = `追溯 ${b.topOrigin ? b.topOrigin.month : ''} 出廠批的料號/供應商/產線`; }
+        else if (fl === '製造批次集中') { roles = ['prod', 'qa', 'repair']; action = '補上製令以區分出廠批或整新梯次'; }
+        const topO = b.topOrigin ? `出廠批 ${b.topOrigin.month}(${(b.topOriginPct * 100).toFixed(0)}%)` : '';
+        add({ sev, area: '製造批次', icon: '⊞', title: `${b.model}：${fl}`,
+          detail: `維修 ${b.total} 件${topO ? '，' + topO : ''}${b.earlyNew ? `，全新早夭 ${b.earlyNew} 件` : ''}${b.earlyRefurb ? `，整新後即壞 ${b.earlyRefurb} 件` : ''}`,
+          action, page: 'batch', roles });
+      }
+    }
+
+    // (3) Origin-batch defect localisation (元件瑕疵落點)
+    const ob = RepairAnalyzer.originBatchPareto(records);
+    if (ob.list.length && ob.list[0].pct >= 0.25 && ob.total >= 20) {
+      const t = ob.list[0];
+      add({ sev: 'warn', area: '元件瑕疵', icon: '🏭', title: `元件瑕疵落點：${t.month} 出廠批`,
+        detail: `${t.month} 出廠批佔故障 ${t.count} 件（${(t.pct * 100).toFixed(0)}%），機種 ${t.models.join('、')}`,
+        action: '追溯該出廠批的元件來料批與供應商', page: 'batch', roles: ['procure', 'hw', 'qa'] });
+    }
+
+    // (4) FMEA high-RPN parts
+    const fmea = RepairAnalyzer.fmeaAnalysis(records, state.db);
+    for (const m of fmea.filter(x => x.rpn >= 100).slice(0, 4)) {
+      add({ sev: m.rpn >= 200 ? 'critical' : 'warn', area: '風險(FMEA)', icon: '⚠',
+        title: `${m.part} 風險 RPN ${m.rpn}`,
+        detail: `S${m.severity}×O${m.occurrence}×D${m.detection}＝${m.rpn}，維修 ${m.count} 件、報廢 ${m.scrap} 件`,
+        action: m.rpn >= 200 ? '立即開立 CAPA 改善專案' : '本月內評估開立 CAPA', page: 'risk', roles: ['qa', 'hw', 'repair'] });
+    }
+
+    // (5) Overdue CAPA
+    const capa = loadCapa();
+    const today = new Date().toISOString().slice(0, 10);
+    const overdue = capa.filter(c => c.due && c.status !== 'closed' && c.due < today);
+    if (overdue.length) add({ sev: 'warn', area: 'CAPA', icon: '✓', title: `CAPA 逾期 ${overdue.length} 項`,
+      detail: `${overdue.slice(0, 3).map(c => `#${c.id} ${c.problem || ''}`).join('；')}${overdue.length > 3 ? ' …' : ''}`,
+      action: '至 CAPA 追蹤頁催辦或調整截止日', page: 'capa', roles: ['qa', 'factory', 'ceo'] });
+
+    // (6) Cross-month repeats
+    const cross = RepairAnalyzer.crossMonthSerials(state.db, {});
+    if (cross.length) add({ sev: cross.length >= 5 ? 'warn' : 'info', area: '重複維修', icon: '⇄',
+      title: `跨月重複故障 ${cross.length} 台`,
+      detail: `同一序號跨月再進廠，疑似未根治；最高 ${cross[0].model} #${cross[0].serial} 共 ${cross[0].visitCount} 次`,
+      action: '開立 CAPA 並比對首修紀錄/韌體版本', page: 'scrap', roles: ['qa', 'cs', 'repair', 'hw'] });
+
+    // (7) Quality cost COPQ
+    const cfg = (function () { try { return JSON.parse(localStorage.getItem('titan_cost_cfg_v1') || 'null'); } catch { return null; } })();
+    const cost = RepairAnalyzer.costAnalysis(records, cfg || {});
+    if (cost.configured && cost.totalCost > 0) {
+      const money = (n) => 'NT$ ' + Math.round(n).toLocaleString('en');
+      add({ sev: 'info', area: '品質成本', icon: '$', title: `本期 COPQ ${money(cost.totalCost)}`,
+        detail: `報廢 ${money(cost.scrapCost)} + 工時 ${money(cost.laborCost)}${cost.byCategory.length ? `，最高 ${cost.byCategory[0].cat}` : ''}`,
+        action: '用於管理層 ROI 與改善優先序排定', page: 'cost', roles: ['finance', 'ceo'] });
+    }
+
+    // (8) Component-category dominance
+    const cc = RepairAnalyzer.componentCategoryPareto(state.db, f);
+    if (cc.list.length && cc.list[0].pct >= 0.3) {
+      const c = cc.list[0];
+      add({ sev: 'info', area: '零件大類', icon: '🧩', title: `故障集中於「${c.name}」類`,
+        detail: `${c.name} 佔故障零件 ${(c.pct * 100).toFixed(0)}%（${c.count} 件），主要：${c.topParts.slice(0, 2).map(p => p.name).join('、')}`,
+        action: '針對該零件大類找供應商/設計根因', page: 'parts', roles: ['procure', 'hw', 'repair'] });
+    }
+
+    // (9) High fault-rate models
+    const denom = RepairAnalyzer.getDenominators(state.db, f);
+    const ranks = RepairAnalyzer.modelRank(records, denom, state.db, state.selectedMonths);
+    for (const r of ranks.filter(r => (r.faultRate || 0) >= 0.1).slice(0, 3)) {
+      add({ sev: r.faultRate >= 0.2 ? 'critical' : 'warn', area: '高故障機種', icon: '⚙',
+        title: `${r.model} 故障率 ${(r.faultRate * 100).toFixed(1)}%`,
+        detail: `維修 ${r.count} 件${r.scrap ? `、報廢 ${r.scrap} 件` : ''}，高於 10% 警戒線`,
+        action: '生產/研發排查製程或設計；業務對外溝通宜保守', page: 'overview', roles: ['prod', 'ceo', 'sales', 'qa'] });
+    }
+
+    // (10) Overall scrap rate
+    if (kpis.scrapPct >= 5) add({ sev: kpis.scrapPct >= 10 ? 'critical' : 'warn', area: '報廢', icon: '✕',
+      title: `整體報廢率 ${fmt.pct(kpis.scrapPct)}`,
+      detail: `報廢 ${kpis.scrap} 件，${kpis.scrapPct >= 10 ? '已達高風險' : '達警戒線 (5%)'}`,
+      action: '調查報廢主因機種與原因集中度', page: 'scrap', roles: ['prod', 'finance', 'logistics', 'ceo', 'qa'] });
+
+    return findings;
+  }
+
+  function summaryForRole(role, records, kpis, anoms) {
+    const all = gatherFindings(records, kpis, anoms);
+    const mine = (role === 'all') ? all.slice() : all.filter(x => x.roles.includes(role));
+    mine.sort((a, b) => SEV_RANK[a.sev] - SEV_RANK[b.sev]);
+    return mine;
+  }
+
+  function updateSummaryBadge() {
+    try {
+      const f = currentFilter();
+      const records = RepairAnalyzer.getRecords(state.db, f);
+      const denom = RepairAnalyzer.getDenominators(state.db, f);
+      const kpis = RepairAnalyzer.computeKPIs(records, denom);
+      const lastMonth = state.selectedMonths.slice().sort().pop();
+      const anoms = RepairAnalyzer.detectAnomalies(state.db, lastMonth);
+      const mine = summaryForRole(state.analysisRole, records, kpis, anoms);
+      const crit = mine.filter(x => x.sev === 'critical').length;
+      const sb = $('summaryBadge');
+      if (!sb) return;
+      const n = crit || mine.length;
+      if (n > 0) { sb.style.display = ''; sb.textContent = n; sb.classList.toggle('crit-level', crit > 0); }
+      else sb.style.display = 'none';
+    } catch (e) { /* badge is best-effort */ }
+  }
+
+  function renderSummary() {
+    const f = currentFilter();
+    const records = RepairAnalyzer.getRecords(state.db, f);
+    const denom = RepairAnalyzer.getDenominators(state.db, f);
+    const kpis = RepairAnalyzer.computeKPIs(records, denom);
+    const lastMonth = state.selectedMonths.slice().sort().pop();
+    const anoms = RepairAnalyzer.detectAnomalies(state.db, lastMonth);
+
+    const role = state.analysisRole;
+    const roleInfo = ANALYSIS_ROLES[role] || ANALYSIS_ROLES.all;
+    const mine = summaryForRole(role, records, kpis, anoms);
+    const crit = mine.filter(x => x.sev === 'critical');
+    const warn = mine.filter(x => x.sev === 'warn');
+    const info = mine.filter(x => x.sev === 'info');
+
+    $('summaryMeta').textContent = `${mine.length} 項應追蹤 · ${crit.length} 立即處理`;
+    const sb = $('summaryBadge');
+    if (sb) { const n = crit.length || mine.length; if (n) { sb.style.display = ''; sb.textContent = n; sb.classList.toggle('crit-level', crit.length > 0); } else sb.style.display = 'none'; }
+
+    $('sumBanner').innerHTML = `
+      <div class="sum-banner-inner" style="--rc:${roleInfo.color}">
+        <span class="sum-banner-ico">${roleInfo.icon}</span>
+        <div>
+          <div class="sum-banner-t">${roleInfo.label} · 應追蹤摘要</div>
+          <div class="sum-banner-d">${roleInfo.desc}　·　重點關注：${ROLE_FOCUS[role] || ''}</div>
+        </div>
+        <div class="sum-banner-meta">${state.analysisRole === 'all' ? '綜合視角：顯示全部findings' : `已過濾出 ${roleInfo.label}相關事項`}</div>
+      </div>`;
+
+    $('sumKpi').innerHTML = `
+      <div class="kpi k-red"><div class="kpi-h"><div class="kpi-l">立即處理</div><div class="kpi-ico">!</div></div>
+        <div class="kpi-v">${crit.length}</div><div class="kpi-d"><span class="muted">嚴重 · 需馬上行動</span></div></div>
+      <div class="kpi k-warn"><div class="kpi-h"><div class="kpi-l">本期關注</div><div class="kpi-ico">▲</div></div>
+        <div class="kpi-v">${warn.length}</div><div class="kpi-d"><span class="muted">警示 · 本期內處理</span></div></div>
+      <div class="kpi k-blue"><div class="kpi-h"><div class="kpi-l">整體故障率</div><div class="kpi-ico">%</div></div>
+        <div class="kpi-v">${fmt.pct(kpis.denomPct)}</div><div class="kpi-d"><span class="muted">${fmt.int(kpis.totalRepairs)} / ${fmt.int(kpis.denomTotal)}</span></div></div>
+      <div class="kpi k-info"><div class="kpi-h"><div class="kpi-l">報廢率</div><div class="kpi-ico">✕</div></div>
+        <div class="kpi-v">${fmt.pct(kpis.scrapPct)}</div><div class="kpi-d"><span class="muted">${kpis.scrap} 件</span></div></div>
+    `;
+
+    const section = (label, items, cls) => {
+      if (!items.length) return '';
+      return `
+        <div class="sum-sec">
+          <div class="sum-sec-h ${cls}"><span class="sum-sec-dot"></span>${label}<span class="sum-sec-n">${items.length}</span></div>
+          <div class="sum-cards">
+            ${items.map(x => `
+              <div class="sum-card ${x.sev}">
+                <div class="sum-card-top"><span class="sum-card-ico">${x.icon}</span><span class="sum-card-area">${x.area}</span></div>
+                <div class="sum-card-title">${escapeHtml(x.title)}</div>
+                <div class="sum-card-detail">${escapeHtml(x.detail)}</div>
+                ${x.action ? `<div class="sum-card-action">💡 ${escapeHtml(x.action)}</div>` : ''}
+                <button class="sum-card-go" onclick="App.switchPage('${x.page}')">前往 ${PAGE_NAME[x.page] || x.page} →</button>
+              </div>`).join('')}
+          </div>
+        </div>`;
+    };
+
+    const body = $('sumBody');
+    if (!mine.length) {
+      body.innerHTML = `<div class="card"><div class="empty"><div class="empty-ico">✓</div><div class="empty-t">本期此視角未偵測到須追蹤事項</div><div class="empty-d">可切換其他角色，或檢視「總覽」掌握全貌</div></div></div>`;
+      return;
+    }
+    body.innerHTML = section('應立即追蹤', crit, 'critical') + section('本期應關注', warn, 'warn') + section('持續監控', info, 'info');
+  }
+
   function updateAlertBadge() {
     const lastMonth = state.selectedMonths.slice().sort().pop();
     const anoms = RepairAnalyzer.detectAnomalies(state.db, lastMonth);
@@ -829,65 +1097,220 @@ window.App = (function () {
 
   // ─────────────── 使用說明 (per-page help) ───────────────
   const HELP = {
+    summary: {
+      what: '依您選的主管視角，把全報表（異常偵測、製造批次、出廠批次/元件瑕疵、FMEA 風險、CAPA、跨月重複、品質成本、零件大類、高故障機種、報廢率）的發現「彙整成一份報告」，過濾出與您角色相關者，再依嚴重度分為「應立即追蹤 / 本期應關注 / 持續監控」三層，每項附建議行動與下鑽連結。上方角色列可隨時切換，全站每頁都會跟著切換視角。',
+      meaning: '這頁解決「資訊雜湊」問題：不必逐頁翻找，系統替每位主管把「該你管的事」挑出來、排好序。紅色＝嚴重需馬上行動；橙色＝本期內處理；藍色＝持續監控。卡片的「💡建議行動」是下一步，「前往 →」直接跳到對應分析頁深究。',
+      who: '所有層級主管的每日起點。董事長/廠長：看跨部門紅線；品檢：看批次/早夭/CAPA/重複維修；採購：看出廠批次來料瑕疵與高用量零件；研發：看 FMEA 與元件瑕疵落點；財務：看 COPQ；業務：看高故障機種口碑。切到「綜合視角」則顯示全部發現。',
+      kpis: [
+        { name:'立即處理', formula:'此角色相關的嚴重(critical)發現數', benchmark:'目標為 0；>0 代表有需馬上行動的事項', tip:'紅卡都應在 24–72 小時內指派負責人' },
+        { name:'本期關注', formula:'此角色相關的警示(warn)發現數', benchmark:'本期(本月)內應處理完', tip:'橙卡建議轉為 CAPA 追蹤' },
+        { name:'整體故障率 / 報廢率', formula:'維修數÷整新數 / 報廢數÷維修數', benchmark:'故障率趨勢向下、報廢率<5% 為佳', tip:'這兩個共用指標讓各角色有共同基準' },
+      ],
+      tips: [
+        '先切到自己的角色，再由上而下處理「應立即追蹤」紅卡',
+        '每張卡的「前往 →」會跳到對應分析頁，可深入查證再決策',
+        '紅/橙卡建議直接到 CAPA 頁開立追蹤，形成品質閉環',
+        '切到「綜合視角」可一覽全公司所有發現，適合主管會議',
+        '導覽列「主管摘要」的紅色數字 = 你目前視角的待處理嚴重事項數',
+      ],
+    },
     overview: {
       what: '一眼掌握本期維修總量、報廢、重複維修、機種故障率排名與最常更換零件。上方可切換 13 種主管視角，系統會自動提煉該角色關心的洞察卡。',
-      meaning: '故障率 = 維修數 ÷ 整新數。報廢率高代表良率或來料問題；重複維修多代表「治標未治本」。機種排名紅色（≥10%）為高風險。',
-      who: '全體主管的起點。董事長看總量與趨勢，廠長看異常，各部門再切到自己視角深入。',
+      meaning: '故障率 = 維修數 ÷ 整新數（整新數是產能基數代理值）。報廢率高 → 良率或來料問題；重複維修多 → 治標未治本；機種排名紅色（≥10%）為高風險，黃色（5–10%）需觀察，綠色（<5%）正常。',
+      who: '全體主管的起點。董事長看總量趨勢；廠長看異常警示；採購看零件欄；品檢看重複維修；業務看機種排名；財務先切到「成本量化」。',
+      kpis: [
+        { name:'總維修件數', formula:'當期所有維修筆數', benchmark:'依業種不同，趨勢下降為改善方向', tip:'點擊可展開各機種分布與月份走勢' },
+        { name:'受檢機種', formula:'本期出現的不同機種數量', benchmark:'越多代表機種複雜度越高', tip:'點擊可查看各機種排名清單' },
+        { name:'報廢件數 / 報廢率', formula:'無法修復件數 ÷ 總維修件數 × 100%', benchmark:'<2% 良好 · 2–5% 警戒 · >5% 高風險', tip:'點擊可查看各機種報廢分布' },
+        { name:'重複維修台數', formula:'同一序號在選定期間維修 ≥2 次的台數', benchmark:'應趨近於 0；>5% 表示首修品質不足', tip:'點擊可查看哪些機台反覆進廠' },
+      ],
+      tips: [
+        '先選擇「角色視角」按鈕（總覽頁頂端），系統會自動過濾並顯示該角色最關鍵的洞察',
+        '點擊機種排名的任一格可展開該機種的詳細分析',
+        '點擊月份欄中的數字可直接跳到該機種該月的分析',
+        '紅色 ≥10% 的機種應優先開立 CAPA 追蹤',
+        '每月上傳新資料後，建議先看這頁，再根據洞察卡前往相關頁面深入分析',
+      ],
     },
     alerts: {
-      what: '系統自動偵測 7 種異常：新出現零件、用量暴增、高故障率機種、高報廢率、跨機種共用料缺陷、重複進廠序號、故障原因過度集中。',
-      meaning: '這些是「資料自己跳出來的警訊」，不需人工翻找。嚴重（紅）代表需立即開會處理，警告（黃）代表觀察。',
-      who: '廠長與品檢主管每期必看；採購看零件類異常；研發看高故障率與集中原因。',
+      what: '系統自動偵測 7 種異常：① 新出現的高頻零件 ② 零件用量暴增（MoM ≥100%）③ 機種故障率偏高（≥5%）④ 機種報廢比例偏高（≥30%）⑤ 零件跨機種出現（影響≥3機種）⑥ 同月重複維修（同序號≥3次）⑦ 跨月份重複維修 ⑧ 故障原因高度集中（單原因≥50%）。',
+      meaning: '嚴重（紅）= 需立即召集相關部門討論；警告（黃）= 本月觀察，下月若持續則升級；資訊（藍）= 備注參考，不需立即行動。點擊卡片可進行深入分析（鑽取至零件/機種/序號層級）。',
+      who: '廠長每期必看（判斷需跨部門協調的項目）；品檢負責轉換為 CAPA；採購看零件類異常（備料觸發）；研發看高故障率與集中原因（設計改版依據）；客服看重複維修（客訴預防）。',
+      tips: [
+        '嚴重（紅）異常通常需要在 3 個工作天內開立 CAPA 並指定負責人',
+        '「新出現的高頻零件」最值得關注——代表突發的新問題，非漸進惡化',
+        '「跨機種出現」異常代表共用料設計問題，單一供應商風險高',
+        '「故障原因高度集中」對韌體研發最有價值——單一問題佔 50% 代表可能是系統性韌體 bug',
+        '每月比對上月異常清單，若相同項目持續出現表示上月的 CAPA 尚未有效',
+      ],
     },
     parts: {
-      what: '所有更換零件依使用量排序（Pareto 80/20），顯示累計佔比與「一個零件影響幾個機種」。',
-      meaning: '前 20% 的零件通常佔 80% 的用量 —— 這些就是備料與改善的重點。跨多機種的零件若出問題，會多條產線同時停修。',
-      who: '採購主管（備料、供應商議價）、維修主管（備料優先序）、硬體研發（共用料設計問題）。',
+      what: '兩個區塊：① 故障零件大類根因 — 依「元件料號大類」把故障零件歸類（連接器/電源/IC/開關/機構…），看故障的「性質」。② 零件件數 Pareto — 所有更換零件依使用量排序（80/20 法則），含累計佔比折線與影響機種數。點「詳情」可查看使用此零件的所有故障記錄。',
+      meaning: '大類分析回答「壞在哪一類零件」：連接器/排線多→組裝接觸問題；電源/電容多→電性/老化；IC 多→設計/ESD；開關/按鍵多→機構耐用度；面板/塑膠/橡膠多→外觀機構或運輸。Pareto 回答「哪幾顆零件最該管」：前 20% 零件通常佔 80% 用量，累計線 80% 以上就是重點備料清單。',
+      who: '採購主管：大類佔比鎖定該找哪一類供應商；前 10 大零件是議價與安全庫存重點。硬體研發：IC/電源/連接器大類偏高 → 設計審查候選。維修主管：備料優先序一目了然。物流主管：包裝/機構類偏高可能是運輸損傷。',
+      kpis: [
+        { name:'件數', formula:'選定期間此零件的換件總數量', benchmark:'依機種數量不同，趨勢穩定為正常', tip:'急速上升可能是來料批次問題' },
+        { name:'佔比', formula:'此零件件數 ÷ 所有零件總件數', benchmark:'單一零件佔比 >20% 需特別關注', tip:'單一零件佔比過高代表故障高度集中，是最優先的改善與備料標的' },
+        { name:'影響機種', formula:'有換用此零件的不同機種數', benchmark:'影響 ≥3 機種代表共用料風險', tip:'點詳情可看每個機種的故障描述' },
+      ],
+      tips: [
+        '點「詳情」按鈕可展開該零件的所有故障記錄，並依故障部位（電源/PCB/機構…）分類整理',
+        '圖表右側的折線是「累計佔比」——折線超過 80% 的位置就是需要重點管理的零件數量',
+        '若某零件突然從排名後段跳到前段，可能是批次不良訊號，建議立刻到「異常偵測」確認',
+        '採購可用此頁計算月均用量，設定安全庫存（建議：月均用量 × 1.5 倍）',
+        '硬體研發應重點關注「影響 ≥3 機種」的零件，排查是否為共用料設計缺陷',
+      ],
     },
     cross: {
-      what: '矩陣呈現「同一零件 × 多個機種」的分布，找出共用料件的系統性缺陷。可匯出 Excel。',
-      meaning: '若一個零件在多個機種都頻繁故障，問題多半出在零件本身（來料/設計），而非單一機種。',
-      who: '採購主管（鎖定問題供應商）、硬體研發（共用料改版）、品檢（批次追溯）。',
+      what: '矩陣呈現「同一零件（列） × 各機種（欄）」的換件數量。格子顏色深淺代表數量多寡；空格（·）代表此組合無記錄。可按「⤓ Excel」匯出完整矩陣。',
+      meaning: '若同一個零件在多個機種都頻繁出現，問題多半出在零件本身（來料品質/設計缺陷），而非單一機種的製程或使用問題。這是鎖定供應商責任或啟動設計變更（ECO）的關鍵依據。',
+      who: '採購主管：鎖定問題供應商（多機種同零件出問題 → 料件本身有問題）。硬體研發：判斷是否需要啟動共用料改版（ECO）。品檢：批次追溯，確認是否為單一批次流入多機種。廠長：評估跨產線的停修風險。',
+      tips: [
+        '最右欄「合計」排序代表單一零件的總影響量',
+        '顏色最深的格子代表「此機種最常換這個零件」——是維修技師培訓的重點',
+        '同一列（同一零件）多格都有數字 → 共用料問題 → 採購/研發行動',
+        '同一欄（同一機種）多格都有數字 → 該機種維修複雜度高 → 研發審查',
+        '匯出 Excel 後可進一步做供應商分析（若有供應商欄位資料）',
+      ],
     },
     trend: {
-      what: '跨所有月份的維修量、報廢量、故障率走勢，以及主要零件的月度趨勢折線。',
-      meaning: '看的是「方向」而非單月數字。持續上升代表問題惡化或出貨成長；零件趨勢可預判備料。',
-      who: '董事長（大方向）、生產主管（製程是否改善）、採購（備料規劃）、業務（產品口碑走向）。',
+      what: '3 張圖：① 維修件數 vs 報廢件數（長條圖，各月份）② 故障率走勢（折線，與整新數相比）③ 主要零件月度趨勢（前6大零件各自折線）。篩選大類或機種後，圖表只顯示該範圍。',
+      meaning: '趨勢看的是「方向」而非單月數字。故障率持續上升 → 製程或設計惡化；持續下降 → 改善有效；劇烈波動 → 資料異常或批次問題。零件趨勢可預判備料需求。',
+      who: '董事長：故障率是否逐月改善（問責依據）。生產主管：找出下降的月份對應了哪些改善行動（驗證效果）。採購：零件趨勢用於備料預測。業務：產品質量走向，銷售話術依據。財務：趨勢斜率決定下季品質成本預估。韌體研發：韌體版本推出後的那個月，故障率是否改善。',
+      tips: [
+        '選擇「特定機種」篩選後，可看該機種專屬的故障率走勢，評估是否在改善中',
+        '比對「新版韌體推出時間」與「故障率折線」，驗證韌體改版效果',
+        '零件趨勢圖中若某零件斜率明顯向上，立刻通知採購備貨',
+        '相鄰兩月故障率差異 >3 個百分點需要找原因（換了供應商？換了配方？）',
+        '故障率圖如果一直是「無整新數（分母為零）」，請確認 Excel 是否包含整新數欄位',
+      ],
     },
     reason: {
-      what: '故障大類分布圓餅圖 + 故障內容 TOP 10 排行。',
-      meaning: '呈現「壞在哪裡、為什麼壞」。某一原因佔比過高，代表有集中的根本問題值得專案改善。',
-      who: '品檢主管（CAPA 題目）、研發（設計/韌體缺陷）、維修主管（技術研討）。',
+      what: '三個視角：① 故障大類圓餅圖（依 Excel「故障原因」欄位分類）② 故障內容 TOP 10（依「故障內容」欄位）③ 故障部位分布（系統依關鍵字自動分入 9 大部位：電源/PCB/螢幕/儲存/感測/機構/通訊/韌體/運輸損傷）。',
+      meaning: '故障大類是粗分類，故障部位是精分類。某一部位佔比 >40% 代表該部位有集中性根本原因，應優先改善。「運輸損傷」分類代表包裝/物流問題，責任歸屬不同於設計/製造問題。',
+      who: '品檢主管：找出最大佔比類別，作為開立 CAPA 的主題。硬體研發：「PCB/電源」類集中 → 電路設計審查。韌體研發：「韌體/軟體」類集中 → 韌體 bug 追查。物流主管：「運輸損傷」佔比 → 包裝改善依據。維修主管：月度對比圖可看出哪個類別最近在上升。',
+      tips: [
+        '月度對比圖（右下區域）可看本月 vs 上月各部位數量變化——某部位突然增加需立刻調查',
+        '「其他/未分類」比例高代表故障描述填寫不夠詳細，建議請維修技師補充描述',
+        '同一部位持續 3 個月以上居首 → 應開立 CAPA 進行根因分析',
+        '品檢主管：圓餅圖結合 CAPA 頁的狀態，確認每個大類別都有對應的矯正措施',
+        '業務主管：「運輸損傷」比例高時，可作為改善包裝的客訴說明依據',
+      ],
     },
     quality: {
-      what: 'DPPM（每百萬基數缺陷數）、報廢 DPPM、FPY 直通率、重工率，以及 SPC 故障率管制圖（CL/UCL/LCL）。',
-      meaning: 'DPPM 是國際通用的品質語言（消費電子 <500 為佳）。SPC 管制圖中超出紅色 UCL 線的月份代表「製程失控」，不是正常波動，必須查原因。',
-      who: '品檢主管（核心戰場）、生產主管（良率）、董事長/財務（對標業界水準）。',
+      what: '4 個品質指標 KPI + SPC 管制圖。指標：DPPM（整體缺陷率）、報廢 DPPM（僅計報廢）、FPY 直通率（未進維修比例）、重工率（重複進廠率）。SPC 圖顯示各月故障率相對於歷史平均的位置。',
+      meaning: 'DPPM 是國際通用品質語言，方便與業界對標。SPC 圖中：CL（中心線）= 歷史平均；UCL（紅線）= 管制上限（3σ）；超過 UCL 的月份 = 製程失控，需追查特殊原因，而非正常波動。',
+      who: '品檢主管：核心戰場，每月必檢視是否有月份超出 UCL。生產主管：FPY 越高代表製程越好。董事長/財務：DPPM 是對標業界水準的語言。維修主管：重工率反映首修品質。',
+      kpis: [
+        { name:'DPPM', formula:'維修件數 ÷ 整新數 × 1,000,000', benchmark:'消費電子 <500 為佳 · <2,000 可接受 · >10,000 需重點改善', tip:'DPPM 不等於故障率，是把比例放大到百萬基數，方便跨公司比較' },
+        { name:'報廢 DPPM', formula:'報廢件數 ÷ 整新數 × 1,000,000', benchmark:'應遠低於 DPPM；若接近 DPPM 代表大部分維修都無法修復', tip:'高報廢 DPPM 代表設計問題比製程問題更嚴重' },
+        { name:'FPY 直通率', formula:'（整新數 - 維修件數）÷ 整新數 × 100%', benchmark:'>95% 佳 · 90–95% 可接受 · <90% 需改善（本系統以整新數為代理值）', tip:'FPY 是製造業最常用的良率指標；本值為代理估算，非出廠直通率' },
+        { name:'重工率', formula:'重複進廠台數 ÷ 有序號的維修台數 × 100%', benchmark:'<3% 佳 · 3–8% 警戒 · >8% 首修品質有問題', tip:'重工代表同一台機器修了又壞，是維修技師技能或零件品質的指標' },
+        { name:'SPC UCL', formula:'歷史平均故障率 + 3 × 標準差', benchmark:'超出 UCL 的月份 = 製程失控，必須找到特殊原因', tip:'SPC 需至少 2 個月資料才能計算；建議累積 6 個月以上才有意義' },
+      ],
+      tips: [
+        'SPC 圖中，超出紅色 UCL 的月份必須找出「特殊原因」（換供應商？新批次？新操作員？）',
+        'DPPM 持續下降但 FPY 沒有提升 → 可能是整新數計算問題，請確認分母資料正確',
+        '重工率高但 DPPM 不高 → 維修品質問題（技師技能）；重工率高且 DPPM 也高 → 零件或設計問題',
+        '品檢主管可將每月 DPPM 截圖，作為每月品質績效報告依據',
+        '若 SPC 顯示「需至少 2 個月資料」，請繼續上傳月份資料，圖表會自動啟用',
+      ],
+    },
+    batch: {
+      what: '用器材的兩個日期維度做批次分析：① 製令 = 器材「身分證」(格式 YYMMDD+批次序號)，代表「原始出廠年月批次」，永不改變；② 製造日期 = 整新時重新貼上的日期（若從未整新則 = 製令年月）。本頁自動判定每台「全新 vs 整新」，並偵測：出廠批次集中、製造批次集中、全新早夭、整新後即壞，把責任落點分到「原廠/來料」或「整新單位」。',
+      meaning: '全新 vs 整新（製造日期年月 是否等於 製令出廠年月）是責任歸屬的分水嶺：全新品故障 → 原始生產批/來料元件瑕疵（責任：當期生產＋採購/IQC）；整新品故障 → 整新製程問題（責任：整新單位）。「出廠批次分析」回答「哪一年的哪一批元件瑕疵」——故障集中在某個製令出廠年月，代表該原始批次的元件或製程有系統性問題（例：ZSPMG31 故障集中在 2019-11、2020-01 出廠批，磁簧開關批次瑕疵）。',
+      who: '品檢主管：出廠批次集中或早夭的機種立刻啟動 8D/CAPA，並依全新/整新把責任分清楚。製造主管：全新早夭直指 OQC 出廠檢驗漏洞與特定生產梯次。整新單位：整新後即壞、整新品的製造批次集中是整新製程的責任。採購/IQC：出廠批次集中＝該年該批來料元件嫌疑，追溯供應商批號。研發：全新早夭＋零件大類集中（如連接器斷損）為設計強度問題。董事長：全新早夭件數是出廠品質紅線。',
+      kpis: [
+        { name:'出廠批次集中度', formula:'該機種最大「製令出廠年月」筆數 ÷ 該機種有製令筆數', benchmark:'≥40%（n≥5）標記「出廠批次集中」', tip:'集中的出廠年月＝拿該批序號追原始產線與來料元件批' },
+        { name:'製造批次集中度', formula:'該機種最大「製造日期年月」筆數 ÷ 該機種有製造日期筆數', benchmark:'≥40%（n≥5）標記「製造批次集中」', tip:'需搭配製令才能確認是出廠批還是整新梯次；含製令後 整新品的此集中即整新梯次問題' },
+        { name:'全新早夭件數', formula:'全新品（製造=製令年月）且 出廠月=檢修月 的筆數', benchmark:'任何 >0 都嚴重；≥5 標記', tip:'客戶剛收到新品就壞，責任在原廠出廠檢驗' },
+        { name:'整新後即壞件數', formula:'整新品（製造≠製令年月）且 整新月=檢修月 的筆數', benchmark:'任何 >0 都要追；≥5 標記', tip:'整新完當月又壞，責任在整新製程/驗收' },
+        { name:'製令涵蓋率', formula:'有製令筆數 ÷ 全部維修筆數', benchmark:'越高分析越準；偏低代表工廠尚未補齊製令', tip:'請工廠在各機種 sheet 補上製令欄，全新/整新判定才會完整' },
+      ],
+      tips: [
+        '看「出廠批次分析」長條圖：某個製令年月特別高 → 該原始批次元件瑕疵，責任落在當期生產與來料',
+        '全新早夭（紅）→ OQC 出廠檢驗破口，檢討該機種出廠測試；整新後即壞（橙）→ 整新製程/驗收問題',
+        '同時具備「製令＋製造日期」才能判定全新/整新；目前多數機種只有其一，請工廠陸續補齊製令',
+        '製令格式為 YYMMDD＋3碼批次序號（2位西元年），例 250410057 = 2025-04 第057批',
+        '把本頁的批次集中機種，搭配「零件大類根因」一起看 — 出廠批次＋故障零件大類即可精準定位根因與責任',
+      ],
     },
     risk: {
-      what: '下月維修量預測 + FMEA 風險矩陣（S 嚴重度 × O 發生度 × D 偵測度 = RPN）+ 故障根因樹（8 大部位分類）。',
-      meaning: 'RPN 越高代表越該優先處理。預測幫你提前備料/備援。根因樹把雜亂的故障描述自動歸類成「電源/PCB/螢幕…」等部位。',
-      who: '品檢主管（RPN 排優先序）、研發（設計改善）、採購/財務（依預測規劃）。',
+      what: '三個區塊：① 下月維修量預測（線性回歸 + 3 月移動平均的綜合預測）② FMEA 風險矩陣（8 大部位的 S×O×D=RPN 評分，S/O/D 可手動調整）③ 故障根因樹（每個部位的維修件數、報廢數、Top 5 故障模式）。',
+      meaning: 'RPN（風險優先數）= 嚴重度(S) × 發生度(O) × 偵測度(D)。三個分數各 1–10，RPN 越高越需優先處理。系統會依資料自動計算分數，品檢主管可針對有主觀判斷的部位手動調整 S/O/D 值（調整後會保存並標記「人工調整」）。',
+      who: '品檢主管：依 RPN 排序決定 CAPA 優先序，RPN≥200 的部位應立即開立改善專案。硬體研發：「PCB/電源」部位 RPN 高 → ECO 候選。韌體研發：「韌體/軟體」RPN 高 → 版本審查。採購/財務：預測值用於備料計劃與成本估算。廠長：根因樹中佔比最高的部位需要跨部門協調改善。',
+      kpis: [
+        { name:'S 嚴重度', formula:'由報廢率自動計算（報廢率越高→S越高）；可手動覆寫', benchmark:'7–10 = 嚴重（可能報廢或安全風險）· 4–6 = 中等 · 1–3 = 輕微', tip:'品檢主管應確認 S 分數符合實際嚴重程度，必要時手動調整' },
+        { name:'O 發生度', formula:'由故障頻率相對排名自動計算', benchmark:'7–10 = 頻繁（每月都出現）· 4–6 = 偶發 · 1–3 = 罕見', tip:'O 高的部位是「老問題」，O 低的是「新問題」，兩者都需要關注' },
+        { name:'D 偵測度', formula:'基礎值 5；跨月重複出現 +3；高報廢率 +1（偵測難度高＝分數高）', benchmark:'7–10 = 很難偵測（事後才發現）· 1–3 = 容易偵測', tip:'D 越高代表目前的檢測方式越抓不到這個問題' },
+        { name:'RPN 風險優先數', formula:'S × O × D（最大值 1000）', benchmark:'≥200 極高（立即行動）· ≥100 高（本月內開立 CAPA）· ≥50 中 · <50 低', tip:'改善 RPN 最有效的方式通常是降低 D（加強檢測）而非降低 S（嚴重度）' },
+        { name:'預測值', formula:'（線性回歸預測 + 3月移動平均）÷ 2', benchmark:'預測僅為估計；趨勢方向（↗↘→）比絕對數字更重要', tip:'預測持續↗表示問題在惡化，應提前備料與安排技師' },
+      ],
+      tips: [
+        'FMEA 的 S/O/D 欄位可直接在表格中輸入數字修改，系統自動重算 RPN 並標記「人工調整」',
+        '若要重置所有手動調整，點表格下方「重置手動調整」按鈕',
+        'RPN 極高（紅色）的部位，應立刻到 CAPA 頁建立追蹤項目',
+        '根因樹中「報廢數」較高的部位 S 分數應該高（若系統自動算偏低，請手動調高）',
+        '預測值建議搭配「月份趨勢」頁的圖表一起看，趨勢方向一致才可信',
+      ],
     },
     capa: {
-      what: '矯正預防措施追蹤清單：問題 → 負責人 → 截止日 → 狀態（待處理/進行中/驗證中/已結案）。逾期自動標紅，可關聯 RMA 單號。',
-      meaning: '把「發現問題」變成「有人負責、有期限、會結案」的閉環管理。沒有 CAPA，異常偵測就只是看看而已。',
-      who: '品檢主管（開立與追蹤）、廠長（跨部門督導）、各責任部門（執行）。',
+      what: 'CAPA（Corrective and Preventive Action，矯正預防措施）追蹤清單。每筆包含：問題描述、負責人、截止日期、矯正措施說明、關聯 RMA 單號、狀態。狀態流程：待處理 → 進行中 → 驗證中 → 已結案。逾期自動標紅警示。頂部 KPI 格顯示總計/進行中/逾期/已結案件數。',
+      meaning: 'CAPA 是品質閉環管理的核心。「發現問題」只是起點，沒有追蹤到結案的改善措施，問題會一再復發。逾期率是衡量改善執行力的指標；逾期率 >30% 代表資源不足或優先序錯誤。',
+      who: '品檢主管：建立 CAPA（依異常偵測或 FMEA 高 RPN 項目）、追蹤狀態、進行驗證。廠長：督導跨部門執行，確保逾期件數受控。各責任部門（研發/採購/生產）：執行改善行動並回報進度。董事長：看逾期率與結案率，評估品質執行力。',
+      kpis: [
+        { name:'逾期率', formula:'逾期件數 ÷ 未結案件數 × 100%', benchmark:'<10% 正常 · 10–30% 警戒 · >30% 執行力不足', tip:'逾期件數增加時應找廠長協調資源' },
+        { name:'結案率', formula:'已結案件數 ÷ 總件數 × 100%', benchmark:'成熟品質系統應 >70%', tip:'結案必須有「驗證有效」的記錄，不能只是「宣布完成」' },
+      ],
+      tips: [
+        '狀態說明：待處理＝還沒開始行動；進行中＝已分配負責人執行中；驗證中＝已執行，等待確認效果；已結案＝已驗證有效並關閉',
+        '建議每個異常偵測頁的「嚴重（紅）」異常都開立一筆 CAPA',
+        '截止日期建議：嚴重問題 14 天內；警告問題 30 天內；資訊類 90 天內',
+        '完成改善後請先改為「驗證中」而非直接「已結案」——需要下個月資料確認效果',
+        '結案前確認：相關月份的異常偵測頁是否已不再出現此問題',
+        '關聯 RMA 單號可讓 RMA 管理系統與品質追蹤之間形成完整閉環',
+      ],
     },
     cost: {
-      what: '把件數換算成金額：報廢成本、維修工時成本、總損失，以及各類別的成本分布。需先在「⚙ 單價設定」輸入單價。',
-      meaning: '這是品質成本 COPQ。報廢一台高單價機種 ≠ 報廢十台低單價，金額才是管理層真正在意的語言。',
-      who: '財務主管（COPQ 管控）、董事長（損益衝擊）、廠長（改善 ROI 評估）。',
+      what: '品質成本 COPQ（Cost of Poor Quality）量化。分為：① 報廢成本（報廢件數 × 機種單價）② 維修工時成本（每件維修 × 設定工時成本）。提供月度趨勢折線圖，並可匯出 CSV。首次使用需點「⚙ 單價設定」輸入各類別或機種單價。',
+      meaning: 'COPQ 是說服管理層投資改善的最有力語言。報廢一台高單價機種的成本 ≠ 報廢十台低單價機種。業界參考：COPQ 佔營收 5–15% 為正常，世界級企業目標 <4%。成本趨勢上升 = 品質問題在惡化；下降 = 改善有效。',
+      who: '財務主管：核心頁面，月度 COPQ 報告依據，可匯出 CSV 貼入財務系統。董事長：品質問題的金額衝擊，投資改善的 ROI 評估依據。廠長：哪個類別損失最高決定改善優先序。採購：報廢成本高的機種零件需要評估換供應商。',
+      kpis: [
+        { name:'報廢成本', formula:'Σ（報廢件數 × 機種/類別單價）', benchmark:'應逐月下降；若上升需立刻對應', tip:'請確保單價設定準確，否則整個分析都會失真' },
+        { name:'工時成本', formula:'總維修件數 × 每件工時成本（設定值）', benchmark:'工時成本高 → 維修複雜度高或產量大', tip:'工時成本設定建議用「維修一台的平均工時 × 技師時薪」' },
+        { name:'COPQ 總損失', formula:'報廢成本 + 工時成本', benchmark:'每月 COPQ ÷ 月營收 < 5% 為世界級目標', tip:'若有保固賠付費用，可加入工時成本設定中一起計算' },
+      ],
+      tips: [
+        '第一步：點「⚙ 單價設定」→ 輸入各類別的報廢單價（可從採購系統查詢）和每件工時成本',
+        '單價設定好後記得點「☁ 發布到雲端」，讓所有人看到同樣的成本數字',
+        '點「⤓ 匯出 CSV」可下載各月份 + 各類別的詳細成本明細，貼入財務試算表',
+        '月度趨勢圖中，若報廢成本佔比遠高於工時成本，代表「報廢問題」比「維修量問題」更嚴重',
+        '財務主管建議每季一次計算「改善投入 vs 預估年化損失」評估 ROI',
+      ],
     },
     scrap: {
-      what: '跨月份重複維修序號、本期重修清單、報廢機種紀錄集中呈現。',
-      meaning: '同一台機器反覆進廠，是品質未閉環最直接的證據；報廢紀錄是損失與根因分析的來源。',
-      who: '品檢主管（重複故障根因）、客服/業務（客戶信心風險）、維修主管（首修品質）。',
+      what: '三個區塊：① 跨月份重複維修（同序號在 ≥2 個不同月份出現，顯示完整時間軸）② 本期重複維修（同序號在同月出現 ≥2 次）③ 報廢機種列表（依報廢件數排序，含主要報廢原因）。',
+      meaning: '跨月重複 = 這台機器已超過一個月沒有真正修好，是品質未閉環的最直接證據，客訴風險最高。本期重複 = 同月多次進廠，可能是治標未治本。報廢記錄是損失計算與設計改版的原始資料。',
+      who: '品檢主管：跨月重複每一台都應開立 CAPA。客服主管：跨月重複台數直接對應客戶不滿意程度，需主動聯繫說明。業務主管：特定機種的跨月重複集中時，銷售時需謹慎。維修主管：本期重複多代表技師首修品質不足，需技術研討。',
+      tips: [
+        '跨月重複清單中點擊序號可在「明細資料」頁追蹤完整維修歷程',
+        '跨月重複 ≥3 個月的機台是最高優先級，應立刻進行根本原因分析',
+        '若報廢原因都是「600」或「報廢」等簡略記錄，建議請技師改善記錄品質（需要真正的原因）',
+        '報廢的機種如果集中在特定零件，應同步查看「零件 Pareto」確認是否有備料風險',
+        '客服主管：用此頁的跨月重複清單，主動聯繫對應客戶說明修復進度',
+      ],
     },
     detail: {
-      what: '原始維修記錄逐筆瀏覽（前 500 筆），含日期、機種、序號、故障原因/內容、更換零件。',
-      meaning: '所有分析的最底層資料來源，用於查證個案、追溯特定序號或機種的完整歷史。',
-      who: '需要查個案的所有人員；維修主管核對紀錄、品檢追溯。',
+      what: '原始維修記錄逐筆瀏覽。包含：月份、日期、機種、序號、故障原因、故障內容、更換零件。上方搜尋框可輸入序號或機種名稱快速過濾（支援部分符合）。最多顯示 500 筆，超出時請用篩選器縮小範圍。',
+      meaning: '這是所有分析的最底層資料來源。當分析頁面出現某個可疑指標時，用此頁查證原始記錄。序號搜尋可追溯特定機台的完整維修歷史（即使跨月份）。',
+      who: '客服主管：輸入客戶回報的機台序號，立刻查到完整維修記錄用於客訴回應。維修主管：核對技師是否確實記錄了故障原因與更換零件。品檢主管：追溯特定批次問題，確認哪些序號受影響。研發：查看原始故障描述，排查是否有特定錯誤碼或症狀。',
+      tips: [
+        '在搜尋框輸入序號（或序號片段）可立刻篩選出該機台所有維修記錄',
+        '輸入機種名稱可只看某機種的所有記錄，方便技師核對自己的工作',
+        '報廢記錄會以紅色顯示，方便快速識別',
+        '若資料筆數超過 500，先用左側「月份」或「大類」篩選，再在此頁查看',
+        '若某筆記錄的零件欄位是空白，代表當次維修沒有換料，建議確認是否需要補登',
+      ],
     },
   };
 
@@ -912,6 +1335,28 @@ window.App = (function () {
         <div class="ph-item"><span class="ph-k">📊 能看出什麼</span><span class="ph-v">${help.what}</span></div>
         <div class="ph-item"><span class="ph-k">💡 代表什麼</span><span class="ph-v">${help.meaning}</span></div>
         <div class="ph-item"><span class="ph-k">👥 哪些單位要注意</span><span class="ph-v">${help.who}</span></div>
+        ${help.kpis && help.kpis.length ? `
+        <div class="ph-item ph-item-full">
+          <span class="ph-k">📐 指標說明</span>
+          <div class="ph-kpi-table">
+            ${help.kpis.map(k => `
+              <div class="ph-kpi-row">
+                <div class="ph-kpi-name">${k.name}</div>
+                <div class="ph-kpi-body">
+                  <div class="ph-kpi-formula"><span class="ph-kpi-label">計算</span>${k.formula}</div>
+                  <div class="ph-kpi-benchmark"><span class="ph-kpi-label">參考值</span>${k.benchmark}</div>
+                  ${k.tip ? `<div class="ph-kpi-tip"><span class="ph-kpi-label">提示</span>${k.tip}</div>` : ''}
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>` : ''}
+        ${help.tips && help.tips.length ? `
+        <div class="ph-item ph-item-full">
+          <span class="ph-k">✅ 操作提示</span>
+          <ul class="ph-tips">
+            ${help.tips.map(t => `<li>${t}</li>`).join('')}
+          </ul>
+        </div>` : ''}
       </div>`;
   }
 
@@ -921,7 +1366,9 @@ window.App = (function () {
       if (state.charts[k]) { state.charts[k].destroy(); state.charts[k] = null; }
     }
     injectHelp(state.currentPage);
+    renderGlobalRoleBanner();
     switch (state.currentPage) {
+      case 'summary':  renderSummary(); break;
       case 'overview': renderOverview(); break;
       case 'alerts':   renderAlerts(); break;
       case 'parts':    renderParts(); break;
@@ -931,6 +1378,7 @@ window.App = (function () {
       case 'scrap':    renderScrap(); break;
       case 'detail':   renderDetail(); break;
       case 'quality':  renderQuality(); break;
+      case 'batch':    renderBatch(); break;
       case 'risk':     renderRisk(); break;
       case 'capa':     renderCapa(); break;
       case 'cost':     renderCost(); break;
@@ -1290,12 +1738,173 @@ window.App = (function () {
   }
 
   // ─────────────── Parts (Pareto) ───────────────
+  // ── Component-category root cause (依元件料號大類分群) ──
+  function renderComponentCategory(f) {
+    const cc = RepairAnalyzer.componentCategoryPareto(state.db, f);
+    const listEl = $('componentCatList');
+    const canvas = $('componentCatChart');
+    if (!cc.list.length) {
+      if (listEl) listEl.innerHTML = `<div class="empty sm"><div class="empty-t">此範圍無可歸類的故障零件（需 故障零件總數 含品號）</div></div>`;
+      return;
+    }
+    const top = cc.list.slice(0, 12);
+    if (canvas) {
+      state.charts.componentCat = new Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: top.map(c => c.name),
+          datasets: [{
+            label: '故障零件數',
+            data: top.map(c => c.count),
+            backgroundColor: top.map((_, i) => PALETTE[i % PALETTE.length] + 'cc'),
+            borderColor: top.map((_, i) => PALETTE[i % PALETTE.length]),
+            borderWidth: 0, borderRadius: 3,
+          }],
+        },
+        options: {
+          indexAxis: 'y',
+          maintainAspectRatio: false, responsive: true,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: c => `${c.parsed.x} 件 · ${(top[c.dataIndex].pct * 100).toFixed(1)}%` } },
+          },
+          scales: {
+            x: { ticks: { color: COLORS.text3 }, grid: { color: COLORS.border } },
+            y: { ticks: { color: COLORS.text2, font: { size: 11 } }, grid: { display: false } },
+          },
+        },
+      });
+    }
+    // breakdown list with top parts per category
+    listEl.innerHTML = cc.list.slice(0, 8).map((c, i) => `
+      <div class="comp-cat-item">
+        <div class="comp-cat-head">
+          <span class="comp-cat-dot" style="background:${PALETTE[i % PALETTE.length]}"></span>
+          <span class="comp-cat-name">${escapeHtml(c.name)}</span>
+          <span class="comp-cat-val">${c.count} 件 · ${(c.pct * 100).toFixed(1)}%</span>
+        </div>
+        <div class="comp-cat-parts">${c.topParts.map(p => `${escapeHtml(p.name)}<span class="ccp-n">×${p.count}</span>`).join(' · ')}</div>
+      </div>
+    `).join('') + (cc.uncategorized ? `<div class="comp-cat-foot">未能歸類 ${cc.uncategorized} 件（品號不在料號表）</div>` : '');
+  }
+
+  // ─────────────── Manufacture / origin batch analysis ───────────────
+  function renderBatch() {
+    const f = currentFilter();
+    const records = RepairAnalyzer.getRecords(state.db, f);
+    const rows = RepairAnalyzer.batchAnalysis(records);
+    const cond = RepairAnalyzer.conditionSummary(records);
+    const flagged = rows.filter(r => r.flags.length);
+    const total = records.length;
+    const withOrder = rows.reduce((s, r) => s + r.withOrder, 0);
+    const dated = rows.reduce((s, r) => s + r.dated, 0);
+    const earlyNew = rows.reduce((s, r) => s + r.earlyNew, 0);
+    const earlyRefurb = rows.reduce((s, r) => s + r.earlyRefurb, 0);
+    $('batchMeta').textContent = `${rows.length} 機種 · 製令 ${withOrder}/${total} · 製造日期 ${dated}/${total}`;
+
+    const badge = $('batchBadge');
+    if (badge) { if (flagged.length) { badge.style.display = ''; badge.textContent = flagged.length; } else badge.style.display = 'none'; }
+
+    $('batchKpi').innerHTML = `
+      <div class="kpi k-red"><div class="kpi-h"><div class="kpi-l">全新早夭件數</div><div class="kpi-ico">⏱</div></div>
+        <div class="kpi-v">${earlyNew}</div><div class="kpi-d"><span class="muted">全新品 · 出廠月=檢修月（原廠責任）</span></div></div>
+      <div class="kpi k-warn"><div class="kpi-h"><div class="kpi-l">整新後即壞</div><div class="kpi-ico">♻</div></div>
+        <div class="kpi-v">${earlyRefurb}</div><div class="kpi-d"><span class="muted">整新品 · 整新月=檢修月（整新責任）</span></div></div>
+      <div class="kpi k-info"><div class="kpi-h"><div class="kpi-l">批次風險機種</div><div class="kpi-ico">⊞</div></div>
+        <div class="kpi-v">${flagged.length}</div><div class="kpi-d"><span class="muted">出廠/製造批次集中或早夭</span></div></div>
+      <div class="kpi k-blue"><div class="kpi-h"><div class="kpi-l">製令涵蓋率</div><div class="kpi-ico">%</div></div>
+        <div class="kpi-v">${total ? Math.round(withOrder / total * 100) : 0}%</div><div class="kpi-d"><span class="muted">${withOrder}/${total} 筆有製令</span></div></div>
+    `;
+
+    // ── Condition doughnut (全新/整新/未知) ──
+    const cc = $('conditionChart');
+    if (cc) {
+      state.charts.condition = new Chart(cc.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: ['全新', '整新', '未知（缺製令或製造日期）'],
+          datasets: [{ data: [cond.brandNew, cond.refurb, cond.unknown], backgroundColor: [COLORS.accent, COLORS.warn, COLORS.surface2], borderColor: COLORS.bg, borderWidth: 2 }],
+        },
+        options: { maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: COLORS.text2, font: { size: 11 } } } } },
+      });
+    }
+    $('conditionNote').innerHTML = cond.known
+      ? `<div class="bn-line">可判定 ${cond.known} 筆：全新 ${cond.brandNew}（報廢率 ${(cond.brandNewScrapPct * 100).toFixed(0)}%）· 整新 ${cond.refurb}（報廢率 ${(cond.refurbScrapPct * 100).toFixed(0)}%）。<b>全新故障→原廠/來料責任；整新故障→整新製程責任。</b></div>`
+      : `<div class="bn-line muted">目前 ${total} 筆中無單筆同時具備「製令 + 製造日期」，暫無法判定全新/整新。待工廠補齊製令後即自動分類。</div>`;
+
+    // ── Origin-batch Pareto (元件瑕疵落點) ──
+    const ob = RepairAnalyzer.originBatchPareto(records);
+    const oc = $('originBatchChart');
+    if (oc && ob.list.length) {
+      const top = ob.list.slice(0, 12).slice().sort((a, b) => a.month < b.month ? -1 : 1);
+      state.charts.originBatch = new Chart(oc.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: top.map(b => b.month),
+          datasets: [{ label: '故障件數', data: top.map(b => b.count), backgroundColor: top.map(b => b.pct >= 0.2 ? COLORS.critical + 'cc' : COLORS.accent + 'cc'), borderColor: top.map(b => b.pct >= 0.2 ? COLORS.critical : COLORS.accent), borderWidth: 0, borderRadius: 3 }],
+        },
+        options: {
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.parsed.y} 件 · ${(top[c.dataIndex].pct * 100).toFixed(1)}% · 機種 ${top[c.dataIndex].models.join(',')}` } } },
+          scales: { x: { ticks: { color: COLORS.text3, font: { size: 10 }, maxRotation: 50, minRotation: 40 }, grid: { display: false } }, y: { ticks: { color: COLORS.text3 }, grid: { color: COLORS.border } } },
+        },
+      });
+      const t = ob.list[0];
+      $('originNote').innerHTML = `<div class="bn-line">共 ${ob.total} 筆有製令。<b>故障最集中的原始出廠批次：${t.month}（${t.count} 件 · ${(t.pct * 100).toFixed(0)}%）</b> → 該批的元件/製程瑕疵嫌疑最大，責任落點：${t.month} 當期的生產與來料。</div>`;
+    } else {
+      if (oc) oc.parentElement.style.display = 'none';
+      $('originNote').innerHTML = `<div class="bn-line muted">本範圍無製令資料，無法做出廠批次分析。</div>`;
+    }
+
+    // ── Per-model risk table ──
+    const body = $('batchBody');
+    const shown = rows.filter(r => r.withOrder > 0 || r.dated > 0);
+    const fmtBatch = (top, pct, batches) => {
+      if (!top) return '<span class="muted">—</span>';
+      const cls = pct >= 0.4 ? 'bad' : pct >= 0.25 ? 'warn' : '';
+      const bar = batches.slice(0, 5).map(b => `<span class="bb-seg" title="${b.month}: ${b.count}">${b.month.slice(2)}·${b.count}</span>`).join('');
+      return `<span class="pct ${cls}">${top.month} · ${(pct * 100).toFixed(0)}%</span><div class="batch-bar">${bar}</div>`;
+    };
+    const flagCls = { '出廠批次集中': 'bc', '製造批次集中': 'rb', '全新早夭': 'ef', '整新後即壞': 'rf' };
+    body.innerHTML = shown.map((r, i) => {
+      const flagTags = r.flags.map(fl => `<span class="batch-flag ${flagCls[fl] || 'bc'}">${fl}</span>`).join(' ') || '<span class="muted">—</span>';
+      const condBar = (r.brandNew || r.refurb)
+        ? `<span class="cond-new">全新${r.brandNew}</span> / <span class="cond-ref">整新${r.refurb}</span>${r.unknownCond ? `<span class="muted"> /未知${r.unknownCond}</span>` : ''}`
+        : `<span class="muted">未知 ${r.total}</span>`;
+      const earlyCell = `${r.earlyNew ? `<span class="pct bad">全新${r.earlyNew}</span>` : ''}${r.earlyRefurb ? ` <span class="pct warn">整新${r.earlyRefurb}</span>` : ''}${r.earlyMfgOnly ? ` <span class="muted" title="缺製令無法判定">?${r.earlyMfgOnly}</span>` : ''}` || '<span class="muted">—</span>';
+      return `
+        <tr${r.flags.length ? ' class="row-flag"' : ''}>
+          <td class="num muted">${i + 1}</td>
+          <td><span class="strong">${escapeHtml(r.model)}</span><div class="muted" style="font-size:10.5px">${escapeHtml(r.category)}</div></td>
+          <td class="num" style="text-align:right;font-weight:700">${r.total}</td>
+          <td style="font-size:11px">${condBar}</td>
+          <td>${fmtBatch(r.topOrigin, r.topOriginPct, r.originBatches)}</td>
+          <td>${fmtBatch(r.topMfg, r.topMfgPct, r.mfgBatches)}</td>
+          <td style="text-align:right;font-size:11px">${earlyCell}</td>
+          <td>${flagTags}</td>
+        </tr>`;
+    }).join('');
+
+    const noData = rows.filter(r => r.withOrder === 0 && r.dated === 0).map(r => r.model);
+    $('batchNote').innerHTML = `
+      <div class="bn-line"><span class="batch-flag bc">出廠批次集中</span> 單一製令出廠年月佔該機種「有製令」筆數 ≥ 40% → 該<b>原始批次</b>元件/製程瑕疵，責任：當期生產 + 來料/IQC。</div>
+      <div class="bn-line"><span class="batch-flag rb">製造批次集中</span> 單一製造日期年月佔「有製造日期」≥ 40% → 該批集中故障；<b>需製令才能區分是出廠批還是整新梯次</b>。</div>
+      <div class="bn-line"><span class="batch-flag ef">全新早夭</span> 全新品（製造=製令年月）且出廠月=檢修月 → 新品出廠即壞，責任：研發/製造（OQC 出廠檢驗）。</div>
+      <div class="bn-line"><span class="batch-flag rf">整新後即壞</span> 整新品（製造≠製令年月）且整新月=檢修月 → 整新後立即故障，責任：整新製程/檢驗。</div>
+      <div class="bn-line muted">「早夭」欄的 <b>?N</b> 代表有製造日期但缺製令，製造當月即故障 N 件 — 補上製令後即可判定屬全新早夭或整新後即壞。</div>
+      ${noData.length ? `<div class="bn-line muted">無製令也無製造日期（無法批次分析）：${noData.join('、')}　— 請提醒登錄單位補齊。</div>` : ''}
+    `;
+  }
+
   function renderParts() {
     const f = currentFilter();
     const records = RepairAnalyzer.getRecords(state.db, f);
     const pareto = RepairAnalyzer.partPareto(records);
     const total = pareto.reduce((s, p) => s + p.count, 0);
     $('partsMeta').textContent = `${pareto.length} 種零件 · 共 ${total.toLocaleString()} 件`;
+
+    // ── Component-category root cause (故障零件大類) ──
+    renderComponentCategory(f);
 
     // Chart: top 20
     const top = pareto.slice(0, 20);
@@ -1359,6 +1968,7 @@ window.App = (function () {
             <div class="pnum">${(p.pct * 100).toFixed(1)}% / ${(p.cumPct * 100).toFixed(0)}%</div>
           </div>
         </td>
+        <td><button class="btn sm" onclick="App.openPartFaultDrawer('${escapeAttr(p.name)}')">詳情</button></td>
       </tr>
     `).join('');
   }
@@ -1592,6 +2202,63 @@ window.App = (function () {
         },
       },
     });
+
+    // Fault taxonomy MoM comparison
+    const taxonomy = RepairAnalyzer.FAULT_TAXONOMY;
+    const taxKeys = Object.keys(taxonomy);
+
+    const curCounts = {};
+    for (const r of records) {
+      const text = `${r.content || ''} ${r.reason || ''}`;
+      const cat = RepairAnalyzer.classifyFault(text);
+      curCounts[cat] = (curCounts[cat] || 0) + 1;
+    }
+
+    const sortedSel = state.selectedMonths.slice().sort();
+    const curMk = sortedSel[sortedSel.length - 1];
+    const prevMk = sortedSel.length > 1 ? sortedSel[sortedSel.length - 2] : null;
+
+    let prevCounts = {};
+    if (prevMk) {
+      const pf = currentFilter();
+      const prevRecs = RepairAnalyzer.getRecords(state.db, { ...pf, months: [prevMk] });
+      for (const r of prevRecs) {
+        const text = `${r.content || ''} ${r.reason || ''}`;
+        const cat = RepairAnalyzer.classifyFault(text);
+        prevCounts[cat] = (prevCounts[cat] || 0) + 1;
+      }
+    }
+
+    const taxAllKeys = [...taxKeys, '其他/未分類'].filter(k => curCounts[k] || prevCounts[k]);
+    const reasonTaxSection = $('reasonTaxSection');
+    if (reasonTaxSection && taxAllKeys.length) {
+      const ctx = $('reasonTaxChart');
+      if (ctx) {
+        const datasets = [
+          { label: fmt.monthLabel(curMk) || '本期', data: taxAllKeys.map(k => curCounts[k] || 0),
+            backgroundColor: taxAllKeys.map(k => (taxonomy[k]?.color || '#94a2b6') + 'cc'), borderRadius:4 },
+        ];
+        if (prevMk) {
+          datasets.push({
+            label: fmt.monthLabel(prevMk) + '（前期）',
+            data: taxAllKeys.map(k => prevCounts[k] || 0),
+            backgroundColor: taxAllKeys.map(k => (taxonomy[k]?.color || '#94a2b6') + '55'), borderRadius:4,
+          });
+        }
+        state.charts.reasonTax = new Chart(ctx, {
+          type:'bar',
+          data: { labels: taxAllKeys.map(k => k.replace('/','/ ')), datasets },
+          options: {
+            maintainAspectRatio:false, responsive:true,
+            plugins:{ legend:{ position:'top', labels:{ color:COLORS.text2, font:{size:11} } } },
+            scales:{
+              x:{ ticks:{ color:COLORS.text3 }, grid:{ display:false } },
+              y:{ beginAtZero:true, ticks:{ color:COLORS.text3 }, grid:{ color:COLORS.border } },
+            },
+          },
+        });
+      }
+    }
   }
 
   // ─────────────── Scrap + Repeated ───────────────
@@ -1680,10 +2347,22 @@ window.App = (function () {
   }
 
   // ─────────────── Detail table ───────────────
+  function searchDetail(q) {
+    state.detailSearch = (q || '').trim();
+    renderDetail();
+  }
+
   function renderDetail() {
     const f = currentFilter();
-    const records = RepairAnalyzer.getRecords(state.db, f);
-    $('detailMeta').textContent = `${records.length.toLocaleString()} 筆`;
+    const allRecords = RepairAnalyzer.getRecords(state.db, f);
+    const sq = state.detailSearch || '';
+    const records = sq
+      ? allRecords.filter(r => (r.serial || '').toLowerCase().includes(sq.toLowerCase()) ||
+          (r.model || '').toLowerCase().includes(sq.toLowerCase()))
+      : allRecords;
+    $('detailMeta').textContent = sq
+      ? `搜尋「${sq}」：${records.length} 筆 / 共 ${allRecords.length.toLocaleString()} 筆`
+      : `${allRecords.length.toLocaleString()} 筆`;
     const rows = records.slice(0, 500);
     $('detailBody').innerHTML = rows.map(r => `
       <tr>
@@ -2194,6 +2873,49 @@ window.App = (function () {
       bodyHtml: partDrillContent(partNorm),
     });
   }
+  function openPartFaultDrawer(partNorm) {
+    const f = currentFilter();
+    const allRecords = RepairAnalyzer.getRecords(state.db, f);
+    const partRecords = allRecords.filter(r =>
+      r.part1Norm === partNorm || r.part2Norm === partNorm || r.part3Norm === partNorm
+    );
+    const byTaxonomy = {};
+    for (const r of partRecords) {
+      const text = `${r.content || ''} ${r.reason || ''}`;
+      const cat = RepairAnalyzer.classifyFault(text);
+      if (!byTaxonomy[cat]) byTaxonomy[cat] = [];
+      byTaxonomy[cat].push(r);
+    }
+    const sortedCats = Object.entries(byTaxonomy).sort((a,b) => b[1].length - a[1].length);
+    openDrawer({
+      severity: 'info', icon: '▤',
+      overline: '零件故障記錄詳情',
+      title: partNorm,
+      bodyHtml: `
+        <div class="drawer-banner info">
+          共 <strong>${partRecords.length}</strong> 筆記錄使用此零件 · 依故障部位分類
+        </div>
+        ${sortedCats.map(([cat, recs]) => `
+          <div class="drawer-sec">
+            <div class="drawer-sec-t"><span class="strong">${cat}</span> <span class="count-tag">${recs.length} 筆</span></div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              ${recs.slice(0, 15).map(r => `
+                <div style="padding:8px 12px;background:var(--surface2);border-radius:6px;font-size:12px">
+                  <div style="display:flex;gap:10px;justify-content:space-between;margin-bottom:3px">
+                    <span style="font-family:var(--mono);color:var(--text3)">${r.date || '—'} · ${r.model}</span>
+                    ${r.serial ? `<span style="font-family:var(--mono);color:var(--text3)">#${escapeHtml(r.serial)}</span>` : ''}
+                  </div>
+                  <div style="color:${r.isScrap ? 'var(--critical)' : 'var(--text)'}">${escapeHtml(r.content || r.reason || '—')}</div>
+                </div>
+              `).join('')}
+              ${recs.length > 15 ? `<div style="text-align:center;color:var(--text3);font-size:11px;padding:4px">…還有 ${recs.length - 15} 筆</div>` : ''}
+            </div>
+          </div>
+        `).join('')}
+        ${partRecords.length === 0 ? '<div class="empty"><div class="empty-t">無記錄</div></div>' : ''}
+      `
+    });
+  }
   function openModelDrawer(model, focusMonth) {
     const cat = RepairParser.getCategory(model);
     const subtitle = focusMonth ? ` · ${fmt.monthLabel(focusMonth)}` : '';
@@ -2319,27 +3041,41 @@ window.App = (function () {
 
     // FMEA
     const fmea = RepairAnalyzer.fmeaAnalysis(records, state.db);
+    const fmeaOv = loadFmeaOverrides();
     $('fmeaTable').innerHTML = fmea.length === 0
       ? '<div class="empty"><div class="empty-t">無資料</div></div>'
       : `<div class="tbl-wrap"><table class="tbl fmea-tbl">
           <thead><tr>
             <th>故障部位</th><th class="right">件數</th>
-            <th class="right" title="嚴重度">S</th><th class="right" title="發生度">O</th><th class="right" title="偵測度">D</th>
+            <th class="right" title="嚴重度 1-10（可點擊編輯）">S ✎</th>
+            <th class="right" title="發生度 1-10（可點擊編輯）">O ✎</th>
+            <th class="right" title="偵測度 1-10（可點擊編輯）">D ✎</th>
             <th class="right">RPN</th><th>風險等級</th>
           </tr></thead>
           <tbody>
-          ${fmea.map(m => `
-            <tr>
-              <td><span class="fmea-dot" style="background:${m.color}"></span>${m.part}</td>
+          ${fmea.map(m => {
+            const ov = fmeaOv[m.part] || {};
+            const s = ov.s ?? m.severity;
+            const o = ov.o ?? m.occurrence;
+            const d = ov.d ?? m.detection;
+            const rpn = s * o * d;
+            const hasOverride = ov.s != null || ov.o != null || ov.d != null;
+            const level = rpn >= 200 ? 'critical' : rpn >= 100 ? 'high' : rpn >= 50 ? 'medium' : 'low';
+            return `
+            <tr class="fmea-row" data-part="${escapeAttr(m.part)}">
+              <td><span class="fmea-dot" style="background:${m.color}"></span>${m.part}
+                <span class="fmea-manual-tag" style="display:${hasOverride?'inline':'none'}">人工調整</span>
+              </td>
               <td class="right">${m.count}${m.scrap > 0 ? ` <span class="muted">(${m.scrap}廢)</span>` : ''}</td>
-              <td class="right">${m.severity}</td>
-              <td class="right">${m.occurrence}</td>
-              <td class="right">${m.detection}</td>
-              <td class="right"><strong>${m.rpn}</strong></td>
-              <td><span class="risk-badge ${m.level}">${({critical:'極高',high:'高',medium:'中',low:'低'})[m.level]}</span></td>
-            </tr>`).join('')}
+              <td class="right fmea-edit-cell"><input type="number" class="fmea-inp fi-s" min="1" max="10" value="${s}" title="嚴重度（1-10）" onchange="App.saveFmeaOverride('${escapeAttr(m.part)}','s',this.value)"></td>
+              <td class="right fmea-edit-cell"><input type="number" class="fmea-inp fi-o" min="1" max="10" value="${o}" title="發生度（1-10）" onchange="App.saveFmeaOverride('${escapeAttr(m.part)}','o',this.value)"></td>
+              <td class="right fmea-edit-cell"><input type="number" class="fmea-inp fi-d" min="1" max="10" value="${d}" title="偵測度（1-10）" onchange="App.saveFmeaOverride('${escapeAttr(m.part)}','d',this.value)"></td>
+              <td class="right fmea-rpn-cell"><strong>${rpn}</strong></td>
+              <td><span class="risk-badge ${level}">${({critical:'極高',high:'高',medium:'中',low:'低'})[level]}</span></td>
+            </tr>`;
+          }).join('')}
           </tbody></table></div>
-          <div class="fmea-legend">S 嚴重度 × O 發生度 × D 偵測度 = RPN 風險優先數 · RPN≥200 極高 · ≥100 高 · ≥50 中</div>`;
+          <div class="fmea-legend">S 嚴重度 × O 發生度 × D 偵測度 = RPN 風險優先數 · RPN≥200 極高 · ≥100 高 · ≥50 中 · <button class="btn sm" onclick="App.resetFmeaOverrides()" style="margin-left:8px">重置手動調整</button></div>`;
 
     // Root cause tree
     const tree = RepairAnalyzer.rootCauseTree(records);
@@ -2371,16 +3107,32 @@ window.App = (function () {
   function renderCapa() {
     const list = loadCapa();
     const open = list.filter(c => c.status !== 'closed').length;
-    $('capaMeta').textContent = `${list.length} 項 · ${open} 進行中`;
+    const today = new Date().toISOString().slice(0, 10);
+    const overdue = list.filter(c => c.due && c.status !== 'closed' && c.due < today).length;
+    const closed = list.filter(c => c.status === 'closed').length;
+    const overdueRate = open > 0 ? Math.round(overdue / list.filter(c => c.status !== 'closed').length * 100) : 0;
+    $('capaMeta').textContent = `${list.length} 項 · ${open} 進行中 · ${overdue} 逾期`;
     const badge = $('capaBadge');
     if (badge) { if (open > 0) { badge.textContent = open; badge.style.display = ''; } else badge.style.display = 'none'; }
+
+    const capaKpiRow = $('capaKpiRow');
+    if (capaKpiRow && list.length > 0) {
+      capaKpiRow.innerHTML = `
+        <div class="capa-kpi-grid">
+          <div class="capa-kpi-item"><div class="capa-kpi-v">${list.length}</div><div class="capa-kpi-l">總計</div></div>
+          <div class="capa-kpi-item" style="--cc:var(--warn)"><div class="capa-kpi-v" style="color:var(--warn)">${open}</div><div class="capa-kpi-l">進行中</div></div>
+          <div class="capa-kpi-item" style="--cc:var(--critical)"><div class="capa-kpi-v" style="color:${overdue>0?'var(--critical)':'var(--ok)'}">${overdue}</div><div class="capa-kpi-l">逾期 (${overdueRate}%)</div></div>
+          <div class="capa-kpi-item" style="--cc:var(--ok)"><div class="capa-kpi-v" style="color:var(--ok)">${closed}</div><div class="capa-kpi-l">已結案</div></div>
+        </div>`;
+    } else if (capaKpiRow) {
+      capaKpiRow.innerHTML = '';
+    }
 
     if (!list.length) {
       $('capaList').innerHTML = `<div class="empty"><div class="empty-ico">✓</div><div class="empty-t">尚無 CAPA 項目</div><div class="empty-d">點右上角「+ 新增 CAPA」建立矯正預防措施</div></div>`;
       return;
     }
     const statusMap = { open: { t: '待處理', c: 'var(--critical)' }, progress: { t: '進行中', c: 'var(--warn)' }, verify: { t: '驗證中', c: 'var(--info)' }, closed: { t: '已結案', c: 'var(--ok)' } };
-    const today = new Date().toISOString().slice(0, 10);
     $('capaList').innerHTML = `<div class="capa-grid">${list.map((c, i) => {
       const st = statusMap[c.status] || statusMap.open;
       const overdue = c.due && c.status !== 'closed' && c.due < today;
@@ -2433,6 +3185,39 @@ window.App = (function () {
 
   // ═══════════════ Cost analysis + config ═══════════════
   const COST_KEY = 'titan_cost_cfg_v1';
+  const FMEA_OVERRIDES_KEY = 'titan_fmea_overrides_v1';
+  function loadFmeaOverrides() {
+    try { return JSON.parse(localStorage.getItem(FMEA_OVERRIDES_KEY) || '{}'); } catch { return {}; }
+  }
+  function saveFmeaOverride(part, field, value) {
+    const ov = loadFmeaOverrides();
+    if (!ov[part]) ov[part] = {};
+    const n = Math.min(10, Math.max(1, parseInt(value, 10)));
+    if (isNaN(n)) return;
+    ov[part][field] = n;
+    localStorage.setItem(FMEA_OVERRIDES_KEY, JSON.stringify(ov));
+    // Recalculate RPN in the table row
+    const row = document.querySelector(`.fmea-row[data-part="${CSS.escape(part)}"]`);
+    if (row) {
+      const sVal = parseInt(row.querySelector('.fi-s')?.value || 0);
+      const oVal = parseInt(row.querySelector('.fi-o')?.value || 0);
+      const dVal = parseInt(row.querySelector('.fi-d')?.value || 0);
+      const rpn = sVal * oVal * dVal;
+      const rpnCell = row.querySelector('.fmea-rpn-cell');
+      if (rpnCell) rpnCell.innerHTML = `<strong>${rpn}</strong>`;
+      const level = rpn >= 200 ? 'critical' : rpn >= 100 ? 'high' : rpn >= 50 ? 'medium' : 'low';
+      const badge = row.querySelector('.risk-badge');
+      if (badge) { badge.className = `risk-badge ${level}`; badge.textContent = ({critical:'極高',high:'高',medium:'中',low:'低'})[level]; }
+      // Mark as manually adjusted
+      const manualTag = row.querySelector('.fmea-manual-tag');
+      if (manualTag) manualTag.style.display = 'inline';
+    }
+  }
+  function resetFmeaOverrides() {
+    if (!confirm('確定重置所有 FMEA 手動調整？')) return;
+    localStorage.removeItem(FMEA_OVERRIDES_KEY);
+    if (state.currentPage === 'risk') renderRisk();
+  }
   function loadCostCfg() {
     try { return JSON.parse(localStorage.getItem(COST_KEY) || 'null') || { categories: {}, models: {}, laborPerRepair: 0, scrapDefault: 0 }; }
     catch { return { categories: {}, models: {}, laborPerRepair: 0, scrapDefault: 0 }; }
@@ -2452,6 +3237,16 @@ window.App = (function () {
     }
 
     const fmtMoney = (n) => 'NT$ ' + Math.round(n).toLocaleString('en');
+
+    // Monthly COPQ trend (all months)
+    const allMonthKeys = Object.keys(state.db.months).sort();
+    const costByMonth = allMonthKeys.map(mk => {
+      const recs = RepairAnalyzer.getRecords(state.db, { months: [mk] });
+      const c = RepairAnalyzer.costAnalysis(recs, cfg);
+      return { month: mk, scrap: c.scrapCost, labor: c.laborCost, total: c.totalCost };
+    });
+    const hasTrend = costByMonth.length >= 2;
+
     $('costContent').innerHTML = `
       <div class="kpi-grid">
         <div class="kpi k-red">
@@ -2465,13 +3260,24 @@ window.App = (function () {
           <div class="kpi-d"><span class="muted">${fmt.int(records.length)} 件 × 單件工時</span></div>
         </div>
         <div class="kpi k-blue">
-          <div class="kpi-h"><div class="kpi-l">總損失</div><div class="kpi-ico">∑</div></div>
+          <div class="kpi-h"><div class="kpi-l">總損失 (COPQ)</div><div class="kpi-ico">∑</div></div>
           <div class="kpi-v" style="font-size:34px">${fmtMoney(cost.totalCost)}</div>
           <div class="kpi-d"><span class="muted">報廢 + 工時</span></div>
         </div>
       </div>
+      ${hasTrend ? `
+      <div class="card sec">
+        <div class="card-h">
+          <div class="card-t">COPQ 月度趨勢</div>
+          <button class="btn sm" onclick="App.exportCostCsv()" style="margin-left:auto">⤓ 匯出 CSV</button>
+        </div>
+        <div class="chart-wrap"><canvas id="costTrendChart"></canvas></div>
+      </div>` : ''}
       <div class="sec">
-        <div class="sec-h"><span class="sec-t"><span class="strong">各類別成本分布</span></span></div>
+        <div class="sec-h">
+          <span class="sec-t"><span class="strong">各類別成本分布</span></span>
+          ${!hasTrend ? `<button class="btn sm" onclick="App.exportCostCsv()">⤓ 匯出 CSV</button>` : ''}
+        </div>
         <div class="tbl-wrap"><table class="tbl">
           <thead><tr><th>類別</th><th class="right">件數</th><th class="right">報廢數</th><th class="right">報廢成本</th><th class="right">工時成本</th><th class="right">合計</th></tr></thead>
           <tbody>${cost.byCategory.map(c => `
@@ -2480,6 +3286,34 @@ window.App = (function () {
             <td class="right"><strong>${fmtMoney(c.total)}</strong></td></tr>`).join('')}
           </tbody></table></div>
       </div>`;
+
+    // Initialize cost trend chart after DOM update
+    if (hasTrend) {
+      const ctx = $('costTrendChart');
+      if (ctx) {
+        const labels = costByMonth.map(t => fmt.monthLabel(t.month));
+        state.charts.costTrend = new Chart(ctx, {
+          data: {
+            labels,
+            datasets: [
+              { type:'bar', label:'報廢成本', data: costByMonth.map(t => Math.round(t.scrap)), backgroundColor: COLORS.critical+'cc', borderRadius:4 },
+              { type:'bar', label:'工時成本', data: costByMonth.map(t => Math.round(t.labor)), backgroundColor: COLORS.warn+'cc', borderRadius:4 },
+              { type:'line', label:'總損失', data: costByMonth.map(t => Math.round(t.total)),
+                borderColor: COLORS.ok, backgroundColor:'transparent', tension:.3, pointRadius:4,
+                pointBackgroundColor: COLORS.ok, borderWidth:2, yAxisID:'y' },
+            ],
+          },
+          options: {
+            maintainAspectRatio:false, responsive:true,
+            plugins:{ legend:{ position:'top', labels:{ color:COLORS.text2 } } },
+            scales:{
+              x:{ stacked:true, ticks:{ color:COLORS.text3 }, grid:{ display:false } },
+              y:{ stacked:true, beginAtZero:true, ticks:{ color:COLORS.text3, callback:v=>'NT$'+Math.round(v/1000)+'K' }, grid:{ color:COLORS.border } },
+            },
+          },
+        });
+      }
+    }
   }
 
   function openCostConfig() {
@@ -2513,6 +3347,33 @@ window.App = (function () {
     saveCostCfg(cfg);
     closeDrawer();
     if (state.currentPage === 'cost') renderCost();
+  }
+
+  function exportCostCsv() {
+    const f = currentFilter();
+    const records = RepairAnalyzer.getRecords(state.db, f);
+    const cfg = loadCostCfg();
+    const allMonthKeys = Object.keys(state.db.months).sort();
+    const rows = [['月份','維修件數','報廢件數','報廢成本(NT$)','工時成本(NT$)','總損失(NT$)']];
+    for (const mk of allMonthKeys) {
+      const recs = RepairAnalyzer.getRecords(state.db, { months: [mk] });
+      const c = RepairAnalyzer.costAnalysis(recs, cfg);
+      rows.push([fmt.monthLabel(mk), recs.length, c.scrapCount, Math.round(c.scrapCost), Math.round(c.laborCost), Math.round(c.totalCost)]);
+    }
+    rows.push([]);
+    rows.push(['類別','件數','報廢數','報廢成本','工時成本','合計']);
+    const cost = RepairAnalyzer.costAnalysis(records, cfg);
+    for (const c of cost.byCategory) {
+      rows.push([c.cat, c.count, c.scrap, Math.round(c.scrapCost), Math.round(c.laborCost), Math.round(c.total)]);
+    }
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `COPQ成本摘要_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   // ─────────────── Init ───────────────
@@ -2550,6 +3411,12 @@ window.App = (function () {
     // Drawer
     openKpiDrawer, openAnomalyDrawer, openPartDrawer, openModelDrawer, openSerialDrawer,
     closeDrawer,
+    // New functions
+    searchDetail,
+    openPartFaultDrawer,
+    saveFmeaOverride,
+    resetFmeaOverrides,
+    exportCostCsv,
   };
 })();
 

@@ -171,6 +171,10 @@
     <nav class="sidebar">
       <div class="snav">
         <div class="snav-h">分析</div>
+        <button class="snav-item" data-page="summary" onclick="App.switchPage('summary')">
+          <div class="snav-l"><span class="snav-ico">★</span> 主管摘要</div>
+          <span class="snav-badge" id="summaryBadge" style="display:none">0</span>
+        </button>
         <button class="snav-item active" data-page="overview" onclick="App.switchPage('overview')">
           <div class="snav-l"><span class="snav-ico">◈</span> 總覽</div>
         </button>
@@ -194,6 +198,10 @@
         <div class="snav-h">品質工程</div>
         <button class="snav-item" data-page="quality" onclick="App.switchPage('quality')">
           <div class="snav-l"><span class="snav-ico">◈</span> 品質指標 / SPC</div>
+        </button>
+        <button class="snav-item" data-page="batch" onclick="App.switchPage('batch')">
+          <div class="snav-l"><span class="snav-ico">⊞</span> 製造批次分析</div>
+          <span class="snav-badge" id="batchBadge" style="display:none">0</span>
         </button>
         <button class="snav-item" data-page="risk" onclick="App.switchPage('risk')">
           <div class="snav-l"><span class="snav-ico">⚠</span> 風險 / 根因 / 預測</div>
@@ -221,6 +229,26 @@
     <main class="content">
       <div class="content-inner">
 
+        <!-- Global role switcher (persists across all analysis pages) -->
+        <div class="global-role" id="globalRole">
+          <div class="ar-bar" id="analysisRoleBar"></div>
+          <div class="grole-banner" id="globalRoleBanner"></div>
+        </div>
+
+        <!-- Manager Summary -->
+        <div class="page" id="pageSummary">
+          <div class="page-h">
+            <div>
+              <div class="page-t">主管摘要</div>
+              <div class="page-d">依角色彙整全報表的應追蹤事項 · 依嚴重度分層 · 含建議行動與下鑽連結</div>
+            </div>
+            <div class="page-meta" id="summaryMeta"></div>
+          </div>
+          <div class="sum-banner" id="sumBanner"></div>
+          <div class="kpi-grid" id="sumKpi"></div>
+          <div id="sumBody"></div>
+        </div>
+
         <!-- Overview -->
         <div class="page active" id="pageOverview">
           <div class="page-h">
@@ -230,8 +258,6 @@
             </div>
             <div class="page-meta" id="overviewMeta"></div>
           </div>
-          <!-- Analysis Role Bar -->
-          <div class="ar-bar" id="analysisRoleBar"></div>
           <!-- Role Insight Panel -->
           <div class="ri-panel" id="roleInsightPanel"></div>
           <div class="kpi-grid" id="kpiGrid"></div>
@@ -278,6 +304,14 @@
             <div class="page-meta" id="partsMeta"></div>
           </div>
           <div class="card sec">
+            <div class="card-h"><div class="card-t">🧩 故障零件大類根因</div><div class="card-sub">依元件料號大類歸類 · 看故障性質（連接器 / 電源 / IC / 開關 / 機構…）</div></div>
+            <div class="comp-cat-wrap">
+              <div class="chart-wrap"><canvas id="componentCatChart"></canvas></div>
+              <div class="comp-cat-list" id="componentCatList"></div>
+            </div>
+          </div>
+          <div class="card sec">
+            <div class="card-h"><div class="card-t">📊 零件件數 Pareto</div></div>
             <div class="chart-wrap tall"><canvas id="paretoChart"></canvas></div>
           </div>
           <div class="tbl-wrap">
@@ -289,6 +323,7 @@
                   <th>影響機種</th>
                   <th class="right" style="width:80px">件數</th>
                   <th style="width:220px">佔比 / 累計</th>
+                  <th style="width:80px">詳情</th>
                 </tr>
               </thead>
               <tbody id="paretoBody"></tbody>
@@ -355,6 +390,10 @@
               <div class="chart-wrap"><canvas id="contentChart"></canvas></div>
             </div>
           </div>
+          <div class="sec" id="reasonTaxSection">
+            <div class="card-h"><div class="card-t">故障部位分佈（月度對比）</div></div>
+            <div class="chart-wrap"><canvas id="reasonTaxChart"></canvas></div>
+          </div>
         </div>
 
         <!-- Scrap -->
@@ -399,6 +438,51 @@
           </div>
         </div>
 
+        <!-- Manufacture batch analysis -->
+        <div class="page" id="pageBatch">
+          <div class="page-h">
+            <div>
+              <div class="page-t">製造批次分析</div>
+              <div class="page-d">製令(出廠批次) + 製造日期(整新) · 全新/整新研判 · 元件瑕疵落點 · 製程梯次</div>
+            </div>
+            <div class="page-meta" id="batchMeta"></div>
+          </div>
+          <div class="kpi-grid" id="batchKpi"></div>
+          <div class="batch-2col">
+            <div class="card sec">
+              <div class="card-h"><div class="card-t">🆕 全新 vs ♻ 整新 故障佔比</div></div>
+              <div class="chart-wrap short"><canvas id="conditionChart"></canvas></div>
+              <div class="batch-note" id="conditionNote"></div>
+            </div>
+            <div class="card sec">
+              <div class="card-h"><div class="card-t">🏭 出廠批次分析（元件瑕疵落點）</div><div class="card-sub">依製令出廠年月 · 故障集中的原始批次=元件/製程瑕疵</div></div>
+              <div class="chart-wrap short"><canvas id="originBatchChart"></canvas></div>
+              <div class="batch-note" id="originNote"></div>
+            </div>
+          </div>
+          <div class="card sec">
+            <div class="card-h"><div class="card-t">⚠ 批次風險機種</div><div class="card-sub">出廠/整新單月佔比≥40%=批次集中；全新且出廠月=檢修月=全新早夭；整新且整新月=檢修月=整新後即壞</div></div>
+            <div class="tbl-wrap">
+              <table class="tbl">
+                <thead>
+                  <tr>
+                    <th style="width:34px">#</th>
+                    <th>機種</th>
+                    <th class="right" style="width:60px">維修</th>
+                    <th style="width:110px">全新/整新</th>
+                    <th>最大出廠批次</th>
+                    <th>最大製造批次</th>
+                    <th class="right" style="width:140px">早夭</th>
+                    <th style="width:130px">標記</th>
+                  </tr>
+                </thead>
+                <tbody id="batchBody"></tbody>
+              </table>
+            </div>
+            <div class="batch-note" id="batchNote"></div>
+          </div>
+        </div>
+
         <!-- FMEA / Root cause -->
         <div class="page" id="pageRisk">
           <div class="page-h">
@@ -431,6 +515,7 @@
               <button class="btn primary" onclick="App.openCapaForm()">+ 新增 CAPA</button>
             </div>
           </div>
+          <div class="capa-kpi-row" id="capaKpiRow"></div>
           <div id="capaList"></div>
         </div>
 
@@ -456,7 +541,10 @@
               <div class="page-t">維修明細</div>
               <div class="page-d">原始記錄瀏覽（前 500 筆）</div>
             </div>
-            <div class="page-meta" id="detailMeta"></div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input class="detail-search-inp" type="text" id="detailSearch" placeholder="🔍 序號搜尋…" oninput="App.searchDetail(this.value)">
+              <div class="page-meta" id="detailMeta"></div>
+            </div>
           </div>
           <div class="tbl-wrap">
             <table class="tbl">
