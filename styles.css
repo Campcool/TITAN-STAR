@@ -2015,6 +2015,13 @@ button, input, select { font-family: inherit; }
 .sum-banner-d { font-size: 12.5px; color: var(--text2); margin-top: 3px; }
 .sum-banner-meta { margin-left: auto; font-size: 12.5px; color: var(--text3); align-self: flex-start; }
 
+.exec-brief {
+  background: linear-gradient(135deg, var(--bg2) 0%, var(--surface) 100%);
+  border: 1px solid var(--accent); border-radius: 12px;
+  padding: 16px 20px; margin-bottom: 22px;
+}
+.eb-label { font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 7px; }
+.eb-text { font-size: 15px; line-height: 1.7; color: var(--text); }
 .sum-sec { margin-top: 26px; }
 .sum-sec-h {
   display: flex; align-items: center; gap: 9px;
