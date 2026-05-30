@@ -66,6 +66,7 @@ window.App = (function () {
     analysisRole: 'all',
     charts: {},               // chart instance refs
     detailSearch: '',
+    summaryBadgeDismissed: false,
   };
 
   // ─────────────── Helpers ───────────────
@@ -131,6 +132,7 @@ window.App = (function () {
     hideLoad();
     $('fileInput').value = '';
     state.db = RepairDB.load();
+    state.summaryBadgeDismissed = false;
     renderUploadList();
 
     if (results.some(r => !r.ok)) {
@@ -348,6 +350,7 @@ window.App = (function () {
         if (!data.months) throw new Error('不是有效的備份格式');
         localStorage.setItem('repair_db_v2', e.target.result);
         state.db = RepairDB.load();
+        state.summaryBadgeDismissed = false;
         renderUploadList();
         alert(`✓ 還原成功：${Object.keys(data.months).length} 個月份已載入`);
       } catch (err) {
@@ -415,6 +418,7 @@ window.App = (function () {
     document.querySelectorAll('.snav-item').forEach(b => b.classList.toggle('active', b.dataset.page === name));
     $(`page${name.charAt(0).toUpperCase() + name.slice(1)}`).classList.add('active');
     // Dismiss badges when viewing related pages
+    if (name === 'summary') dismissSummaryBadge();
     if (name === 'alerts') dismissAlertPulse();
     if (name === 'scrap') dismissCrossMonthPulse();
     closeNav();
@@ -1123,9 +1127,21 @@ window.App = (function () {
       const sb = $('summaryBadge');
       if (!sb) return;
       const n = crit || mine.length;
-      if (n > 0) { sb.style.display = ''; sb.textContent = n; sb.classList.toggle('crit-level', crit > 0); }
-      else sb.style.display = 'none';
+      if (n > 0 && !state.summaryBadgeDismissed) {
+        sb.style.display = '';
+        sb.textContent = n;
+        sb.classList.toggle('crit-level', crit > 0);
+        sb.classList.add('pulse');
+      } else {
+        sb.style.display = 'none';
+      }
     } catch (e) { /* badge is best-effort */ }
+  }
+
+  function dismissSummaryBadge() {
+    state.summaryBadgeDismissed = true;
+    const sb = $('summaryBadge');
+    if (sb) { sb.style.display = 'none'; sb.classList.remove('pulse'); }
   }
 
   function renderSummary() {
@@ -1144,8 +1160,8 @@ window.App = (function () {
     const info = mine.filter(x => x.sev === 'info');
 
     $('summaryMeta').textContent = `${mine.length} 項應追蹤 · ${crit.length} 立即處理`;
-    const sb = $('summaryBadge');
-    if (sb) { const n = crit.length || mine.length; if (n) { sb.style.display = ''; sb.textContent = n; sb.classList.toggle('crit-level', crit.length > 0); } else sb.style.display = 'none'; }
+    // Badge already handled by updateSummaryBadge; just ensure dismissed state is respected
+    updateSummaryBadge();
 
     $('sumBanner').innerHTML = `
       <div class="sum-banner-inner" style="--rc:${roleInfo.color}">

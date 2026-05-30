@@ -96,9 +96,19 @@ table thead th {
   color: var(--text2) !important;
   border-color: var(--border2) !important;
 }
+table tbody tr { border-bottom: 1px solid var(--border) !important; }
 table tbody tr:nth-child(even) { background: rgba(0,0,0,0.025) !important; }
 table tbody tr:hover { background: var(--accent-soft) !important; }
 table td, table th { border-color: var(--border) !important; }
+table td { border-bottom: 1px solid var(--border) !important; }
+
+/* ── 機種排名 mrank cards ── */
+.mrank-row {
+  border: 1px solid var(--border2) !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;
+}
+.mrank-row + .mrank-row { margin-top: 6px; }
+.mrank-top:hover { background: var(--accent-soft) !important; }
 
 /* ── 按鈕 ── */
 .btn-primary, .sum-card-go {
