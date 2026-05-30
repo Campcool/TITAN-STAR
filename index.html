@@ -15,6 +15,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="rma-styles.css">
+<link rel="stylesheet" href="styles-morandi.css" id="morandiThemeLink">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
@@ -626,27 +627,42 @@
 const THEME_KEY = 'titan_theme';
 const MORANDI_ID = 'morandiTheme';
 
+function getMorandiNode() {
+  // 兩種型態：dev = <link id="morandiThemeLink">；bundled = 動態注入 <style id="morandiTheme">
+  return document.getElementById('morandiThemeLink') || document.getElementById(MORANDI_ID);
+}
+
 function applyTheme(theme) {
-  const existing = document.getElementById(MORANDI_ID);
   const btn = document.getElementById('themeToggleBtn');
+  let node = getMorandiNode();
   if (theme === 'morandi') {
-    if (!existing) {
+    if (!node) {
+      // bundled 模式：注入 style
       const style = document.createElement('style');
       style.id = MORANDI_ID;
       style.textContent = window.__morandiCSS__ || '';
       document.head.appendChild(style);
+    } else {
+      node.disabled = false;
     }
     if (btn) btn.textContent = '☀';
   } else {
-    if (existing) existing.remove();
+    if (node) {
+      if (node.tagName === 'LINK') node.disabled = true;   // dev：停用 link
+      else node.remove();                                   // bundled：移除 style
+    }
     if (btn) btn.textContent = '🌙';
   }
 }
 
+function isMorandiActive() {
+  const node = getMorandiNode();
+  if (!node) return false;
+  return node.tagName === 'LINK' ? !node.disabled : true;
+}
+
 function toggleTheme() {
-  // 以 DOM 實際狀態為準，不依賴 localStorage 預設值
-  const isMorandi = !!document.getElementById(MORANDI_ID);
-  const next = isMorandi ? 'dark' : 'morandi';
+  const next = isMorandiActive() ? 'dark' : 'morandi';
   localStorage.setItem(THEME_KEY, next);
   applyTheme(next);
 }

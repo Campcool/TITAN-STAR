@@ -45,11 +45,10 @@
 }
 .mode-bar-r { display: flex; align-items: center; gap: 8px; }
 
-/* Adjust hdr top offset when mode-bar is present */
-.mode-bar ~ .dash .hdr,
-.mode-bar ~ #rmaDash .hdr { top: 60px; }
-.mode-bar ~ .dash .subbar { top: calc(60px + var(--header)); }
-.mode-bar ~ .dash .sidebar { top: calc(60px + var(--header) + var(--subbar)); height: calc(100vh - 60px - var(--header) - var(--subbar)); }
+/* 桌機已移除 .dash 內的 .hdr，subbar/sidebar 直接貼在 mode-bar (52px) 下方 */
+.mode-bar ~ #rmaDash .hdr { top: 52px; }
+.mode-bar ~ .dash .subbar { top: 52px; }
+.mode-bar ~ .dash .sidebar { top: calc(52px + var(--subbar)); height: calc(100vh - 52px - var(--subbar)); }
 
 /* ── Upload zone mode selector ── */
 .uz-mode-row {

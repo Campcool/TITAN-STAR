@@ -2486,11 +2486,10 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
 }
 .mode-bar-r { display: flex; align-items: center; gap: 8px; }
 
-/* Adjust hdr top offset when mode-bar is present */
-.mode-bar ~ .dash .hdr,
-.mode-bar ~ #rmaDash .hdr { top: 60px; }
-.mode-bar ~ .dash .subbar { top: calc(60px + var(--header)); }
-.mode-bar ~ .dash .sidebar { top: calc(60px + var(--header) + var(--subbar)); height: calc(100vh - 60px - var(--header) - var(--subbar)); }
+/* 桌機已移除 .dash 內的 .hdr，subbar/sidebar 直接貼在 mode-bar (52px) 下方 */
+.mode-bar ~ #rmaDash .hdr { top: 52px; }
+.mode-bar ~ .dash .subbar { top: 52px; }
+.mode-bar ~ .dash .sidebar { top: calc(52px + var(--subbar)); height: calc(100vh - 52px - var(--subbar)); }
 
 /* ── Upload zone mode selector ── */
 .uz-mode-row {
@@ -2946,6 +2945,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
 }
 
 </style>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
@@ -11554,27 +11554,42 @@ window.RMA = (function () {
 const THEME_KEY = 'titan_theme';
 const MORANDI_ID = 'morandiTheme';
 
+function getMorandiNode() {
+  // 兩種型態：dev = <link id="morandiThemeLink">；bundled = 動態注入 <style id="morandiTheme">
+  return document.getElementById('morandiThemeLink') || document.getElementById(MORANDI_ID);
+}
+
 function applyTheme(theme) {
-  const existing = document.getElementById(MORANDI_ID);
   const btn = document.getElementById('themeToggleBtn');
+  let node = getMorandiNode();
   if (theme === 'morandi') {
-    if (!existing) {
+    if (!node) {
+      // bundled 模式：注入 style
       const style = document.createElement('style');
       style.id = MORANDI_ID;
       style.textContent = window.__morandiCSS__ || '';
       document.head.appendChild(style);
+    } else {
+      node.disabled = false;
     }
     if (btn) btn.textContent = '☀';
   } else {
-    if (existing) existing.remove();
+    if (node) {
+      if (node.tagName === 'LINK') node.disabled = true;   // dev：停用 link
+      else node.remove();                                   // bundled：移除 style
+    }
     if (btn) btn.textContent = '🌙';
   }
 }
 
+function isMorandiActive() {
+  const node = getMorandiNode();
+  if (!node) return false;
+  return node.tagName === 'LINK' ? !node.disabled : true;
+}
+
 function toggleTheme() {
-  // 以 DOM 實際狀態為準，不依賴 localStorage 預設值
-  const isMorandi = !!document.getElementById(MORANDI_ID);
-  const next = isMorandi ? 'dark' : 'morandi';
+  const next = isMorandiActive() ? 'dark' : 'morandi';
   localStorage.setItem(THEME_KEY, next);
   applyTheme(next);
 }

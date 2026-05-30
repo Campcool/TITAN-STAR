@@ -28,6 +28,8 @@ const themeLoaderJs = `window.__morandiCSS__ = ${morandiCssEscaped};`;
 let html = indexHTML;
 html = html.replace('<link rel="stylesheet" href="styles.css">',     inlineStyle(stylesCss));
 html = html.replace('<link rel="stylesheet" href="rma-styles.css">', inlineStyle(rmaStylesCss));
+// 莫蘭迪改用 JS 注入（window.__morandiCSS__），移除外部 link 避免 404
+html = html.replace('<link rel="stylesheet" href="styles-morandi.css" id="morandiThemeLink">', '');
 html = html.replace('<script src="parser.js"></script>',   inlineScript(parserJs));
 html = html.replace('<script src="analyzer.js"></script>', inlineScript(analyzerJs));
 html = html.replace('<script src="report.js"></script>',   inlineScript(reportJs));
