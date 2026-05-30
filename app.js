@@ -2044,28 +2044,74 @@ window.App = (function () {
     const lastMonth = state.selectedMonths.slice().sort().pop();
     const anoms = RepairAnalyzer.detectAnomalies(state.db, lastMonth);
     state.currentAnomalies = anoms;
-    $('alertsMeta').textContent = `${anoms.length} 筆警示 · 比對基準：${fmt.monthLabel(lastMonth)} · 點擊卡片深入分析`;
+
+    const groups = {
+      critical: anoms.filter(a => a.severity === 'critical'),
+      warn:     anoms.filter(a => a.severity === 'warn'),
+      info:     anoms.filter(a => a.severity === 'info'),
+    };
+    $('alertsMeta').textContent = `${anoms.length} 筆 · ${groups.critical.length} 嚴重 · ${groups.warn.length} 注意 · ${groups.info.length} 提醒`;
 
     if (!anoms.length) {
       $('anomGrid').innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-ico">✓</div><div class="empty-t">未偵測到顯著異常 — 一切看起來正常</div></div>`;
       return;
     }
-    const sevLabel = { critical: '嚴重', warn: '注意', info: '資訊' };
-    $('anomGrid').innerHTML = anoms.map((a, i) => `
-      <div class="anom-card ${a.severity}" onclick="App.openAnomalyDrawer(${i})">
-        <div class="anom-h">
-          <span class="anom-ico">${a.icon}</span>
-          <span class="anom-t">${a.title}</span>
-          <span class="anom-sev">${sevLabel[a.severity]}</span>
-        </div>
-        <div class="anom-s">${escapeHtml(a.subject)}</div>
-        <div class="anom-m">${escapeHtml(a.message)}</div>
-        <div class="anom-foot">
-          <span class="anom-metric">${a.metric}</span>
-          <span class="anom-metric-l">${a.metricLabel}</span>
-        </div>
-      </div>
-    `).join('');
+
+    const collapsed = state.alertColCollapsed || {};
+    const col = (key, label, cls) => {
+      const items = groups[key];
+      const isCol = !!collapsed[key];
+      return `
+        <div class="acol ${cls} ${isCol ? 'collapsed' : ''}">
+          <button class="acol-head" onclick="App.toggleAlertCol('${key}')">
+            <span class="acol-dot"></span>
+            <span class="acol-label">${label}</span>
+            <span class="acol-count">${items.length}</span>
+            <span class="acol-arrow">▾</span>
+          </button>
+          <div class="acol-body">
+            ${items.length ? items.map(a => alertMiniCard(a, anoms.indexOf(a))).join('') : '<div class="acol-empty">本期無此級別事項</div>'}
+          </div>
+        </div>`;
+    };
+
+    $('anomGrid').innerHTML = `
+      <div class="alert-cols">
+        ${col('critical', '嚴重', 'crit')}
+        ${col('warn', '注意', 'warn')}
+        ${col('info', '提醒', 'info')}
+      </div>`;
+  }
+
+  function toggleAlertCol(key) {
+    state.alertColCollapsed = state.alertColCollapsed || {};
+    state.alertColCollapsed[key] = !state.alertColCollapsed[key];
+    renderAlerts();
+  }
+
+  // 異常類型 → 顏色（讓不同種類警示一眼可辨）
+  function anomalyTypeStyle(title) {
+    const t = title || '';
+    if (t.includes('報廢主因')) return { color: '#a78bfa', bg: 'rgba(167,139,250,.16)' };
+    if (t.includes('零件'))     return { color: '#38bdf8', bg: 'rgba(56,189,248,.16)' };
+    if (t.includes('機種'))     return { color: '#fb923c', bg: 'rgba(251,146,60,.16)' };
+    if (t.includes('故障原因')) return { color: '#a78bfa', bg: 'rgba(167,139,250,.16)' };
+    if (t.includes('報廢'))     return { color: '#ef4444', bg: 'rgba(239,68,68,.16)' };
+    if (t.includes('重複'))     return { color: '#f472b6', bg: 'rgba(244,114,182,.16)' };
+    return { color: '#94a3b8', bg: 'rgba(148,163,184,.16)' };
+  }
+
+  const SEV_COLOR = { critical: 'var(--critical)', warn: 'var(--warn)', info: 'var(--info)' };
+
+  function alertMiniCard(a, idx) {
+    const ts = anomalyTypeStyle(a.title);
+    return `
+      <div class="amini ${a.severity}" onclick="App.openAnomalyDrawer(${idx})">
+        <span class="amini-type" style="background:${ts.bg};color:${ts.color}">${a.icon || '!'} ${a.title}</span>
+        <div class="amini-subject">${escapeHtml(a.subject || '')}</div>
+        ${a.message ? `<div class="amini-msg">${escapeHtml(a.message)}</div>` : ''}
+        ${a.metric != null ? `<div class="amini-metric" style="color:${SEV_COLOR[a.severity] || 'var(--text)'}">${a.metric}<span>${a.metricLabel || ''}</span></div>` : ''}
+      </div>`;
   }
 
   // ─────────────── Parts (Pareto) ───────────────
