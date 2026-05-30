@@ -86,9 +86,9 @@
       modelRank, topParts, crossMonth, trend,
       reportDate: new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' }),
       fontScale,
-      roleTitle: roleCtx ? roleCtx.roleTitle : null,
+      roleTitle: roleCtx ? (roleCtx.roleTitle || (roleCtx.roleInfo && roleCtx.roleInfo.label) || null) : null,
       roleItems: roleCtx ? roleCtx.items : null,
-      isAllRole: roleCtx ? roleCtx.isAllRole : true,
+      isAllRole: roleCtx ? (roleCtx.isAllRole !== undefined ? roleCtx.isAllRole : (roleCtx.role === 'all')) : true,
     });
 
     // Open in new tab
@@ -109,6 +109,7 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>維修月度總結 · ${monthLabel}</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>

@@ -443,12 +443,7 @@ window.App = (function () {
     if (name === 'summary') dismissSummaryBadge();
     if (name === 'alerts') dismissAlertPulse();
     if (name === 'scrap') dismissCrossMonthPulse();
-    // Auto-collapse subbar on page navigation
-    const sb = $('subbar');
-    if (sb && !sb.classList.contains('collapsed')) {
-      sb.classList.add('collapsed');
-      try { localStorage.setItem('titan_subbar_collapsed', '1'); } catch(e) {}
-    }
+    collapseSubbar();
     closeNav();
     renderPage();
     window.scrollTo(0, 0);
@@ -549,6 +544,14 @@ window.App = (function () {
     }
   }
 
+  function collapseSubbar() {
+    const sb = $('subbar');
+    if (sb && !sb.classList.contains('collapsed')) {
+      sb.classList.add('collapsed');
+      try { localStorage.setItem('titan_subbar_collapsed', '1'); } catch(e) {}
+    }
+  }
+
   function setMonth(mk) {
     const allMonths = Object.keys(state.db.months).sort();
     if (mk === '__ALL__') {
@@ -565,26 +568,25 @@ window.App = (function () {
       }
     }
     renderAll();
+    collapseSubbar();
   }
 
   function setCategory(c) {
     state.selectedCategory = c;
     state.selectedModel = '全部';
     renderAll();
+    collapseSubbar();
   }
 
   function setModel(m) {
     state.selectedModel = m;
     renderAll();
+    collapseSubbar();
   }
 
   // ─────────────── Render orchestration ───────────────
   function renderAll() {
-    const months = Object.keys(state.db.months).sort();
-    const denomTotal = Object.values(state.db.months).reduce((s, m) => s + Object.values(m.denominators || {}).reduce((a, b) => a + b, 0), 0);
-    const recCount = Object.values(state.db.months).reduce((s, m) => s + m.records.length, 0);
-    // 資料庫摘要改顯示於第二列（subbar），此處清空避免重複
-    $('hdrSub').textContent = '';
+    // 資料庫摘要在 subbar 第二列，hdrSub 不再使用
 
     renderFilters();
     renderAnalysisRoleBar();
@@ -688,34 +690,39 @@ window.App = (function () {
   }
 
   function updateSubbarSummary() {
+    if (!state.db) return;
     const el = $('subbarSummaryText');
     if (!el) return;
-    const months = state.selectedMonths.length ? state.selectedMonths.map(m => {
-      const [y, mo] = m.split('-'); return `${parseInt(y)-1911}/${mo}`;
-    }).join('、') : '全部';
+
+    const allMonthKeys = Object.keys(state.db.months).sort();
+    const allIsSelected = state.selectedMonths.length === allMonthKeys.length;
     const cat = state.selectedCategory || '全部';
-    el.textContent = `月份：${months}　大類：${cat}`;
-    // Update db summary line
-    let dbLine = $('subbarDbLine');
-    if (!dbLine) {
-      dbLine = document.createElement('span');
-      dbLine.id = 'subbarDbLine';
-      dbLine.className = 'subbar-db-line';
-      const toggle = $('subbarToggle');
-      if (toggle) toggle.parentNode.insertBefore(dbLine, toggle.nextSibling);
+    const model = state.selectedModel || '全部';
+
+    // Build stats for current filter
+    const filteredRecords = RepairAnalyzer.getRecords(state.db, { months: state.selectedMonths, category: cat === '全部' ? null : cat, model: model === '全部' ? null : model });
+    const filteredRefurb = state.selectedMonths.reduce((s, mk) => s + Object.values((state.db.months[mk] || {}).denominators || {}).reduce((a, b) => a + b, 0), 0);
+
+    // Month label
+    const monthLabel = allIsSelected
+      ? `月份(全部)`
+      : state.selectedMonths.map(m => { const [y, mo] = m.split('-'); return `${parseInt(y)-1911}/${mo}`; }).join('、');
+
+    // Category/model label
+    let catLabel = '';
+    if (cat === '全部') {
+      catLabel = '大類(全部)';
+    } else if (model !== '全部') {
+      catLabel = `${model}`;
+    } else {
+      catLabel = `大類/${cat}`;
     }
-    if (state.db) {
-      const allMonthKeys = Object.keys(state.db.months).sort();
-      const totalRecords = Object.values(state.db.months).reduce((s, m) => s + (m.records ? m.records.length : 0), 0);
-      const totalRefurb = Object.values(state.db.months).reduce((s, m) => s + Object.values(m.denominators || {}).reduce((a, b) => a + b, 0), 0);
-      if (allMonthKeys.length) {
-        const labels = allMonthKeys.map(m => { const [y, mo] = m.split('-'); return `${parseInt(y)-1911}/${mo}`; });
-        dbLine.textContent = `資料庫：${labels.join('、')} (${allMonthKeys.length}個月 · ${totalRecords.toLocaleString()}筆紀錄${totalRefurb > 0 ? ` · 整新數 ${totalRefurb.toLocaleString()}` : ''})`;
-        dbLine.style.display = '';
-      } else {
-        dbLine.style.display = 'none';
-      }
-    }
+
+    // Stats line
+    const nMonths = state.selectedMonths.length;
+    const statsLabel = `${nMonths}個月 · ${filteredRecords.length.toLocaleString()}筆紀錄${filteredRefurb > 0 ? ` · 整新數 ${filteredRefurb.toLocaleString()}` : ''}`;
+
+    el.textContent = `${monthLabel}　${catLabel}　(${statsLabel})`;
   }
 
   function renderGlobalRoleBanner() {
@@ -1606,23 +1613,25 @@ window.App = (function () {
     const old = pageEl.querySelector(':scope > .page-help');
     if (old) old.remove();
     if (!help) return;
-    // Inject i-button into page-h
-    const header = pageEl.querySelector(':scope > .page-h');
-    if (!header) return;
-    let ibtn = header.querySelector('.ph-icon-btn');
-    if (!ibtn) {
-      ibtn = document.createElement('button');
+    // Inject i-button right after the page title text (inside .page-t)
+    const titleEl = pageEl.querySelector(':scope > .page-h .page-t');
+    if (!titleEl) return;
+    if (!titleEl.querySelector('.ph-icon-btn')) {
+      const ibtn = document.createElement('button');
       ibtn.className = 'ph-icon-btn';
       ibtn.title = '使用說明';
       ibtn.textContent = 'i';
       ibtn.onclick = () => App.showHelpModal(pageName);
-      header.appendChild(ibtn);
+      titleEl.appendChild(ibtn);
     }
   }
 
   function showHelpModal(pageName) {
     const help = HELP[pageName];
     if (!help) return;
+    const pageTitleEl = document.querySelector(`#page${pageName.charAt(0).toUpperCase()+pageName.slice(1)} .page-t`);
+    const pageTitle = pageTitleEl ? pageTitleEl.textContent.replace('i','').trim() : '使用說明';
+    const fs = document.documentElement.getAttribute('data-fontscale') || 'md';
     let modal = $('helpModal');
     if (!modal) {
       modal = document.createElement('div');
@@ -1631,11 +1640,12 @@ window.App = (function () {
       modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
       document.body.appendChild(modal);
     }
+    modal.setAttribute('data-fontscale', fs);
     modal.innerHTML = `
       <div class="help-modal">
         <div class="help-modal-h">
           <span class="help-modal-ico">i</span>
-          <span class="help-modal-title">使用說明</span>
+          <span class="help-modal-title">${pageTitle} · 使用說明</span>
           <button class="help-modal-close" onclick="document.getElementById('helpModal').style.display='none'">✕</button>
         </div>
         <div class="help-modal-body">
@@ -4046,18 +4056,21 @@ window.App = (function () {
 
   // ─────────────── Init ───────────────
   async function init() {
-    // Auth 停用：直接進入主畫面
     await syncCloud();
     setupUpload();
     state.db = RepairDB.load();
     renderUploadList();
-    try { onAuthSuccess(); } catch(e) {
-      document.getElementById('uploadZone').style.display = 'flex';
-    }
     // Escape key closes drawer
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape' && $('drawer').classList.contains('open')) closeDrawer();
     });
+    // Boot Auth — shows login screen or restores session
+    try {
+      await Auth.boot();
+    } catch(e) {
+      // Fallback if Auth module fails
+      document.getElementById('uploadZone').style.display = 'flex';
+    }
   }
   document.addEventListener('DOMContentLoaded', init);
 

@@ -2330,14 +2330,15 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
   transition: background .15s;
 }
 .sidebar-mini-toggle:hover { background: var(--hover); color: var(--text); }
-.sidebar.mini { width: 48px; padding: 12px 6px; }
-.sidebar.mini .snav-item span:not(.snav-ico) { display: none; }
-.sidebar.mini .snav-item .snav-badge { display: none; }
-.sidebar.mini .snav-h, .sidebar.mini .snav-sep { display: none; }
-.sidebar.mini .snav-item { padding: 10px; justify-content: center; }
+.sidebar.mini { width: 52px; padding: 10px 6px; overflow: visible; }
+.sidebar.mini .snav-lbl { display: none; }
+.sidebar.mini .snav-badge { display: none !important; }
+.sidebar.mini .snav-h { display: none; }
+.sidebar.mini .snav-sep { display: none; }
+.sidebar.mini .snav-item { padding: 8px; justify-content: center; width: 40px; }
 .sidebar.mini .snav-l { gap: 0; }
-.sidebar.mini .snav-ico { font-size: 16px; width: auto; }
-.layout.sidebar-mini { /* content expands */ }
+.sidebar.mini .snav-ico { font-size: 17px; width: auto; }
+.layout.sidebar-mini .sidebar { width: 52px; }
 
 /* ─── Font size select ─── */
 .fsc-sel {
@@ -2348,51 +2349,64 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
 }
 .fsc-sel:focus { outline: none; border-color: var(--accent); }
 
-/* ─── Help i-button ─── */
+/* ─── Help i-button (inline with page title) ─── */
 .ph-icon-btn {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 26px; height: 26px; border-radius: 50%;
+  width: 22px; height: 22px; border-radius: 50%;
   background: var(--accent-soft); color: var(--accent);
   border: 1px solid var(--accent-strong); cursor: pointer;
-  font-size: 12px; font-weight: 700; font-family: var(--mono);
-  flex-shrink: 0; margin-left: auto;
+  font-size: 11px; font-weight: 700; font-family: var(--mono);
+  flex-shrink: 0; margin-left: 10px; vertical-align: middle;
   transition: background .15s;
 }
 .ph-icon-btn:hover { background: var(--accent); color: #0a0d12; }
+.page-t { display: flex; align-items: center; }
 
-/* ─── Help modal ─── */
+/* ─── Help modal (near full-screen) ─── */
 .help-modal-mask {
   display: none; position: fixed; inset: 0; z-index: 800;
-  background: rgba(0,0,0,.55); align-items: flex-start;
-  justify-content: flex-end; padding: 60px 20px 20px;
+  background: rgba(0,0,0,.6); align-items: center; justify-content: center;
+  padding: 20px;
 }
+/* font-scale on modal mask */
+.help-modal-mask[data-fontscale="sm"] { font-size: 13px; }
+.help-modal-mask[data-fontscale="md"] { font-size: 15px; }
+.help-modal-mask[data-fontscale="lg"] { font-size: 17px; }
 .help-modal {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: 12px; width: 440px; max-width: calc(100vw - 40px);
-  max-height: calc(100vh - 100px); display: flex; flex-direction: column;
-  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+  border-radius: 14px; width: min(900px, calc(100vw - 40px));
+  max-height: calc(100vh - 40px); display: flex; flex-direction: column;
+  box-shadow: 0 12px 48px rgba(0,0,0,.5);
 }
 .help-modal-h {
   display: flex; align-items: center; gap: 10px;
-  padding: 14px 16px; border-bottom: 1px solid var(--border);
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 .help-modal-ico {
-  width: 26px; height: 26px; border-radius: 50%;
+  width: 28px; height: 28px; border-radius: 50%;
   background: var(--accent-soft); color: var(--accent);
   border: 1px solid var(--accent-strong);
   display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 700; font-family: var(--mono); flex-shrink: 0;
+  font-size: 13px; font-weight: 700; font-family: var(--mono); flex-shrink: 0;
 }
-.help-modal-title { font-weight: 600; font-size: 14px; flex: 1; }
+.help-modal-title { font-weight: 700; font-size: 1.05em; flex: 1; }
 .help-modal-close {
   background: none; border: none; color: var(--text3); cursor: pointer;
-  font-size: 16px; padding: 4px;
+  font-size: 18px; padding: 4px 8px;
 }
 .help-modal-close:hover { color: var(--text); }
 .help-modal-body {
-  padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
+  padding: 20px 24px; overflow-y: auto;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
 }
+@media (max-width: 700px) { .help-modal-body { grid-template-columns: 1fr; } }
+.ph-item { display: flex; flex-direction: column; gap: 6px; }
+.ph-item.ph-item-full { grid-column: 1 / -1; }
+.ph-k { font-size: 0.82em; font-weight: 700; color: var(--text3); letter-spacing: .04em; }
+.ph-v { font-size: 0.93em; color: var(--text2); line-height: 1.65; }
+.ph-tips { padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.ph-tips li { font-size: 0.9em; color: var(--text2); line-height: 1.6; }
 
 /* ─── Subbar DB line ─── */
 .subbar-db-line {
@@ -3102,57 +3116,57 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
     <nav class="sidebar" id="sidebar">
       <button class="sidebar-mini-toggle" id="sidebarMiniToggle" onclick="App.toggleSidebarMini()" title="收合側欄">◁</button>
       <div class="snav">
-        <div class="snav-h">分析</div>
-        <button class="snav-item" data-page="summary" onclick="App.switchPage('summary')">
-          <div class="snav-l"><span class="snav-ico">★</span> 主管摘要</div>
+        <div class="snav-h"><span class="snav-lbl">分析</span></div>
+        <button class="snav-item" data-page="summary" onclick="App.switchPage('summary')" title="主管摘要">
+          <div class="snav-l"><span class="snav-ico">★</span><span class="snav-lbl"> 主管摘要</span></div>
           <span class="snav-badge" id="summaryBadge" style="display:none">0</span>
         </button>
-        <button class="snav-item active" data-page="overview" onclick="App.switchPage('overview')">
-          <div class="snav-l"><span class="snav-ico">◈</span> 總覽</div>
+        <button class="snav-item active" data-page="overview" onclick="App.switchPage('overview')" title="總覽">
+          <div class="snav-l"><span class="snav-ico">◈</span><span class="snav-lbl"> 總覽</span></div>
         </button>
-        <button class="snav-item" data-page="alerts" onclick="App.switchPage('alerts')">
-          <div class="snav-l"><span class="snav-ico">!</span> 異常偵測</div>
+        <button class="snav-item" data-page="alerts" onclick="App.switchPage('alerts')" title="異常偵測">
+          <div class="snav-l"><span class="snav-ico">!</span><span class="snav-lbl"> 異常偵測</span></div>
           <span class="snav-badge" id="alertBadge" style="display:none">0</span>
         </button>
-        <button class="snav-item" data-page="parts" onclick="App.switchPage('parts')">
-          <div class="snav-l"><span class="snav-ico">▤</span> 零件 Pareto</div>
+        <button class="snav-item" data-page="parts" onclick="App.switchPage('parts')" title="零件 Pareto">
+          <div class="snav-l"><span class="snav-ico">▤</span><span class="snav-lbl"> 零件 Pareto</span></div>
         </button>
-        <button class="snav-item" data-page="cross" onclick="App.switchPage('cross')">
-          <div class="snav-l"><span class="snav-ico">⇄</span> 跨機種矩陣</div>
+        <button class="snav-item" data-page="cross" onclick="App.switchPage('cross')" title="跨機種矩陣">
+          <div class="snav-l"><span class="snav-ico">⇄</span><span class="snav-lbl"> 跨機種矩陣</span></div>
         </button>
-        <button class="snav-item" data-page="trend" onclick="App.switchPage('trend')">
-          <div class="snav-l"><span class="snav-ico">↗</span> 月份趨勢</div>
+        <button class="snav-item" data-page="trend" onclick="App.switchPage('trend')" title="月份趨勢">
+          <div class="snav-l"><span class="snav-ico">↗</span><span class="snav-lbl"> 月份趨勢</span></div>
         </button>
-        <button class="snav-item" data-page="reason" onclick="App.switchPage('reason')">
-          <div class="snav-l"><span class="snav-ico">◎</span> 故障原因</div>
+        <button class="snav-item" data-page="reason" onclick="App.switchPage('reason')" title="故障原因">
+          <div class="snav-l"><span class="snav-ico">◎</span><span class="snav-lbl"> 故障原因</span></div>
         </button>
         <div class="snav-sep"></div>
-        <div class="snav-h">品質工程</div>
-        <button class="snav-item" data-page="quality" onclick="App.switchPage('quality')">
-          <div class="snav-l"><span class="snav-ico">◈</span> 品質指標 / SPC</div>
+        <div class="snav-h"><span class="snav-lbl">品質工程</span></div>
+        <button class="snav-item" data-page="quality" onclick="App.switchPage('quality')" title="品質指標/SPC">
+          <div class="snav-l"><span class="snav-ico">◈</span><span class="snav-lbl"> 品質指標 / SPC</span></div>
         </button>
-        <button class="snav-item" data-page="batch" onclick="App.switchPage('batch')">
-          <div class="snav-l"><span class="snav-ico">⊞</span> 製造批次分析</div>
+        <button class="snav-item" data-page="batch" onclick="App.switchPage('batch')" title="製造批次分析">
+          <div class="snav-l"><span class="snav-ico">⊞</span><span class="snav-lbl"> 製造批次分析</span></div>
           <span class="snav-badge" id="batchBadge" style="display:none">0</span>
         </button>
-        <button class="snav-item" data-page="risk" onclick="App.switchPage('risk')">
-          <div class="snav-l"><span class="snav-ico">⚠</span> 風險 / 根因 / 預測</div>
+        <button class="snav-item" data-page="risk" onclick="App.switchPage('risk')" title="風險/根因/預測">
+          <div class="snav-l"><span class="snav-ico">⚠</span><span class="snav-lbl"> 風險 / 根因 / 預測</span></div>
         </button>
-        <button class="snav-item" data-page="capa" onclick="App.switchPage('capa')">
-          <div class="snav-l"><span class="snav-ico">✓</span> CAPA 追蹤</div>
+        <button class="snav-item" data-page="capa" onclick="App.switchPage('capa')" title="CAPA 追蹤">
+          <div class="snav-l"><span class="snav-ico">✓</span><span class="snav-lbl"> CAPA 追蹤</span></div>
           <span class="snav-badge" id="capaBadge" style="display:none">0</span>
         </button>
-        <button class="snav-item" data-page="cost" onclick="App.switchPage('cost')">
-          <div class="snav-l"><span class="snav-ico">$</span> 成本量化</div>
+        <button class="snav-item" data-page="cost" onclick="App.switchPage('cost')" title="成本量化">
+          <div class="snav-l"><span class="snav-ico">$</span><span class="snav-lbl"> 成本量化</span></div>
         </button>
         <div class="snav-sep"></div>
-        <div class="snav-h">追蹤</div>
-        <button class="snav-item" data-page="scrap" onclick="App.switchPage('scrap')">
-          <div class="snav-l"><span class="snav-ico">↻</span> 報廢 &amp; 重修</div>
+        <div class="snav-h"><span class="snav-lbl">追蹤</span></div>
+        <button class="snav-item" data-page="scrap" onclick="App.switchPage('scrap')" title="報廢 & 重修">
+          <div class="snav-l"><span class="snav-ico">↻</span><span class="snav-lbl"> 報廢 &amp; 重修</span></div>
           <span class="snav-badge" id="crossMonthBadge" style="display:none">0</span>
         </button>
-        <button class="snav-item" data-page="detail" onclick="App.switchPage('detail')">
-          <div class="snav-l"><span class="snav-ico">≡</span> 明細資料</div>
+        <button class="snav-item" data-page="detail" onclick="App.switchPage('detail')" title="明細資料">
+          <div class="snav-l"><span class="snav-ico">≡</span><span class="snav-lbl"> 明細資料</span></div>
         </button>
       </div>
     </nav>
@@ -5550,12 +5564,7 @@ window.App = (function () {
     if (name === 'summary') dismissSummaryBadge();
     if (name === 'alerts') dismissAlertPulse();
     if (name === 'scrap') dismissCrossMonthPulse();
-    // Auto-collapse subbar on page navigation
-    const sb = $('subbar');
-    if (sb && !sb.classList.contains('collapsed')) {
-      sb.classList.add('collapsed');
-      try { localStorage.setItem('titan_subbar_collapsed', '1'); } catch(e) {}
-    }
+    collapseSubbar();
     closeNav();
     renderPage();
     window.scrollTo(0, 0);
@@ -5656,6 +5665,14 @@ window.App = (function () {
     }
   }
 
+  function collapseSubbar() {
+    const sb = $('subbar');
+    if (sb && !sb.classList.contains('collapsed')) {
+      sb.classList.add('collapsed');
+      try { localStorage.setItem('titan_subbar_collapsed', '1'); } catch(e) {}
+    }
+  }
+
   function setMonth(mk) {
     const allMonths = Object.keys(state.db.months).sort();
     if (mk === '__ALL__') {
@@ -5672,26 +5689,25 @@ window.App = (function () {
       }
     }
     renderAll();
+    collapseSubbar();
   }
 
   function setCategory(c) {
     state.selectedCategory = c;
     state.selectedModel = '全部';
     renderAll();
+    collapseSubbar();
   }
 
   function setModel(m) {
     state.selectedModel = m;
     renderAll();
+    collapseSubbar();
   }
 
   // ─────────────── Render orchestration ───────────────
   function renderAll() {
-    const months = Object.keys(state.db.months).sort();
-    const denomTotal = Object.values(state.db.months).reduce((s, m) => s + Object.values(m.denominators || {}).reduce((a, b) => a + b, 0), 0);
-    const recCount = Object.values(state.db.months).reduce((s, m) => s + m.records.length, 0);
-    // 資料庫摘要改顯示於第二列（subbar），此處清空避免重複
-    $('hdrSub').textContent = '';
+    // 資料庫摘要在 subbar 第二列，hdrSub 不再使用
 
     renderFilters();
     renderAnalysisRoleBar();
@@ -5795,34 +5811,39 @@ window.App = (function () {
   }
 
   function updateSubbarSummary() {
+    if (!state.db) return;
     const el = $('subbarSummaryText');
     if (!el) return;
-    const months = state.selectedMonths.length ? state.selectedMonths.map(m => {
-      const [y, mo] = m.split('-'); return `${parseInt(y)-1911}/${mo}`;
-    }).join('、') : '全部';
+
+    const allMonthKeys = Object.keys(state.db.months).sort();
+    const allIsSelected = state.selectedMonths.length === allMonthKeys.length;
     const cat = state.selectedCategory || '全部';
-    el.textContent = `月份：${months}　大類：${cat}`;
-    // Update db summary line
-    let dbLine = $('subbarDbLine');
-    if (!dbLine) {
-      dbLine = document.createElement('span');
-      dbLine.id = 'subbarDbLine';
-      dbLine.className = 'subbar-db-line';
-      const toggle = $('subbarToggle');
-      if (toggle) toggle.parentNode.insertBefore(dbLine, toggle.nextSibling);
+    const model = state.selectedModel || '全部';
+
+    // Build stats for current filter
+    const filteredRecords = RepairAnalyzer.getRecords(state.db, { months: state.selectedMonths, category: cat === '全部' ? null : cat, model: model === '全部' ? null : model });
+    const filteredRefurb = state.selectedMonths.reduce((s, mk) => s + Object.values((state.db.months[mk] || {}).denominators || {}).reduce((a, b) => a + b, 0), 0);
+
+    // Month label
+    const monthLabel = allIsSelected
+      ? `月份(全部)`
+      : state.selectedMonths.map(m => { const [y, mo] = m.split('-'); return `${parseInt(y)-1911}/${mo}`; }).join('、');
+
+    // Category/model label
+    let catLabel = '';
+    if (cat === '全部') {
+      catLabel = '大類(全部)';
+    } else if (model !== '全部') {
+      catLabel = `${model}`;
+    } else {
+      catLabel = `大類/${cat}`;
     }
-    if (state.db) {
-      const allMonthKeys = Object.keys(state.db.months).sort();
-      const totalRecords = Object.values(state.db.months).reduce((s, m) => s + (m.records ? m.records.length : 0), 0);
-      const totalRefurb = Object.values(state.db.months).reduce((s, m) => s + Object.values(m.denominators || {}).reduce((a, b) => a + b, 0), 0);
-      if (allMonthKeys.length) {
-        const labels = allMonthKeys.map(m => { const [y, mo] = m.split('-'); return `${parseInt(y)-1911}/${mo}`; });
-        dbLine.textContent = `資料庫：${labels.join('、')} (${allMonthKeys.length}個月 · ${totalRecords.toLocaleString()}筆紀錄${totalRefurb > 0 ? ` · 整新數 ${totalRefurb.toLocaleString()}` : ''})`;
-        dbLine.style.display = '';
-      } else {
-        dbLine.style.display = 'none';
-      }
-    }
+
+    // Stats line
+    const nMonths = state.selectedMonths.length;
+    const statsLabel = `${nMonths}個月 · ${filteredRecords.length.toLocaleString()}筆紀錄${filteredRefurb > 0 ? ` · 整新數 ${filteredRefurb.toLocaleString()}` : ''}`;
+
+    el.textContent = `${monthLabel}　${catLabel}　(${statsLabel})`;
   }
 
   function renderGlobalRoleBanner() {
@@ -6713,23 +6734,25 @@ window.App = (function () {
     const old = pageEl.querySelector(':scope > .page-help');
     if (old) old.remove();
     if (!help) return;
-    // Inject i-button into page-h
-    const header = pageEl.querySelector(':scope > .page-h');
-    if (!header) return;
-    let ibtn = header.querySelector('.ph-icon-btn');
-    if (!ibtn) {
-      ibtn = document.createElement('button');
+    // Inject i-button right after the page title text (inside .page-t)
+    const titleEl = pageEl.querySelector(':scope > .page-h .page-t');
+    if (!titleEl) return;
+    if (!titleEl.querySelector('.ph-icon-btn')) {
+      const ibtn = document.createElement('button');
       ibtn.className = 'ph-icon-btn';
       ibtn.title = '使用說明';
       ibtn.textContent = 'i';
       ibtn.onclick = () => App.showHelpModal(pageName);
-      header.appendChild(ibtn);
+      titleEl.appendChild(ibtn);
     }
   }
 
   function showHelpModal(pageName) {
     const help = HELP[pageName];
     if (!help) return;
+    const pageTitleEl = document.querySelector(`#page${pageName.charAt(0).toUpperCase()+pageName.slice(1)} .page-t`);
+    const pageTitle = pageTitleEl ? pageTitleEl.textContent.replace('i','').trim() : '使用說明';
+    const fs = document.documentElement.getAttribute('data-fontscale') || 'md';
     let modal = $('helpModal');
     if (!modal) {
       modal = document.createElement('div');
@@ -6738,11 +6761,12 @@ window.App = (function () {
       modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
       document.body.appendChild(modal);
     }
+    modal.setAttribute('data-fontscale', fs);
     modal.innerHTML = `
       <div class="help-modal">
         <div class="help-modal-h">
           <span class="help-modal-ico">i</span>
-          <span class="help-modal-title">使用說明</span>
+          <span class="help-modal-title">${pageTitle} · 使用說明</span>
           <button class="help-modal-close" onclick="document.getElementById('helpModal').style.display='none'">✕</button>
         </div>
         <div class="help-modal-body">
@@ -9153,18 +9177,21 @@ window.App = (function () {
 
   // ─────────────── Init ───────────────
   async function init() {
-    // Auth 停用：直接進入主畫面
     await syncCloud();
     setupUpload();
     state.db = RepairDB.load();
     renderUploadList();
-    try { onAuthSuccess(); } catch(e) {
-      document.getElementById('uploadZone').style.display = 'flex';
-    }
     // Escape key closes drawer
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape' && $('drawer').classList.contains('open')) closeDrawer();
     });
+    // Boot Auth — shows login screen or restores session
+    try {
+      await Auth.boot();
+    } catch(e) {
+      // Fallback if Auth module fails
+      document.getElementById('uploadZone').style.display = 'flex';
+    }
   }
   document.addEventListener('DOMContentLoaded', init);
 
@@ -9611,9 +9638,9 @@ window.Auth = (function () {
       modelRank, topParts, crossMonth, trend,
       reportDate: new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' }),
       fontScale,
-      roleTitle: roleCtx ? roleCtx.roleTitle : null,
+      roleTitle: roleCtx ? (roleCtx.roleTitle || (roleCtx.roleInfo && roleCtx.roleInfo.label) || null) : null,
       roleItems: roleCtx ? roleCtx.items : null,
-      isAllRole: roleCtx ? roleCtx.isAllRole : true,
+      isAllRole: roleCtx ? (roleCtx.isAllRole !== undefined ? roleCtx.isAllRole : (roleCtx.role === 'all')) : true,
     });
 
     // Open in new tab
@@ -9634,6 +9661,7 @@ window.Auth = (function () {
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>維修月度總結 · ${monthLabel}</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>

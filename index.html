@@ -186,57 +186,57 @@
     <nav class="sidebar" id="sidebar">
       <button class="sidebar-mini-toggle" id="sidebarMiniToggle" onclick="App.toggleSidebarMini()" title="收合側欄">◁</button>
       <div class="snav">
-        <div class="snav-h">分析</div>
-        <button class="snav-item" data-page="summary" onclick="App.switchPage('summary')">
-          <div class="snav-l"><span class="snav-ico">★</span> 主管摘要</div>
+        <div class="snav-h"><span class="snav-lbl">分析</span></div>
+        <button class="snav-item" data-page="summary" onclick="App.switchPage('summary')" title="主管摘要">
+          <div class="snav-l"><span class="snav-ico">★</span><span class="snav-lbl"> 主管摘要</span></div>
           <span class="snav-badge" id="summaryBadge" style="display:none">0</span>
         </button>
-        <button class="snav-item active" data-page="overview" onclick="App.switchPage('overview')">
-          <div class="snav-l"><span class="snav-ico">◈</span> 總覽</div>
+        <button class="snav-item active" data-page="overview" onclick="App.switchPage('overview')" title="總覽">
+          <div class="snav-l"><span class="snav-ico">◈</span><span class="snav-lbl"> 總覽</span></div>
         </button>
-        <button class="snav-item" data-page="alerts" onclick="App.switchPage('alerts')">
-          <div class="snav-l"><span class="snav-ico">!</span> 異常偵測</div>
+        <button class="snav-item" data-page="alerts" onclick="App.switchPage('alerts')" title="異常偵測">
+          <div class="snav-l"><span class="snav-ico">!</span><span class="snav-lbl"> 異常偵測</span></div>
           <span class="snav-badge" id="alertBadge" style="display:none">0</span>
         </button>
-        <button class="snav-item" data-page="parts" onclick="App.switchPage('parts')">
-          <div class="snav-l"><span class="snav-ico">▤</span> 零件 Pareto</div>
+        <button class="snav-item" data-page="parts" onclick="App.switchPage('parts')" title="零件 Pareto">
+          <div class="snav-l"><span class="snav-ico">▤</span><span class="snav-lbl"> 零件 Pareto</span></div>
         </button>
-        <button class="snav-item" data-page="cross" onclick="App.switchPage('cross')">
-          <div class="snav-l"><span class="snav-ico">⇄</span> 跨機種矩陣</div>
+        <button class="snav-item" data-page="cross" onclick="App.switchPage('cross')" title="跨機種矩陣">
+          <div class="snav-l"><span class="snav-ico">⇄</span><span class="snav-lbl"> 跨機種矩陣</span></div>
         </button>
-        <button class="snav-item" data-page="trend" onclick="App.switchPage('trend')">
-          <div class="snav-l"><span class="snav-ico">↗</span> 月份趨勢</div>
+        <button class="snav-item" data-page="trend" onclick="App.switchPage('trend')" title="月份趨勢">
+          <div class="snav-l"><span class="snav-ico">↗</span><span class="snav-lbl"> 月份趨勢</span></div>
         </button>
-        <button class="snav-item" data-page="reason" onclick="App.switchPage('reason')">
-          <div class="snav-l"><span class="snav-ico">◎</span> 故障原因</div>
+        <button class="snav-item" data-page="reason" onclick="App.switchPage('reason')" title="故障原因">
+          <div class="snav-l"><span class="snav-ico">◎</span><span class="snav-lbl"> 故障原因</span></div>
         </button>
         <div class="snav-sep"></div>
-        <div class="snav-h">品質工程</div>
-        <button class="snav-item" data-page="quality" onclick="App.switchPage('quality')">
-          <div class="snav-l"><span class="snav-ico">◈</span> 品質指標 / SPC</div>
+        <div class="snav-h"><span class="snav-lbl">品質工程</span></div>
+        <button class="snav-item" data-page="quality" onclick="App.switchPage('quality')" title="品質指標/SPC">
+          <div class="snav-l"><span class="snav-ico">◈</span><span class="snav-lbl"> 品質指標 / SPC</span></div>
         </button>
-        <button class="snav-item" data-page="batch" onclick="App.switchPage('batch')">
-          <div class="snav-l"><span class="snav-ico">⊞</span> 製造批次分析</div>
+        <button class="snav-item" data-page="batch" onclick="App.switchPage('batch')" title="製造批次分析">
+          <div class="snav-l"><span class="snav-ico">⊞</span><span class="snav-lbl"> 製造批次分析</span></div>
           <span class="snav-badge" id="batchBadge" style="display:none">0</span>
         </button>
-        <button class="snav-item" data-page="risk" onclick="App.switchPage('risk')">
-          <div class="snav-l"><span class="snav-ico">⚠</span> 風險 / 根因 / 預測</div>
+        <button class="snav-item" data-page="risk" onclick="App.switchPage('risk')" title="風險/根因/預測">
+          <div class="snav-l"><span class="snav-ico">⚠</span><span class="snav-lbl"> 風險 / 根因 / 預測</span></div>
         </button>
-        <button class="snav-item" data-page="capa" onclick="App.switchPage('capa')">
-          <div class="snav-l"><span class="snav-ico">✓</span> CAPA 追蹤</div>
+        <button class="snav-item" data-page="capa" onclick="App.switchPage('capa')" title="CAPA 追蹤">
+          <div class="snav-l"><span class="snav-ico">✓</span><span class="snav-lbl"> CAPA 追蹤</span></div>
           <span class="snav-badge" id="capaBadge" style="display:none">0</span>
         </button>
-        <button class="snav-item" data-page="cost" onclick="App.switchPage('cost')">
-          <div class="snav-l"><span class="snav-ico">$</span> 成本量化</div>
+        <button class="snav-item" data-page="cost" onclick="App.switchPage('cost')" title="成本量化">
+          <div class="snav-l"><span class="snav-ico">$</span><span class="snav-lbl"> 成本量化</span></div>
         </button>
         <div class="snav-sep"></div>
-        <div class="snav-h">追蹤</div>
-        <button class="snav-item" data-page="scrap" onclick="App.switchPage('scrap')">
-          <div class="snav-l"><span class="snav-ico">↻</span> 報廢 &amp; 重修</div>
+        <div class="snav-h"><span class="snav-lbl">追蹤</span></div>
+        <button class="snav-item" data-page="scrap" onclick="App.switchPage('scrap')" title="報廢 & 重修">
+          <div class="snav-l"><span class="snav-ico">↻</span><span class="snav-lbl"> 報廢 &amp; 重修</span></div>
           <span class="snav-badge" id="crossMonthBadge" style="display:none">0</span>
         </button>
-        <button class="snav-item" data-page="detail" onclick="App.switchPage('detail')">
-          <div class="snav-l"><span class="snav-ico">≡</span> 明細資料</div>
+        <button class="snav-item" data-page="detail" onclick="App.switchPage('detail')" title="明細資料">
+          <div class="snav-l"><span class="snav-ico">≡</span><span class="snav-lbl"> 明細資料</span></div>
         </button>
       </div>
     </nav>
