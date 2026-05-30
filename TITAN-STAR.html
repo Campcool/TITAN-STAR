@@ -2863,15 +2863,17 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
     </button>
   </div>
   <div class="mode-bar-r" id="modeBtns">
-    <button class="btn mode-upload-btn" id="modeUploadBtn" onclick="App.openUpload()" style="display:none">⤒ 維修報表上傳</button>
     <div class="role-sel" id="roleSelWrap" style="display:none">
       <button class="role-sel-btn" id="roleSelBtn" onclick="App.toggleRoleDropdown()" title="切換分析視角">
         <span id="roleSelIco">⊞</span>
         <span id="roleSelLabel">綜合</span>
+        <span class="role-sel-focus" id="roleSelFocus"></span>
         <span class="role-sel-arrow">▾</span>
       </button>
       <div class="role-sel-drop" id="roleSelDrop" style="display:none"></div>
     </div>
+    <button class="btn topbar-btn" id="modeReportBtn" onclick="App.generateRoleReport()" style="display:none">⤓ 生成報告</button>
+    <button class="btn topbar-btn" id="modeUploadBtn" onclick="App.openUpload()" style="display:none">⤒ 維修報表上傳</button>
     <span class="mode-bar-user" id="modeBarUser"></span>
     <div class="sys-ctl-group">
       <div class="fontsize-ctl" role="group" aria-label="顯示大小">
@@ -2880,7 +2882,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
         <button class="fsc-btn" data-size="md" onclick="App.setDisplaySize('md')" title="大">大</button>
         <button class="fsc-btn" data-size="lg" onclick="App.setDisplaySize('lg')" title="特大">特大</button>
       </div>
-      <button class="btn theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="切換色系">🌙 深色</button>
+      <button class="btn theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="切換色系">🌙</button>
     </div>
     <button class="btn" id="adminPanelBtn" style="display:none" onclick="Auth.openAdminPanel()">⚙ 帳號管理</button>
   </div>
@@ -3380,7 +3382,6 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
       <div class="hdr-t"><span class="sub">RMA 管理</span></div>
     </div>
     <div class="hdr-r">
-      <button class="btn" onclick="switchMode('analysis')">◈ 分析報表</button>
       <button class="btn primary" onclick="RMA.goNew()">+ 新增 RMA</button>
     </div>
   </div>
@@ -5641,18 +5642,9 @@ window.App = (function () {
   }
 
   function renderGlobalRoleBanner() {
+    // 角色焦點已移至頂列選擇器旁，內容區橫幅不再顯示
     const el = $('globalRoleBanner');
-    if (!el) return;
-    const r = ANALYSIS_ROLES[state.analysisRole] || ANALYSIS_ROLES.all;
-    const focus = ROLE_FOCUS[state.analysisRole] || ROLE_FOCUS.all;
-    const isAll = state.analysisRole === 'all';
-    el.style.setProperty('--rc', r.color);
-    el.innerHTML = `
-      <span class="grole-ico" style="color:${r.color}">${r.icon}</span>
-      <span class="grole-label">${r.label}視角</span>
-      <span class="grole-focus">重點關注：${focus}</span>
-      ${isAll ? '' : `<button class="grole-sum" onclick="App.switchPage('summary')">★ 我的摘要 →</button>`}
-    `;
+    if (el) { el.style.display = 'none'; el.innerHTML = ''; }
   }
 
   // ─── Role-specific insight engine ───
@@ -9647,7 +9639,7 @@ window.Auth = (function () {
   <!-- COVER -->
   <div class="cover">
     <div class="cover-overline">維修月度總結報告</div>
-    <div class="cover-title">${monthLabel} 維修分析摘要</div>
+    <div class="cover-title">${monthLabel} 維修分析摘要${d.roleTitle ? `（${escapeHtml(d.roleTitle)}）` : ''}</div>
     <div class="cover-sub">電子工廠 · 報廢與維修狀態總覽</div>
     <div class="cover-meta">
       <span>生成日期：${d.reportDate}</span>
@@ -11264,10 +11256,10 @@ function applyTheme(theme) {
       style.textContent = window.__morandiCSS__ || '';
       document.head.appendChild(style);
     }
-    if (btn) btn.textContent = '☀ 莫蘭迪';
+    if (btn) btn.textContent = '☀';
   } else {
     if (existing) existing.remove();
-    if (btn) btn.textContent = '🌙 深色';
+    if (btn) btn.textContent = '🌙';
   }
 }
 
@@ -11320,8 +11312,7 @@ function switchMode(mode) {
       dash.classList.add('active');
       rmaDash.style.display = 'none';
       modeBar.style.display = 'flex';
-      const mub = document.getElementById('modeUploadBtn'); if (mub) mub.style.display = '';
-      const rsw = document.getElementById('roleSelWrap'); if (rsw) rsw.style.display = '';
+      ['modeUploadBtn','modeReportBtn','roleSelWrap'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
     } else {
       // No data yet — show upload zone
       uploadZone.style.display = 'flex';
@@ -11335,8 +11326,7 @@ function switchMode(mode) {
     dash.classList.remove('active');
     rmaDash.style.display = 'block';
     modeBar.style.display = 'flex';
-    const mub = document.getElementById('modeUploadBtn'); if (mub) mub.style.display = 'none';
-    const rsw = document.getElementById('roleSelWrap'); if (rsw) rsw.style.display = 'none';
+    ['modeUploadBtn','modeReportBtn','roleSelWrap'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
     // Init RMA content container
     const rmaContent = document.getElementById('rmaContent');
     if (rmaContent) {

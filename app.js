@@ -666,18 +666,9 @@ window.App = (function () {
   }
 
   function renderGlobalRoleBanner() {
+    // 角色焦點已移至頂列選擇器旁，內容區橫幅不再顯示
     const el = $('globalRoleBanner');
-    if (!el) return;
-    const r = ANALYSIS_ROLES[state.analysisRole] || ANALYSIS_ROLES.all;
-    const focus = ROLE_FOCUS[state.analysisRole] || ROLE_FOCUS.all;
-    const isAll = state.analysisRole === 'all';
-    el.style.setProperty('--rc', r.color);
-    el.innerHTML = `
-      <span class="grole-ico" style="color:${r.color}">${r.icon}</span>
-      <span class="grole-label">${r.label}視角</span>
-      <span class="grole-focus">重點關注：${focus}</span>
-      ${isAll ? '' : `<button class="grole-sum" onclick="App.switchPage('summary')">★ 我的摘要 →</button>`}
-    `;
+    if (el) { el.style.display = 'none'; el.innerHTML = ''; }
   }
 
   // ─── Role-specific insight engine ───

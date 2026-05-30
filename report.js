@@ -322,7 +322,7 @@
   <!-- COVER -->
   <div class="cover">
     <div class="cover-overline">維修月度總結報告</div>
-    <div class="cover-title">${monthLabel} 維修分析摘要</div>
+    <div class="cover-title">${monthLabel} 維修分析摘要${d.roleTitle ? `（${escapeHtml(d.roleTitle)}）` : ''}</div>
     <div class="cover-sub">電子工廠 · 報廢與維修狀態總覽</div>
     <div class="cover-meta">
       <span>生成日期：${d.reportDate}</span>
