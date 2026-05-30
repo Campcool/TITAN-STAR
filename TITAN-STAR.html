@@ -2959,7 +2959,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
   </div>
   <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:32px;width:320px;max-width:90vw">
     <div style="font-size:15px;font-weight:600;margin-bottom:20px">請輸入工號登入</div>
-    <input id="loginUser" type="text" placeholder="工號（如 031780）"
+    <input id="loginUser" type="text" placeholder="請輸入工號"
       style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:15px;margin-bottom:12px"
       onkeydown="if(event.key==='Enter')Auth.doLogin()">
     <input id="loginPwd" type="hidden" value="">
@@ -11610,36 +11610,17 @@ function updateRmaBadge() {
   }
 }
 
-// On load, restore last mode — called by Auth after successful login
+// 登入成功後一律進入上傳頁（須上傳報表才進入分析）
 function onAuthSuccess() {
-  try {
-    App.renderUploadList();
-  } catch(e) {}
+  try { App.renderUploadList(); } catch(e) {}
+  try { updateRmaBadge(); } catch(e) {}
 
-  try {
-    const db = RepairDB.load();
-    const hasAnalysisData = Object.keys(db.months).length > 0;
-    let rmaTotal = 0;
-    try { rmaTotal = RMA.stats().total; } catch(e) {}
-
-    if (rmaTotal > 0 || hasAnalysisData) {
-      document.getElementById('modeBar').style.display = 'flex';
-      if (hasAnalysisData) {
-        switchMode('analysis');
-      } else {
-        switchMode('rma');
-      }
-    } else {
-      document.getElementById('modeBar').style.display = 'none';
-      document.getElementById('uploadZone').style.display = 'flex';
-    }
-
-    try { updateRmaBadge(); } catch(e) {}
-  } catch(e) {
-    // 萬一出錯，直接顯示上傳區
-    document.getElementById('modeBar').style.display = 'none';
-    document.getElementById('uploadZone').style.display = 'flex';
-  }
+  // 永遠先顯示上傳頁，隱藏分析頂列，預選「維修分析」模式
+  document.getElementById('modeBar').style.display = 'none';
+  document.getElementById('dash').classList.remove('active');
+  document.getElementById('rmaDash').style.display = 'none';
+  document.getElementById('uploadZone').style.display = 'flex';
+  try { uzSelectMode('analysis'); } catch(e) {}
 }
 </script>
 
