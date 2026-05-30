@@ -4064,6 +4064,14 @@ window.App = (function () {
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape' && $('drawer').classList.contains('open')) closeDrawer();
     });
+    // Click anywhere in main content area collapses the subbar
+    const contentEl = document.getElementById('content');
+    if (contentEl) {
+      contentEl.addEventListener('click', e => {
+        // Don't collapse if clicking inside the subbar itself
+        if (!e.target.closest('#subbar')) collapseSubbar();
+      });
+    }
     // Boot Auth — shows login screen or restores session
     try {
       await Auth.boot();

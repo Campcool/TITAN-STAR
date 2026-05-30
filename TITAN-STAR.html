@@ -9185,6 +9185,14 @@ window.App = (function () {
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape' && $('drawer').classList.contains('open')) closeDrawer();
     });
+    // Click anywhere in main content area collapses the subbar
+    const contentEl = document.getElementById('content');
+    if (contentEl) {
+      contentEl.addEventListener('click', e => {
+        // Don't collapse if clicking inside the subbar itself
+        if (!e.target.closest('#subbar')) collapseSubbar();
+      });
+    }
     // Boot Auth — shows login screen or restores session
     try {
       await Auth.boot();
@@ -9669,10 +9677,11 @@ window.Auth = (function () {
   @page { size: A4; margin: 14mm 12mm; }
   html, body { font-family: 'Inter', 'Noto Sans TC', system-ui, sans-serif; color: #1e293b; line-height: 1.6; background: #f8fafc; font-size: ${d.fontScale === 'lg' ? '17px' : d.fontScale === 'sm' ? '13px' : '15px'}; }
   body { padding: 16px; }
-  .doc { max-width: 1000px; margin: 0 auto; background: white; padding: 32px 40px; box-shadow: 0 2px 12px rgba(0,0,0,.06); }
+  .doc { max-width: 100%; background: white; padding: 32px 40px; box-shadow: none; }
+  @media (min-width: 1100px) { .doc { padding: 40px 60px; } }
   @media (max-width: 700px) {
     body { padding: 0; }
-    .doc { padding: 20px 16px; box-shadow: none; }
+    .doc { padding: 20px 16px; }
   }
   @media print {
     body { background: white; padding: 0; }
@@ -9861,6 +9870,25 @@ window.Auth = (function () {
   .cm-row.warn .cm-month { background: #fde68a; color: #92400e; }
   .cm-visits { font-size: 11.5px; color: #475569; font-family: 'JetBrains Mono', monospace; line-height: 1.7; }
 
+  /* Role action cards */
+  .role-section { margin: 20px 0; }
+  .role-section-h {
+    font-size: 0.75em; color: #64748b; letter-spacing: .14em; text-transform: uppercase;
+    font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+  }
+  .role-cards { display: flex; flex-direction: column; gap: 8px; }
+  .role-card {
+    border: 1px solid #e2e8f0; border-left: 3px solid #94a3b8;
+    border-radius: 6px; padding: 12px 16px;
+  }
+  .role-card.critical { border-left-color: #ef4444; background: #fef2f2; }
+  .role-card.warn { border-left-color: #f59e0b; background: #fffbeb; }
+  .role-card.info { border-left-color: #6366f1; background: #eef2ff; }
+  .role-card-area { font-size: 0.7em; color: #64748b; text-transform: uppercase; letter-spacing: .1em; font-weight: 700; margin-bottom: 3px; }
+  .role-card-title { font-size: 0.92em; font-weight: 700; color: #0f172a; margin-bottom: 3px; }
+  .role-card-detail { font-size: 0.8em; color: #475569; }
+  .role-card-action { font-size: 0.78em; color: #0369a1; margin-top: 5px; font-style: italic; }
+
   /* Footer */
   .footer {
     margin-top: 40px; padding-top: 16px; border-top: 1px solid #e2e8f0;
@@ -9901,6 +9929,21 @@ window.Auth = (function () {
       ${buildExecutiveSummary(d)}
     </div>
   </div>
+
+  ${d.roleItems && d.roleItems.length ? `
+  <!-- Role-specific findings -->
+  <div class="role-section">
+    <div class="role-section-h">${d.roleTitle ? escapeHtml(d.roleTitle) + ' · ' : ''}應關注事項（${d.roleItems.length} 項）</div>
+    <div class="role-cards">
+      ${d.roleItems.slice(0, 12).map(item => `
+        <div class="role-card ${item.sev || ''}">
+          <div class="role-card-area">${escapeHtml(item.area || '')} ${item.icon || ''}</div>
+          <div class="role-card-title">${escapeHtml(item.title || '')}</div>
+          ${item.detail ? `<div class="role-card-detail">${escapeHtml(item.detail)}</div>` : ''}
+          ${item.action ? `<div class="role-card-action">→ ${escapeHtml(item.action)}</div>` : ''}
+        </div>`).join('')}
+    </div>
+  </div>` : ''}
 
   <!-- KPIs -->
   <h2 class="sec">本月關鍵指標 <span class="meta">${monthLabel}</span></h2>
