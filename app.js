@@ -394,11 +394,24 @@ window.App = (function () {
     const mub = $('modeUploadBtn'); if (mub) mub.style.display = '';
     const mrb = $('modeReportBtn'); if (mrb) mrb.style.display = '';
     const rsw = $('roleSelWrap'); if (rsw) rsw.style.display = '';
+    const mrma = $('modeRma'); if (mrma) mrma.style.display = '';
     // Restore subbar collapsed state
     try {
       const c = localStorage.getItem('titan_subbar_collapsed');
       const sb = $('subbar');
       if (sb) sb.classList.toggle('collapsed', c === '1');
+    } catch(e) {}
+    // Restore sidebar mini state
+    try {
+      const m = localStorage.getItem('titan_sidebar_mini');
+      const sbar = $('sidebar');
+      const layout = document.querySelector('.layout');
+      const miniBtn = $('sidebarMiniToggle');
+      if (m === '1') {
+        if (sbar) sbar.classList.add('mini');
+        if (layout) layout.classList.add('sidebar-mini');
+        if (miniBtn) miniBtn.textContent = '▷';
+      }
     } catch(e) {}
     // Default: select all months, all categories
     state.selectedMonths = Object.keys(state.db.months).sort();
@@ -430,6 +443,12 @@ window.App = (function () {
     if (name === 'summary') dismissSummaryBadge();
     if (name === 'alerts') dismissAlertPulse();
     if (name === 'scrap') dismissCrossMonthPulse();
+    // Auto-collapse subbar on page navigation
+    const sb = $('subbar');
+    if (sb && !sb.classList.contains('collapsed')) {
+      sb.classList.add('collapsed');
+      try { localStorage.setItem('titan_subbar_collapsed', '1'); } catch(e) {}
+    }
     closeNav();
     renderPage();
     window.scrollTo(0, 0);
@@ -478,7 +497,8 @@ window.App = (function () {
   }
   function syncDisplaySizeButtons() {
     const cur = document.documentElement.getAttribute('data-fontscale') || 'md';
-    document.querySelectorAll('.fsc-btn').forEach(b => b.classList.toggle('active', b.dataset.size === cur));
+    const sel = document.getElementById('fontsizeSel');
+    if (sel) sel.value = cur;
   }
 
   // ─────────────── Filter chips ───────────────
@@ -648,6 +668,17 @@ window.App = (function () {
     if (drop) drop.style.display = 'none';
   }
 
+  function toggleSidebarMini() {
+    const sidebar = $('sidebar');
+    const layout = document.querySelector('.layout');
+    if (!sidebar) return;
+    const isMini = sidebar.classList.toggle('mini');
+    if (layout) layout.classList.toggle('sidebar-mini', isMini);
+    const btn = $('sidebarMiniToggle');
+    if (btn) btn.textContent = isMini ? '▷' : '◁';
+    try { localStorage.setItem('titan_sidebar_mini', isMini ? '1' : '0'); } catch(e) {}
+  }
+
   function toggleSubbar() {
     const sb = $('subbar');
     if (!sb) return;
@@ -663,6 +694,27 @@ window.App = (function () {
     }).join('、') : '全部';
     const cat = state.selectedCategory || '全部';
     el.textContent = `月份：${months}　大類：${cat}`;
+    // Update db summary line
+    let dbLine = $('subbarDbLine');
+    if (!dbLine) {
+      dbLine = document.createElement('span');
+      dbLine.id = 'subbarDbLine';
+      dbLine.className = 'subbar-db-line';
+      const toggle = $('subbarToggle');
+      if (toggle) toggle.parentNode.insertBefore(dbLine, toggle.nextSibling);
+    }
+    if (state.db) {
+      const allMonthKeys = Object.keys(state.db.months).sort();
+      const totalRecords = Object.values(state.db.months).reduce((s, m) => s + (m.records ? m.records.length : 0), 0);
+      const totalRefurb = Object.values(state.db.months).reduce((s, m) => s + (m.records ? m.records.filter(r => r.isRefurb || r.condition === '整新').length : 0), 0);
+      if (allMonthKeys.length) {
+        const labels = allMonthKeys.map(m => { const [y, mo] = m.split('-'); return `${parseInt(y)-1911}/${mo}`; });
+        dbLine.textContent = `資料庫：${labels.join('、')} (${allMonthKeys.length}個月 · ${totalRecords.toLocaleString()}筆紀錄${totalRefurb > 0 ? ` · 整新數 ${totalRefurb.toLocaleString()}` : ''})`;
+        dbLine.style.display = '';
+      } else {
+        dbLine.style.display = 'none';
+      }
+    }
   }
 
   function renderGlobalRoleBanner() {
@@ -1549,46 +1601,71 @@ window.App = (function () {
     const help = HELP[pageName];
     const pageEl = $(`page${pageName.charAt(0).toUpperCase() + pageName.slice(1)}`);
     if (!pageEl) return;
-    let box = pageEl.querySelector(':scope > .page-help');
-    if (!help) { if (box) box.remove(); return; }
-    if (!box) {
-      box = document.createElement('div');
-      box.className = 'page-help collapsed';
-      const header = pageEl.querySelector(':scope > .page-h');
-      if (header && header.nextSibling) pageEl.insertBefore(box, header.nextSibling);
-      else pageEl.appendChild(box);
+    // Remove old inline help block if any
+    const old = pageEl.querySelector(':scope > .page-help');
+    if (old) old.remove();
+    if (!help) return;
+    // Inject i-button into page-h
+    const header = pageEl.querySelector(':scope > .page-h');
+    if (!header) return;
+    let ibtn = header.querySelector('.ph-icon-btn');
+    if (!ibtn) {
+      ibtn = document.createElement('button');
+      ibtn.className = 'ph-icon-btn';
+      ibtn.title = '使用說明';
+      ibtn.textContent = 'i';
+      ibtn.onclick = () => App.showHelpModal(pageName);
+      header.appendChild(ibtn);
     }
-    box.innerHTML = `
-      <button class="ph-toggle" onclick="this.parentElement.classList.toggle('collapsed')">
-        <span class="ph-ico">ⓘ</span> 使用說明 <span class="ph-chev">▾</span>
-      </button>
-      <div class="ph-body">
-        <div class="ph-item"><span class="ph-k">📊 能看出什麼</span><span class="ph-v">${help.what}</span></div>
-        <div class="ph-item"><span class="ph-k">💡 代表什麼</span><span class="ph-v">${help.meaning}</span></div>
-        <div class="ph-item"><span class="ph-k">👥 哪些單位要注意</span><span class="ph-v">${help.who}</span></div>
-        ${help.kpis && help.kpis.length ? `
-        <div class="ph-item ph-item-full">
-          <span class="ph-k">📐 指標說明</span>
-          <div class="ph-kpi-table">
-            ${help.kpis.map(k => `
-              <div class="ph-kpi-row">
-                <div class="ph-kpi-name">${k.name}</div>
-                <div class="ph-kpi-body">
-                  <div class="ph-kpi-formula"><span class="ph-kpi-label">計算</span>${k.formula}</div>
-                  <div class="ph-kpi-benchmark"><span class="ph-kpi-label">參考值</span>${k.benchmark}</div>
-                  ${k.tip ? `<div class="ph-kpi-tip"><span class="ph-kpi-label">提示</span>${k.tip}</div>` : ''}
-                </div>
-              </div>`).join('')}
-          </div>
-        </div>` : ''}
-        ${help.tips && help.tips.length ? `
-        <div class="ph-item ph-item-full">
-          <span class="ph-k">✅ 操作提示</span>
-          <ul class="ph-tips">
-            ${help.tips.map(t => `<li>${t}</li>`).join('')}
-          </ul>
-        </div>` : ''}
+  }
+
+  function showHelpModal(pageName) {
+    const help = HELP[pageName];
+    if (!help) return;
+    let modal = $('helpModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'helpModal';
+      modal.className = 'help-modal-mask';
+      modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+      document.body.appendChild(modal);
+    }
+    modal.innerHTML = `
+      <div class="help-modal">
+        <div class="help-modal-h">
+          <span class="help-modal-ico">i</span>
+          <span class="help-modal-title">使用說明</span>
+          <button class="help-modal-close" onclick="document.getElementById('helpModal').style.display='none'">✕</button>
+        </div>
+        <div class="help-modal-body">
+          <div class="ph-item"><span class="ph-k">📊 能看出什麼</span><span class="ph-v">${help.what}</span></div>
+          <div class="ph-item"><span class="ph-k">💡 代表什麼</span><span class="ph-v">${help.meaning}</span></div>
+          <div class="ph-item"><span class="ph-k">👥 哪些單位要注意</span><span class="ph-v">${help.who}</span></div>
+          ${help.kpis && help.kpis.length ? `
+          <div class="ph-item ph-item-full">
+            <span class="ph-k">📐 指標說明</span>
+            <div class="ph-kpi-table">
+              ${help.kpis.map(k => `
+                <div class="ph-kpi-row">
+                  <div class="ph-kpi-name">${k.name}</div>
+                  <div class="ph-kpi-body">
+                    <div class="ph-kpi-formula"><span class="ph-kpi-label">計算</span>${k.formula}</div>
+                    <div class="ph-kpi-benchmark"><span class="ph-kpi-label">參考值</span>${k.benchmark}</div>
+                    ${k.tip ? `<div class="ph-kpi-tip"><span class="ph-kpi-label">提示</span>${k.tip}</div>` : ''}
+                  </div>
+                </div>`).join('')}
+            </div>
+          </div>` : ''}
+          ${help.tips && help.tips.length ? `
+          <div class="ph-item ph-item-full">
+            <span class="ph-k">✅ 操作提示</span>
+            <ul class="ph-tips">
+              ${help.tips.map(t => `<li>${t}</li>`).join('')}
+            </ul>
+          </div>` : ''}
+        </div>
       </div>`;
+    modal.style.display = 'flex';
   }
 
   function renderPage() {
@@ -4013,7 +4090,7 @@ window.App = (function () {
     generateReport: () => generateRoleReport(),
     generateRoleReport,
     toggleRoleDropdown, closeRoleDropdown,
-    toggleSubbar,
+    toggleSubbar, toggleSidebarMini, showHelpModal,
     exportCrossMatrix,
     // Drawer
     openKpiDrawer, openAnomalyDrawer, openPartDrawer, openModelDrawer, openSerialDrawer, openSerialTimelineDrawer,
@@ -4064,12 +4141,11 @@ window.Auth = (function () {
 
     // Always ensure admin exists locally
     if (!users[ADMIN_ID]) {
-      users[ADMIN_ID] = {
-        hash: await hashPwd(ADMIN_ID, ADMIN_ID),
-        isAdmin: true,
-        mustChange: false,
-        localChanged: true,
-      };
+      users[ADMIN_ID] = { hash: '', isAdmin: true, mustChange: false, localChanged: true };
+    }
+    // Seed second built-in user
+    if (!users['773999']) {
+      users['773999'] = { hash: '', isAdmin: false, mustChange: false, localChanged: true };
     }
 
     // Merge cloud users

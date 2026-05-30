@@ -2304,3 +2304,104 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
 @media (max-width: 900px) {
   .role-sel-focus { display: none; }
 }
+
+/* ─── Sidebar mini mode ─── */
+.sidebar-mini-toggle {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 28px; margin-bottom: 10px;
+  background: none; border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text3); cursor: pointer; font-size: 11px;
+  transition: background .15s;
+}
+.sidebar-mini-toggle:hover { background: var(--hover); color: var(--text); }
+.sidebar.mini { width: 48px; padding: 12px 6px; }
+.sidebar.mini .snav-item span:not(.snav-ico) { display: none; }
+.sidebar.mini .snav-item .snav-badge { display: none; }
+.sidebar.mini .snav-h, .sidebar.mini .snav-sep { display: none; }
+.sidebar.mini .snav-item { padding: 10px; justify-content: center; }
+.sidebar.mini .snav-l { gap: 0; }
+.sidebar.mini .snav-ico { font-size: 16px; width: auto; }
+.layout.sidebar-mini { /* content expands */ }
+
+/* ─── Font size select ─── */
+.fsc-sel {
+  height: 28px; padding: 0 8px;
+  background: var(--surface2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px;
+  font-size: 13px; cursor: pointer; font-family: inherit;
+}
+.fsc-sel:focus { outline: none; border-color: var(--accent); }
+
+/* ─── Help i-button ─── */
+.ph-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--accent-soft); color: var(--accent);
+  border: 1px solid var(--accent-strong); cursor: pointer;
+  font-size: 12px; font-weight: 700; font-family: var(--mono);
+  flex-shrink: 0; margin-left: auto;
+  transition: background .15s;
+}
+.ph-icon-btn:hover { background: var(--accent); color: #0a0d12; }
+
+/* ─── Help modal ─── */
+.help-modal-mask {
+  display: none; position: fixed; inset: 0; z-index: 800;
+  background: rgba(0,0,0,.55); align-items: flex-start;
+  justify-content: flex-end; padding: 60px 20px 20px;
+}
+.help-modal {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; width: 440px; max-width: calc(100vw - 40px);
+  max-height: calc(100vh - 100px); display: flex; flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+}
+.help-modal-h {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px; border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.help-modal-ico {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--accent-soft); color: var(--accent);
+  border: 1px solid var(--accent-strong);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; font-family: var(--mono); flex-shrink: 0;
+}
+.help-modal-title { font-weight: 600; font-size: 14px; flex: 1; }
+.help-modal-close {
+  background: none; border: none; color: var(--text3); cursor: pointer;
+  font-size: 16px; padding: 4px;
+}
+.help-modal-close:hover { color: var(--text); }
+.help-modal-body {
+  padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
+}
+
+/* ─── Subbar DB line ─── */
+.subbar-db-line {
+  font-size: 12px; color: var(--text3); padding: 2px 14px 6px;
+  font-family: var(--mono); display: block;
+}
+
+/* ─── RMA role quick strip ─── */
+.rma-role-quick {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-left: auto; align-items: center;
+}
+.rma-role-quick-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border-radius: 16px;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+  color: var(--text2); font-size: 12px; cursor: pointer;
+  transition: background .15s;
+}
+.rma-role-quick-btn:hover { background: rgba(255,255,255,.12); color: var(--text); }
+.rma-role-quick-more { font-weight: 700; letter-spacing: .05em; }
+.rma-role-panel {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 10px 0 6px;
+}
+
+/* ─── Mode tabs ─── */
+.mode-tabs { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
