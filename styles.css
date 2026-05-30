@@ -2054,6 +2054,29 @@ button, input, select { font-family: inherit; }
   font-size: 12.5px; font-weight: 600; padding: 5px 12px; border-radius: 8px; transition: all .15s;
 }
 .sum-card-go:hover { border-color: var(--accent); color: var(--accent); }
+.sum-card-btns { display: flex; gap: 6px; margin-top: 11px; flex-wrap: wrap; }
+.sum-card-btns .sum-card-go { margin-top: 0; }
+.sum-card-capa {
+  cursor: pointer; background: transparent; border: 1px solid var(--ok); color: var(--ok);
+  font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 8px; transition: all .15s;
+}
+.sum-card-capa:hover { background: var(--ok); color: #fff; }
+.dq-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-top: 12px;
+}
+.dq-item {
+  background: var(--bg2); border: 1px solid var(--border2); border-radius: 10px;
+  padding: 12px 14px; display: flex; flex-direction: column; gap: 4px;
+}
+.dq-item.dq-ok { border-color: var(--ok); }
+.dq-item.dq-warn { border-color: var(--warn); }
+.dq-item.dq-bad { border-color: var(--critical); }
+.dq-label { font-size: 11.5px; color: var(--text2); font-weight: 600; }
+.dq-val { font-size: 22px; font-weight: 700; color: var(--text); }
+.dq-item.dq-ok .dq-val { color: var(--ok); }
+.dq-item.dq-warn .dq-val { color: var(--warn); }
+.dq-item.dq-bad .dq-val { color: var(--critical); }
+.dq-sub { font-size: 11px; color: var(--text2); }
 @media (max-width: 560px) {
   .grole-sum { margin-left: 0; }
   .sum-banner-meta { display: none; }

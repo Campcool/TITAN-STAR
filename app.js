@@ -1108,7 +1108,10 @@ window.App = (function () {
                 <div class="sum-card-title">${escapeHtml(x.title)}</div>
                 <div class="sum-card-detail">${escapeHtml(x.detail)}</div>
                 ${x.action ? `<div class="sum-card-action">💡 ${escapeHtml(x.action)}</div>` : ''}
-                <button class="sum-card-go" onclick="App.switchPage('${x.page}')">前往 ${PAGE_NAME[x.page] || x.page} →</button>
+                <div class="sum-card-btns">
+                  <button class="sum-card-go" onclick="App.switchPage('${x.page}')">前往 ${PAGE_NAME[x.page] || x.page} →</button>
+                  <button class="sum-card-capa" onclick="App.openCapaForm({problem:${JSON.stringify(x.title)},action:${JSON.stringify(x.action||'')},severity:'${x.sev}'})">＋CAPA</button>
+                </div>
               </div>`).join('')}
           </div>
         </div>`;
@@ -3161,7 +3164,7 @@ window.App = (function () {
             </tr>`;
           }).join('')}
           </tbody></table></div>
-          <div class="fmea-legend">S 嚴重度 × O 發生度 × D 偵測度 = RPN 風險優先數 · RPN≥200 極高 · ≥100 高 · ≥50 中 · <button class="btn sm" onclick="App.resetFmeaOverrides()" style="margin-left:8px">重置手動調整</button></div>`;
+          <div class="fmea-legend">S 嚴重度 × O 發生度 × D 偵測度 = RPN 風險優先數 · RPN≥200 極高 · ≥100 高 · ≥50 中 · <button class="btn sm" onclick="App.resetFmeaOverrides()" style="margin-left:8px">重置手動調整</button> <button class="btn sm" onclick="App.exportFmeaUnclassified()" style="margin-left:8px">⤓ 匯出未分類零件</button></div>`;
 
     // Root cause tree
     const tree = RepairAnalyzer.rootCauseTree(records);
@@ -3181,6 +3184,78 @@ window.App = (function () {
             ${t.topModes.map(m => `<span class="rct-mode">${escapeHtml(m.mode)} <em>${m.count}</em></span>`).join('')}
           </div>
         </div>`).join('');
+
+    // Data quality coverage panel
+    renderDataQualityPanel(records);
+  }
+
+  function renderDataQualityPanel(records) {
+    const dqEl = $('dataQualityPanel');
+    if (!dqEl) return;
+    const total = records.length;
+    if (total === 0) { dqEl.innerHTML = ''; return; }
+
+    const hasOrder = records.filter(r => r.orderMonth).length;
+    const hasMfgDate = records.filter(r => r.mfg).length;
+    const hasBoth = records.filter(r => r.orderMonth && r.mfg).length;
+    const invalidOrder = records.filter(r => r.batch && !r.orderMonth).length;
+    const hasPart = records.filter(r => r.part1 || r.part2 || r.part3).length;
+    const unclassifiedParts = records.filter(r => {
+      const parts = [r.part1, r.part2, r.part3].filter(Boolean);
+      return parts.length > 0 && parts.every(p => RepairAnalyzer.classifyFault(p) === '其他/未分類');
+    }).length;
+    const allMonths = Object.keys(state.db.months).sort();
+    const costCfg = loadCostCfg();
+    const capaList = loadCapa();
+    const copqEnabled = costCfg && (costCfg.scrapDefault > 0 || Object.keys(costCfg.models || {}).length > 0);
+
+    const pct = n => total > 0 ? (n / total * 100).toFixed(1) + '%' : '—';
+    const statusCls = (n, warn, bad) => n >= bad ? 'dq-bad' : n >= warn ? 'dq-warn' : 'dq-ok';
+
+    dqEl.innerHTML = `
+      <div class="section-title">資料品質覆蓋率</div>
+      <div class="dq-grid">
+        <div class="dq-item">
+          <div class="dq-label">總記錄筆數</div>
+          <div class="dq-val">${total.toLocaleString()}</div>
+          <div class="dq-sub">${allMonths.length} 個月</div>
+        </div>
+        <div class="dq-item ${statusCls(100 - hasOrder/total*100, 30, 70)}">
+          <div class="dq-label">製令覆蓋率</div>
+          <div class="dq-val">${pct(hasOrder)}</div>
+          <div class="dq-sub">${hasOrder} / ${total} 筆具備製令</div>
+        </div>
+        <div class="dq-item ${statusCls(100 - hasMfgDate/total*100, 30, 70)}">
+          <div class="dq-label">製造日期覆蓋率</div>
+          <div class="dq-val">${pct(hasMfgDate)}</div>
+          <div class="dq-sub">${hasMfgDate} / ${total} 筆具備製造日期（整新日期）</div>
+        </div>
+        <div class="dq-item ${hasBoth === 0 ? 'dq-bad' : 'dq-ok'}">
+          <div class="dq-label">全新/整新判定率</div>
+          <div class="dq-val">${pct(hasBoth)}</div>
+          <div class="dq-sub">${hasBoth > 0 ? `${hasBoth} 筆可判定` : '⚠ 補齊後自動啟用'}</div>
+        </div>
+        <div class="dq-item ${invalidOrder > 0 ? 'dq-warn' : 'dq-ok'}">
+          <div class="dq-label">無效製令筆數</div>
+          <div class="dq-val">${invalidOrder}</div>
+          <div class="dq-sub">${invalidOrder > 0 ? '格式不符，無法解析' : '無異常'}</div>
+        </div>
+        <div class="dq-item ${statusCls(hasPart < total * 0.7 ? 50 : unclassifiedParts/Math.max(hasPart,1)*100, 20, 40)}">
+          <div class="dq-label">故障部位未分類率</div>
+          <div class="dq-val">${hasPart > 0 ? pct(unclassifiedParts) : '—'}</div>
+          <div class="dq-sub">${unclassifiedParts} 筆落入「其他/未分類」</div>
+        </div>
+        <div class="dq-item ${copqEnabled ? 'dq-ok' : 'dq-bad'}">
+          <div class="dq-label">COPQ 成本設定</div>
+          <div class="dq-val">${copqEnabled ? '已啟用' : '未設定'}</div>
+          <div class="dq-sub">${copqEnabled ? '品質成本計算中' : '點右上角⚙設定單價'}</div>
+        </div>
+        <div class="dq-item ${capaList.length > 0 ? 'dq-ok' : 'dq-warn'}">
+          <div class="dq-label">CAPA 使用狀態</div>
+          <div class="dq-val">${capaList.length > 0 ? capaList.length + ' 項' : '尚未建立'}</div>
+          <div class="dq-sub">${capaList.filter(c=>c.status!=='closed').length} 項進行中</div>
+        </div>
+      </div>`;
   }
 
   // ═══════════════ CAPA store + render ═══════════════
@@ -3245,18 +3320,57 @@ window.App = (function () {
     }).join('')}</div>`;
   }
 
-  function openCapaForm() {
+  function openCapaForm(prefill) {
+    // prefill: { problem, action, severity } — 來自 findings 一鍵建立
+    const p = prefill || {};
+    const defaultDue = new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10);
+    openDrawer({
+      severity: p.severity === 'critical' ? 'critical' : 'warn',
+      icon: '✓', overline: 'CAPA', title: '新增矯正預防措施',
+      bodyHtml: `
+        <div class="cc-grid">
+          <div class="cc-row" style="grid-column:1/-1"><label>問題描述 <span style="color:var(--critical)">*</span></label>
+            <textarea id="capa_problem" class="ls-input" rows="3" style="resize:vertical">${escapeHtml(p.problem || '')}</textarea></div>
+          <div class="cc-row" style="grid-column:1/-1"><label>矯正措施 / 行動計畫</label>
+            <textarea id="capa_action" class="ls-input" rows="3" style="resize:vertical">${escapeHtml(p.action || '')}</textarea></div>
+          <div class="cc-row"><label>負責人</label><input id="capa_owner" class="ls-input" placeholder="姓名或部門"></div>
+          <div class="cc-row"><label>截止日</label><input id="capa_due" type="date" class="ls-input" value="${defaultDue}"></div>
+          <div class="cc-row" style="grid-column:1/-1"><label>嚴重度</label>
+            <select id="capa_sev" class="ls-input">
+              <option value="critical" ${(p.severity==='critical')?'selected':''}>嚴重 — 立即處理</option>
+              <option value="warn" ${(!p.severity||p.severity==='warn')?'selected':''}>警示 — 本期內處理</option>
+              <option value="info">追蹤 — 持續監控</option>
+            </select></div>
+          <div class="cc-row" style="grid-column:1/-1"><label>關聯 RMA 單號（選填）</label>
+            <input id="capa_rma" class="ls-input" placeholder="例 RMA-20260401-001"></div>
+        </div>
+        <div style="margin-top:20px;display:flex;gap:10px">
+          <button class="btn primary" onclick="App.saveCapaForm()">建立 CAPA</button>
+          <button class="btn" onclick="App.closeDrawer()">取消</button>
+        </div>`,
+    });
+  }
+
+  function saveCapaForm() {
+    const problem = document.getElementById('capa_problem')?.value?.trim();
+    if (!problem) { alert('問題描述為必填'); return; }
     const id = 'C' + Date.now().toString().slice(-6);
-    const problem = prompt('問題描述（必填）：');
-    if (!problem) return;
-    const owner = prompt('負責人：') || '';
-    const due = prompt('截止日 (YYYY-MM-DD)：') || '';
-    const action = prompt('矯正措施：') || '';
-    const linkRma = prompt('關聯 RMA 單號（可空白）：') || '';
     const list = loadCapa();
-    list.unshift({ id, problem, owner, due, action, linkRma, status: 'open', created: new Date().toISOString() });
+    list.unshift({
+      id,
+      problem,
+      action: document.getElementById('capa_action')?.value?.trim() || '',
+      owner: document.getElementById('capa_owner')?.value?.trim() || '',
+      due: document.getElementById('capa_due')?.value || '',
+      severity: document.getElementById('capa_sev')?.value || 'warn',
+      linkRma: document.getElementById('capa_rma')?.value?.trim() || '',
+      status: 'open',
+      created: new Date().toISOString(),
+    });
     saveCapa(list);
-    renderCapa();
+    closeDrawer();
+    switchPage('capa');
+    updateSummaryBadge();
   }
   function setCapaStatus(id, status) {
     const list = loadCapa();
@@ -3496,6 +3610,28 @@ window.App = (function () {
     URL.revokeObjectURL(url);
   }
 
+  function exportFmeaUnclassified() {
+    const f = currentFilter();
+    const records = RepairAnalyzer.getRecords(state.db, f);
+    const unclassified = records.filter(r => {
+      const parts = [r.part1, r.part2, r.part3].filter(Boolean);
+      return parts.length === 0 || parts.some(p => RepairAnalyzer.classifyFault(p) === '其他/未分類');
+    });
+    if (unclassified.length === 0) { alert('目前篩選範圍內無「其他/未分類」零件記錄'); return; }
+    const rows = [['序號','月份','機種','故障描述1','故障描述2','故障描述3','維修說明']];
+    for (const r of unclassified) {
+      rows.push([r.serial || '', r._monthKey || '', r.modelDisplay || r.model || '', r.part1 || '', r.part2 || '', r.part3 || '', r.note || '']);
+    }
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `FMEA未分類零件_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   // ─────────────── Init ───────────────
   async function init() {
     // 1. Fetch cloud data first (needed to seed users before login screen)
@@ -3523,7 +3659,7 @@ window.App = (function () {
     toggleNav, closeNav, setDisplaySize,
     setMonth, setCategory, setModel,
     setAnalysisRole,
-    openCapaForm, setCapaStatus, deleteCapa,
+    openCapaForm, saveCapaForm, setCapaStatus, deleteCapa,
     openCostConfig, saveCostConfig, quickEstimateCost,
     toggleRank, toggleRankRow,
     dismissAlertPulse, dismissCrossMonthPulse,
@@ -3538,6 +3674,7 @@ window.App = (function () {
     saveFmeaOverride,
     resetFmeaOverrides,
     exportCostCsv,
+    exportFmeaUnclassified,
   };
 })();
 
