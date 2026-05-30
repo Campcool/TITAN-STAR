@@ -115,7 +115,7 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   @page { size: A4; margin: 14mm 12mm; }
-  html, body { font-family: 'Inter', 'Noto Sans TC', system-ui, sans-serif; color: #1e293b; line-height: 1.6; background: #f8fafc; font-size: ${d.fontScale === 'lg' ? '20px' : d.fontScale === 'sm' ? '14px' : '16px'}; }
+  html, body { font-family: 'Inter', 'Noto Sans TC', system-ui, sans-serif; color: #1e293b; line-height: 1.6; background: #f8fafc; font-size: ${d.fontScale === 'lg' ? '17px' : d.fontScale === 'sm' ? '13px' : '15px'}; }
   body { padding: 16px; }
   .doc { max-width: 100%; background: white; padding: 32px 40px; box-shadow: none; }
   @media (min-width: 1100px) { .doc { padding: 40px 60px; } }
@@ -407,7 +407,7 @@
     <strong>${d.crossMonth.length}</strong> 台機台在 ≥ 2 個月份出現維修紀錄。可能為治標未治本、設計缺陷或客戶使用問題。建議列入下月重點檢討。
   </div>
   ${d.crossMonth.slice(0, 10).map(crossMonthCard).join('')}
-  ${d.crossMonth.length > 10 ? `<div style="text-align:center;font-size:0.73em;color:#94a3b8;margin-top:8px">…另有 ${d.crossMonth.length - 10} 台未顯示</div>` : ''}
+  ${d.crossMonth.length > 10 ? `<div style="text-align:center;font-size:0.80em;color:#94a3b8;margin-top:8px">…另有 ${d.crossMonth.length - 10} 台未顯示</div>` : ''}
   ` : ''}
 
   <div class="pagebreak"></div>
@@ -450,7 +450,7 @@
           <td class="right num muted">${r.denom || '—'}</td>
           <td class="right">${r.faultRate != null ? `<span class="pill ${r.faultRate >= 0.1 ? 'crit' : r.faultRate >= 0.05 ? 'warn' : 'ok'}">${(r.faultRate * 100).toFixed(1)}%</span>` : '<span class="muted">—</span>'}</td>
           <td class="right num">${r.scrap || '<span class="muted">0</span>'}</td>
-          <td style="font-size:0.73em;color:#475569">${r.topContents.slice(0, 2).map(c => `${escapeHtml(c.name)} <span class="muted">×${c.count}</span>`).join('・') || '<span class="muted">—</span>'}</td>
+          <td class="muted" style="font-size:0.82em">${r.topContents.slice(0, 2).map(c => `${escapeHtml(c.name)} <span class="muted">×${c.count}</span>`).join('・') || '—'}</td>
         </tr>
       `).join('')}
     </tbody>
@@ -473,13 +473,13 @@
           <td><strong>${escapeHtml(p.name)}</strong></td>
           <td>
             <span class="tag">${p.models.length} 機種</span>
-            <span style="font-size:0.67em;color:#94a3b8;font-family:'JetBrains Mono',monospace;margin-left:4px">${p.models.slice(0, 3).join(', ')}${p.models.length > 3 ? '…' : ''}</span>
+            <span style="font-size:0.78em;color:#94a3b8;font-family:'JetBrains Mono',monospace;margin-left:4px">${p.models.slice(0, 3).join(', ')}${p.models.length > 3 ? '…' : ''}</span>
           </td>
           <td class="right num"><strong>${p.count}</strong></td>
           <td>
             <span class="bar" style="width:${Math.max(8, p.pct * 100 * 2)}px;background:${i < 3 ? '#ef4444' : i < 7 ? '#f59e0b' : '#0ea5e9'}"></span>
-            <span class="num" style="font-size:0.73em;color:#475569">${(p.pct * 100).toFixed(1)}%</span>
-            <span class="muted" style="font-size:0.67em;margin-left:6px">累計 ${(p.cumPct * 100).toFixed(0)}%</span>
+            <span class="num" style="font-size:0.80em;color:#475569">${(p.pct * 100).toFixed(1)}%</span>
+            <span class="muted" style="font-size:0.75em;margin-left:6px">累計 ${(p.cumPct * 100).toFixed(0)}%</span>
           </td>
         </tr>
       `).join('')}

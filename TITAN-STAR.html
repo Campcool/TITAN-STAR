@@ -256,14 +256,14 @@ button, input, select { font-family: inherit; }
 .dash.active { display: block; }
 
 .hdr {
-  display: none;   /* 桌機：內容已移至上方 mode-bar，隱藏空白列 */
+  display: none; /* 桌機隱藏：內容已移至 mode-bar */
+  height: 0;
   position: sticky; top: 0; z-index: 100;
-  height: var(--header);
   background: rgba(22,29,40,.82);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
   padding: 0 24px;
-  display: flex; align-items: center; justify-content: space-between;
+  align-items: center; justify-content: space-between;
 }
 .hdr-l { display: flex; align-items: center; gap: 16px; }
 .site-logo { height: 36px; width: auto; object-fit: contain; display: block; }
@@ -1432,7 +1432,7 @@ button, input, select { font-family: inherit; }
 /* ════════════════ RWD：手機 (≤680px) ════════════════ */
 @media (max-width: 680px) {
   html, body { font-size: 17px; }
-  .hdr { display: flex; padding: 0 14px; height: auto; min-height: var(--header); flex-wrap: wrap; gap: 8px; }
+  .hdr { display: flex; padding: 0 14px; height: auto; min-height: var(--header); flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
   .hdr-r { flex-wrap: wrap; gap: 6px; }
   .hdr-r .btn { font-size: 14px; padding: 8px 12px; }
   .subbar { padding: 10px 14px; }
@@ -2959,8 +2959,8 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
     <div style="font-size:13px;color:var(--text2);margin-top:4px">維修分析 &amp; RMA 管理系統</div>
   </div>
   <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:32px;width:320px;max-width:90vw">
-    <div style="font-size:15px;font-weight:600;margin-bottom:20px">請輸入工號登入</div>
-    <input id="loginUser" type="text" placeholder="請輸入工號"
+    <div style="font-size:15px;font-weight:600;margin-bottom:20px">請輸入員工編號登入</div>
+    <input id="loginUser" type="text" placeholder="請輸入員工編號"
       style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:15px;margin-bottom:12px"
       onkeydown="if(event.key==='Enter')Auth.doLogin()">
     <input id="loginPwd" type="hidden" value="">
@@ -9690,7 +9690,7 @@ window.Auth = (function () {
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   @page { size: A4; margin: 14mm 12mm; }
-  html, body { font-family: 'Inter', 'Noto Sans TC', system-ui, sans-serif; color: #1e293b; line-height: 1.6; background: #f8fafc; font-size: ${d.fontScale === 'lg' ? '20px' : d.fontScale === 'sm' ? '14px' : '16px'}; }
+  html, body { font-family: 'Inter', 'Noto Sans TC', system-ui, sans-serif; color: #1e293b; line-height: 1.6; background: #f8fafc; font-size: ${d.fontScale === 'lg' ? '17px' : d.fontScale === 'sm' ? '13px' : '15px'}; }
   body { padding: 16px; }
   .doc { max-width: 100%; background: white; padding: 32px 40px; box-shadow: none; }
   @media (min-width: 1100px) { .doc { padding: 40px 60px; } }
@@ -9982,7 +9982,7 @@ window.Auth = (function () {
     <strong>${d.crossMonth.length}</strong> 台機台在 ≥ 2 個月份出現維修紀錄。可能為治標未治本、設計缺陷或客戶使用問題。建議列入下月重點檢討。
   </div>
   ${d.crossMonth.slice(0, 10).map(crossMonthCard).join('')}
-  ${d.crossMonth.length > 10 ? `<div style="text-align:center;font-size:0.73em;color:#94a3b8;margin-top:8px">…另有 ${d.crossMonth.length - 10} 台未顯示</div>` : ''}
+  ${d.crossMonth.length > 10 ? `<div style="text-align:center;font-size:0.80em;color:#94a3b8;margin-top:8px">…另有 ${d.crossMonth.length - 10} 台未顯示</div>` : ''}
   ` : ''}
 
   <div class="pagebreak"></div>
@@ -10025,7 +10025,7 @@ window.Auth = (function () {
           <td class="right num muted">${r.denom || '—'}</td>
           <td class="right">${r.faultRate != null ? `<span class="pill ${r.faultRate >= 0.1 ? 'crit' : r.faultRate >= 0.05 ? 'warn' : 'ok'}">${(r.faultRate * 100).toFixed(1)}%</span>` : '<span class="muted">—</span>'}</td>
           <td class="right num">${r.scrap || '<span class="muted">0</span>'}</td>
-          <td style="font-size:0.73em;color:#475569">${r.topContents.slice(0, 2).map(c => `${escapeHtml(c.name)} <span class="muted">×${c.count}</span>`).join('・') || '<span class="muted">—</span>'}</td>
+          <td class="muted" style="font-size:0.82em">${r.topContents.slice(0, 2).map(c => `${escapeHtml(c.name)} <span class="muted">×${c.count}</span>`).join('・') || '—'}</td>
         </tr>
       `).join('')}
     </tbody>
@@ -10048,13 +10048,13 @@ window.Auth = (function () {
           <td><strong>${escapeHtml(p.name)}</strong></td>
           <td>
             <span class="tag">${p.models.length} 機種</span>
-            <span style="font-size:0.67em;color:#94a3b8;font-family:'JetBrains Mono',monospace;margin-left:4px">${p.models.slice(0, 3).join(', ')}${p.models.length > 3 ? '…' : ''}</span>
+            <span style="font-size:0.78em;color:#94a3b8;font-family:'JetBrains Mono',monospace;margin-left:4px">${p.models.slice(0, 3).join(', ')}${p.models.length > 3 ? '…' : ''}</span>
           </td>
           <td class="right num"><strong>${p.count}</strong></td>
           <td>
             <span class="bar" style="width:${Math.max(8, p.pct * 100 * 2)}px;background:${i < 3 ? '#ef4444' : i < 7 ? '#f59e0b' : '#0ea5e9'}"></span>
-            <span class="num" style="font-size:0.73em;color:#475569">${(p.pct * 100).toFixed(1)}%</span>
-            <span class="muted" style="font-size:0.67em;margin-left:6px">累計 ${(p.cumPct * 100).toFixed(0)}%</span>
+            <span class="num" style="font-size:0.80em;color:#475569">${(p.pct * 100).toFixed(1)}%</span>
+            <span class="muted" style="font-size:0.75em;margin-left:6px">累計 ${(p.cumPct * 100).toFixed(0)}%</span>
           </td>
         </tr>
       `).join('')}
@@ -11580,8 +11580,9 @@ function applyTheme(theme) {
 }
 
 function toggleTheme() {
-  const current = localStorage.getItem(THEME_KEY) || 'morandi';
-  const next = current === 'dark' ? 'morandi' : 'dark';
+  // 以 DOM 實際狀態為準，不依賴 localStorage 預設值
+  const isMorandi = !!document.getElementById(MORANDI_ID);
+  const next = isMorandi ? 'dark' : 'morandi';
   localStorage.setItem(THEME_KEY, next);
   applyTheme(next);
 }

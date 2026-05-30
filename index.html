@@ -28,8 +28,8 @@
     <div style="font-size:13px;color:var(--text2);margin-top:4px">維修分析 &amp; RMA 管理系統</div>
   </div>
   <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:32px;width:320px;max-width:90vw">
-    <div style="font-size:15px;font-weight:600;margin-bottom:20px">請輸入工號登入</div>
-    <input id="loginUser" type="text" placeholder="請輸入工號"
+    <div style="font-size:15px;font-weight:600;margin-bottom:20px">請輸入員工編號登入</div>
+    <input id="loginUser" type="text" placeholder="請輸入員工編號"
       style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:15px;margin-bottom:12px"
       onkeydown="if(event.key==='Enter')Auth.doLogin()">
     <input id="loginPwd" type="hidden" value="">
@@ -652,8 +652,9 @@ function applyTheme(theme) {
 }
 
 function toggleTheme() {
-  const current = localStorage.getItem(THEME_KEY) || 'morandi';
-  const next = current === 'dark' ? 'morandi' : 'dark';
+  // 以 DOM 實際狀態為準，不依賴 localStorage 預設值
+  const isMorandi = !!document.getElementById(MORANDI_ID);
+  const next = isMorandi ? 'dark' : 'morandi';
   localStorage.setItem(THEME_KEY, next);
   applyTheme(next);
 }

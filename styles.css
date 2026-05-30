@@ -240,14 +240,14 @@ button, input, select { font-family: inherit; }
 .dash.active { display: block; }
 
 .hdr {
-  display: none;   /* 桌機：內容已移至上方 mode-bar，隱藏空白列 */
+  display: none; /* 桌機隱藏：內容已移至 mode-bar */
+  height: 0;
   position: sticky; top: 0; z-index: 100;
-  height: var(--header);
   background: rgba(22,29,40,.82);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
   padding: 0 24px;
-  display: flex; align-items: center; justify-content: space-between;
+  align-items: center; justify-content: space-between;
 }
 .hdr-l { display: flex; align-items: center; gap: 16px; }
 .site-logo { height: 36px; width: auto; object-fit: contain; display: block; }
@@ -1416,7 +1416,7 @@ button, input, select { font-family: inherit; }
 /* ════════════════ RWD：手機 (≤680px) ════════════════ */
 @media (max-width: 680px) {
   html, body { font-size: 17px; }
-  .hdr { display: flex; padding: 0 14px; height: auto; min-height: var(--header); flex-wrap: wrap; gap: 8px; }
+  .hdr { display: flex; padding: 0 14px; height: auto; min-height: var(--header); flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
   .hdr-r { flex-wrap: wrap; gap: 6px; }
   .hdr-r .btn { font-size: 14px; padding: 8px 12px; }
   .subbar { padding: 10px 14px; }
