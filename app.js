@@ -4182,6 +4182,7 @@ window.App = (function () {
     dismissAlertPulse, dismissCrossMonthPulse,
     generateReport: () => generateRoleReport(),
     generateRoleReport,
+    toggleAlertCol,
     toggleRoleDropdown, closeRoleDropdown,
     toggleSubbar, toggleSidebarMini, showHelpModal,
     exportCrossMatrix,
