@@ -711,6 +711,20 @@ window.App = (function () {
         if (anoms.length > 0) addCard('!','var(--warn)','待協調事項',`本期偵測 <strong>${anoms.length}</strong> 項異常，涉及多部門需跨部門協調`,'調度');
         if (repeatedList.length > 5) addCard('♺','var(--warn)','積壓風險',`<strong>${repeatedList.length}</strong> 台機器重複進廠，佔用維修產能，建議與品檢確認根本原因`,'資源');
         if (momText) addCard('↗','var(--accent)','產量比較',momText,'趨勢');
+        {
+          const capaList = loadCapa();
+          const capaOpen = capaList.filter(c => c.status !== 'closed');
+          const today = new Date().toISOString().slice(0,10);
+          const capaOverdue = capaOpen.filter(c => c.due && c.due < today);
+          const criticalAnoms = anoms.filter(a => a.severity === 'critical');
+          const todoItems = [];
+          if (capaOverdue.length) todoItems.push(`CAPA 逾期 ${capaOverdue.length} 項需追催`);
+          if (criticalAnoms.length) todoItems.push(`嚴重異常 ${criticalAnoms.length} 項需協調`);
+          if (capaOpen.length > 5) todoItems.push(`進行中 CAPA 共 ${capaOpen.length} 項`);
+          if (todoItems.length) {
+            addCard('📋','var(--critical)','今日跨部門待辦', todoItems.join('；'), '協調');
+          }
+        }
         break;
 
       case 'procure':
@@ -1891,7 +1905,7 @@ window.App = (function () {
     const noticeEl = $('batchNotice');
     if (noticeEl) {
       if (cond.known === 0 && orderPct < 0.5) {
-        noticeEl.innerHTML = `<div class="data-notice warn"><span class="dn-ico">⚠</span><div><strong>製令資料不完整，全新/整新分析暫停。</strong>目前僅 ${withOrder}/${total}（${Math.round(orderPct * 100)}%）筆有製令，且無單筆同時具備「製令＋製造日期」。<br>請工廠在 Excel 每張工作表加上「製令」欄位（出廠身分證，格式 YYMMDD+3碼序號），並保留「製造日期」，系統即可自動研判全新/整新與責任落點。</div></div>`;
+        noticeEl.innerHTML = `<div class="data-notice warn"><span class="dn-ico">📋</span><div><strong>全新/整新分析功能待解鎖</strong>——這是資料尚未齊備的預期狀態，系統邏輯已備好。<br><strong>解鎖步驟：</strong>① 請工廠在 Excel 每工作表加「製令品號」欄位（格式 YYMMDD+3碼，如 250410057）→ ② 保留「製造日期」欄位 → ③ 重新上傳，系統自動研判全新/整新與責任落點。<br><span class="muted">目前 ${withOrder}/${total}（${Math.round(orderPct*100)}%）筆有製令，同時具備「製令＋製造日期」：0 筆。</span></div></div>`;
         noticeEl.style.display = '';
       } else { noticeEl.style.display = 'none'; }
     }

@@ -2177,6 +2177,13 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
   .chip { padding: 8px 14px; }
 }
 
+/* ── Onboarding steps (COPQ setup guide) ── */
+.onboard-steps { display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+.ob-step { display:flex; align-items:center; gap:8px; padding:10px 16px; background:var(--bg2); border:1px solid var(--border2); border-radius:10px; font-size:13px; color:var(--text2); }
+.ob-step.ob-active { border-color:var(--accent); color:var(--text); font-weight:600; }
+.ob-num { width:24px; height:24px; background:var(--border2); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; }
+.ob-step.ob-active .ob-num { background:var(--accent); color:#fff; }
+
 /* ── 小手機：KPI 改單欄，避免數字擠壓 ── */
 @media (max-width: 430px) {
   .kpi-grid { grid-template-columns: 1fr; }
