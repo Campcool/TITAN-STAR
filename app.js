@@ -3208,7 +3208,7 @@ window.App = (function () {
             const delta = prev != null && h.faultRate != null ? (h.faultRate - prev) * 100 : null;
             const pCls = h.faultRate == null ? '' : h.faultRate >= 0.1 ? 'bad' : h.faultRate >= 0.05 ? 'warn' : 'good';
             return `
-              <div class="dh-month-card ${isCurrent ? 'current' : ''}">
+              <div class="dh-month-card ${isCurrent ? 'current' : ''}" style="cursor:pointer" onclick="App.openModelDrawer('${escapeAttr(modelName)}','${h.month}')">
                 <div class="m">${fmt.monthLabel(h.month)}</div>
                 <div class="v">${h.count}</div>
                 <div class="d">/ ${h.denom || '—'}</div>

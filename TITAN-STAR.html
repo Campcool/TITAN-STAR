@@ -1301,7 +1301,9 @@ button, input, select { font-family: inherit; }
   text-align: center;
   position: relative;
 }
+.dh-month-card:hover { border-color: var(--border2); background: var(--surface2); }
 .dh-month-card.current { border-color: var(--accent); background: var(--accent-soft); }
+.dh-month-card.current:hover { border-color: var(--accent); background: var(--accent-soft); }
 .dh-month-card .m { font-family: var(--mono); font-size: 14px; color: var(--text3); margin-bottom: 8px; font-weight: 600; }
 .dh-month-card.current .m { color: var(--accent); font-weight: 700; }
 .dh-month-card.current .m::before { content: '本月 · '; }
@@ -8326,7 +8328,7 @@ window.App = (function () {
             const delta = prev != null && h.faultRate != null ? (h.faultRate - prev) * 100 : null;
             const pCls = h.faultRate == null ? '' : h.faultRate >= 0.1 ? 'bad' : h.faultRate >= 0.05 ? 'warn' : 'good';
             return `
-              <div class="dh-month-card ${isCurrent ? 'current' : ''}">
+              <div class="dh-month-card ${isCurrent ? 'current' : ''}" style="cursor:pointer" onclick="App.openModelDrawer('${escapeAttr(modelName)}','${h.month}')">
                 <div class="m">${fmt.monthLabel(h.month)}</div>
                 <div class="v">${h.count}</div>
                 <div class="d">/ ${h.denom || '—'}</div>
