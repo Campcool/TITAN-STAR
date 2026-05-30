@@ -2728,50 +2728,11 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
 </head>
 <body>
 
-<!-- ═══════════════ Login Screen ═══════════════ -->
-<div id="loginScreen" class="ls-wrap">
-  <div class="ls-box">
-    <div class="ls-logo">TS</div>
-    <div class="ls-title">TITAN-STAR</div>
-    <div class="ls-sub">維修分析 &amp; RMA 管理系統</div>
-    <div class="ls-fields">
-      <div class="ls-field">
-        <label class="ls-label">帳號</label>
-        <input class="ls-input" type="text" id="loginUser" placeholder="請輸入工號"
-          autocomplete="username" onkeydown="if(event.key==='Enter')Auth.doLogin()">
-      </div>
-      <input type="hidden" id="loginPwd" value="">
-      <div class="ls-err" id="loginErr"></div>
-      <button class="ls-btn" onclick="Auth.doLogin()">登入</button>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════════ Change Password Screen ═══════════════ -->
-<div id="changePwScreen" class="ls-wrap" style="display:none">
-  <div class="ls-box">
-    <div class="ls-logo">TS</div>
-    <div class="ls-title">設定新密碼</div>
-    <div class="ls-sub" id="changePwSub">首次登入，請設定您的專屬密碼</div>
-    <div class="ls-fields">
-      <div class="ls-field">
-        <label class="ls-label">舊密碼</label>
-        <input class="ls-input" type="password" id="cpOld" placeholder="請輸入舊密碼" autocomplete="current-password">
-      </div>
-      <div class="ls-field">
-        <label class="ls-label">新密碼</label>
-        <input class="ls-input" type="password" id="cpNew" placeholder="請輸入新密碼（至少 6 碼）" autocomplete="new-password">
-      </div>
-      <div class="ls-field">
-        <label class="ls-label">確認新密碼</label>
-        <input class="ls-input" type="password" id="cpConfirm" placeholder="再次輸入新密碼" autocomplete="new-password"
-          onkeydown="if(event.key==='Enter')Auth.doChangePw()">
-      </div>
-      <div class="ls-err" id="changePwErr"></div>
-      <button class="ls-btn" onclick="Auth.doChangePw()">確認修改</button>
-    </div>
-  </div>
-</div>
+<!-- 登入頁面已停用（選色期間直接進入） -->
+<div id="loginScreen" style="display:none"></div>
+<div id="changePwScreen" style="display:none"></div>
+<input type="hidden" id="loginUser" value="031780">
+<input type="hidden" id="loginPwd" value="">
 
 <!-- ═══════════════ Loading Overlay ═══════════════ -->
 <div class="load-ov" id="loadOv" style="display:none">
@@ -8796,21 +8757,14 @@ window.App = (function () {
 
   // ─────────────── Init ───────────────
   async function init() {
-    // 1. Fetch cloud data first (needed to seed users before login screen)
-    const cloud = await syncCloud();
-    // 2. Boot auth — merges cloud users and shows login screen (or restores session)
-    let loggedIn = false;
-    try {
-      loggedIn = await Auth.boot(cloud ? cloud.users : null);
-    } catch (e) {
-      console.error('Auth boot error:', e);
-      // boot failed (e.g. crypto.subtle unavailable) — show login screen anyway
-      document.getElementById('loginScreen').style.display = 'flex';
-    }
-    // 3. Set up rest of app
+    // Auth 停用：直接進入主畫面
+    await syncCloud();
     setupUpload();
     state.db = RepairDB.load();
-    if (loggedIn) renderUploadList();
+    renderUploadList();
+    try { onAuthSuccess(); } catch(e) {
+      document.getElementById('uploadZone').style.display = 'flex';
+    }
     // Escape key closes drawer
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape' && $('drawer').classList.contains('open')) closeDrawer();

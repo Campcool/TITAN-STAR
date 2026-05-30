@@ -3899,21 +3899,14 @@ window.App = (function () {
 
   // ─────────────── Init ───────────────
   async function init() {
-    // 1. Fetch cloud data first (needed to seed users before login screen)
-    const cloud = await syncCloud();
-    // 2. Boot auth — merges cloud users and shows login screen (or restores session)
-    let loggedIn = false;
-    try {
-      loggedIn = await Auth.boot(cloud ? cloud.users : null);
-    } catch (e) {
-      console.error('Auth boot error:', e);
-      // boot failed (e.g. crypto.subtle unavailable) — show login screen anyway
-      document.getElementById('loginScreen').style.display = 'flex';
-    }
-    // 3. Set up rest of app
+    // Auth 停用：直接進入主畫面
+    await syncCloud();
     setupUpload();
     state.db = RepairDB.load();
-    if (loggedIn) renderUploadList();
+    renderUploadList();
+    try { onAuthSuccess(); } catch(e) {
+      document.getElementById('uploadZone').style.display = 'flex';
+    }
     // Escape key closes drawer
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape' && $('drawer').classList.contains('open')) closeDrawer();
