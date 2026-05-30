@@ -27,7 +27,10 @@
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  function generate(db) {
+  function generate(db, roleCtx) {
+    roleCtx = roleCtx || null;
+    const roleTitle = roleCtx ? roleCtx.roleInfo.label + '視角' : '綜合分析';
+    const roleItems = roleCtx ? roleCtx.items : null;
     const months = Object.keys(db.months).sort();
     if (!months.length) return alert('沒有資料可生成報告');
 
@@ -83,6 +86,7 @@
       anomalies, critical, warn,
       modelRank, topParts, crossMonth, trend,
       reportDate: new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' }),
+      roleTitle, roleItems,
     });
 
     // Open in new tab
@@ -321,7 +325,7 @@
   <!-- COVER -->
   <div class="cover">
     <div class="cover-overline">維修月度總結報告</div>
-    <div class="cover-title">${monthLabel} 維修分析摘要</div>
+    <div class="cover-title">${monthLabel} 維修分析摘要（${d.roleTitle || '綜合分析'}）</div>
     <div class="cover-sub">電子工廠 · 報廢與維修狀態總覽</div>
     <div class="cover-meta">
       <span>生成日期：${d.reportDate}</span>
@@ -329,6 +333,18 @@
       <span>總紀錄：${d.allKpis.totalRepairs.toLocaleString()} 筆</span>
     </div>
   </div>
+
+  ${d.roleItems && d.roleItems.length ? `
+  <!-- Role-specific section -->
+  <div class="exec" style="border-left:3px solid #0ea5e9;background:#f0f9ff;">
+    <div class="exec-h">${escapeHtml(d.roleTitle || '視角')} — 行動項目</div>
+    <div class="exec-body">
+      ${d.roleItems.map(item => `<div style="margin-bottom:8px">
+        <span style="font-weight:600;color:${item.severity==='critical'?'#dc2626':item.severity==='warn'?'#d97706':'#0369a1'}">[${item.severity==='critical'?'嚴重':item.severity==='warn'?'注意':'資訊'}]</span>
+        ${escapeHtml(item.title || '')}${item.body ? ' — ' + escapeHtml(item.body) : ''}
+      </div>`).join('')}
+    </div>
+  </div>` : ''}
 
   <!-- Executive summary -->
   <div class="exec">

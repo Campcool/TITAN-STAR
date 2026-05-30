@@ -10,17 +10,6 @@
   var s; try { s = localStorage.getItem('titan_display_size'); } catch(e){}
   document.documentElement.setAttribute('data-fontscale', s || 'md');
 })();
-/* ── 公司 Logo（base64 或 URL，換圖只需改這一行）── */
-window.__LOGO_SRC__ = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIiB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCI+CiAgPGRlZnM+CiAgICA8IS0tIOeQg+mrlOa8uOWxpO+8muW3puS4iuS6ruiXjeKGkuWPs+S4i+a3seiXjee2oCAtLT4KICAgIDxyYWRpYWxHcmFkaWVudCBpZD0iZ2xvYmUiIGN4PSIzOCUiIGN5PSIzNSUiIHI9IjY1JSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiICAgc3RvcC1jb2xvcj0iIzdlY2VmNCIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjQwJSIgIHN0b3AtY29sb3I9IiMyMTk2YzQiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMDA2ZThhIi8+CiAgICA8L3JhZGlhbEdyYWRpZW50PgogICAgPCEtLSDnkrDluLbmvLjlsaQgLS0+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9InJpbmciIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiAgIHN0b3AtY29sb3I9IiNiOGU0ZjUiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSI1MCUiICBzdG9wLWNvbG9yPSIjZmZmZmZmIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzJmYjVkOCIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICAgIDwhLS0g5aSW5ZyI5o+P6YKK5ry45bGkIC0tPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJib3JkZXIiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgICBzdG9wLWNvbG9yPSIjMjE5NmM0Ii8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzAwNmU4YSIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICAgIDxjbGlwUGF0aCBpZD0iY2lyY2xlQ2xpcCI+CiAgICAgIDxjaXJjbGUgY3g9IjEwMCIgY3k9Ijk3IiByPSI4NCIvPgogICAgPC9jbGlwUGF0aD4KICA8L2RlZnM+CgogIDwhLS0g55CD6auU5Li76auUIC0tPgogIDxjaXJjbGUgY3g9IjEwMCIgY3k9Ijk3IiByPSI4NCIgZmlsbD0idXJsKCNnbG9iZSkiLz4KCiAgPCEtLSDnmb3oibLlpKfnkrDluLbvvIjmlpzmqaLlnJPvvIzmqavot6jnkIPpq5TvvIkgLS0+CiAgPGcgY2xpcC1wYXRoPSJ1cmwoI2NpcmNsZUNsaXApIj4KICAgIDxlbGxpcHNlIGN4PSIxMDAiIGN5PSI5NSIgcng9IjEwNSIgcnk9IjMwIgogICAgICAgICAgICAgZmlsbD0idXJsKCNyaW5nKSIgb3BhY2l0eT0iMC45MiIKICAgICAgICAgICAgIHRyYW5zZm9ybT0icm90YXRlKC0xMiAxMDAgOTUpIi8+CiAgICA8IS0tIOeSsOW4tuS6rumCiiAtLT4KICAgIDxlbGxpcHNlIGN4PSIxMDAiIGN5PSI4OCIgcng9IjEwMCIgcnk9IjEwIgogICAgICAgICAgICAgZmlsbD0id2hpdGUiIG9wYWNpdHk9IjAuNTUiCiAgICAgICAgICAgICB0cmFuc2Zvcm09InJvdGF0ZSgtMTIgMTAwIDg4KSIvPgogIDwvZz4KCiAgPCEtLSDlpJblnIjmj4/pgoogLS0+CiAgPGNpcmNsZSBjeD0iMTAwIiBjeT0iOTciIHI9Ijg0IiBmaWxsPSJub25lIiBzdHJva2U9InVybCgjYm9yZGVyKSIgc3Ryb2tlLXdpZHRoPSI1Ii8+CgogIDwhLS0gVElUQU4gU1RBUiDmloflrZcgLS0+CiAgPHRleHQgeD0iMTAwIiB5PSIxNDgiIHRleHQtYW5jaG9yPSJtaWRkbGUiCiAgICAgICAgZm9udC1mYW1pbHk9IkFyaWFsLCBIZWx2ZXRpY2EsIHNhbnMtc2VyaWYiCiAgICAgICAgZm9udC1zaXplPSIyMiIgZm9udC13ZWlnaHQ9ImJvbGQiIGxldHRlci1zcGFjaW5nPSIxLjUiCiAgICAgICAgZmlsbD0iIzFhNWY3YSI+VElUQU4gU1RBUjwvdGV4dD4KPC9zdmc+Cg==';
-document.addEventListener('DOMContentLoaded', function(){
-  var el = document.getElementById('siteLogo');
-  if (el && window.__LOGO_SRC__) { el.src = window.__LOGO_SRC__; }
-  else if (el) {
-    el.style.display = 'none';
-    var fb = document.getElementById('siteLogoFallback');
-    if (fb) fb.style.display = '';
-  }
-});
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -47,9 +36,7 @@ document.addEventListener('DOMContentLoaded', function(){
 <!-- ═══════════════ Mode Switcher Header ═══════════════ -->
 <div class="mode-bar" id="modeBar" style="display:none">
   <div class="mode-bar-l">
-    <img id="siteLogo" src="" alt="TITAN-STAR" class="site-logo" onerror="this.style.display='none';document.getElementById('siteLogoFallback').style.display=''">
-    <div id="siteLogoFallback" class="hdr-mark" style="display:none">TS</div>
-    <span class="mode-bar-brand">TITAN-STAR</span>
+    <div class="s-icon">S</div>
   </div>
   <div class="mode-tabs">
     <button class="mode-tab active" id="modeAnalysis" onclick="switchMode('analysis')">
@@ -61,6 +48,15 @@ document.addEventListener('DOMContentLoaded', function(){
     </button>
   </div>
   <div class="mode-bar-r" id="modeBtns">
+    <button class="btn mode-upload-btn" id="modeUploadBtn" onclick="App.openUpload()" style="display:none">⤒ 維修報表上傳</button>
+    <div class="role-sel" id="roleSelWrap" style="display:none">
+      <button class="role-sel-btn" id="roleSelBtn" onclick="App.toggleRoleDropdown()" title="切換分析視角">
+        <span id="roleSelIco">⊞</span>
+        <span id="roleSelLabel">綜合</span>
+        <span class="role-sel-arrow">▾</span>
+      </button>
+      <div class="role-sel-drop" id="roleSelDrop" style="display:none"></div>
+    </div>
     <span class="mode-bar-user" id="modeBarUser"></span>
     <div class="sys-ctl-group">
       <div class="fontsize-ctl" role="group" aria-label="顯示大小">
@@ -136,17 +132,21 @@ document.addEventListener('DOMContentLoaded', function(){
       <div class="hdr-t"><span class="sub" id="hdrSub"></span></div>
     </div>
     <div class="hdr-r">
-      <button class="btn hide-sm" onclick="RepairReport.generate(RepairDB.load())">⤓ 生成報告</button>
-      <button class="btn hide-sm" onclick="switchMode('rma')">◎ RMA管理</button>
-      <button class="btn danger" onclick="App.openUpload()">上傳 / 管理</button>
+      <button class="btn hide-sm" onclick="App.generateRoleReport()">⤓ 生成報告</button>
     </div>
   </div>
 
   <!-- Sub-bar: month + category chips -->
-  <div class="subbar">
-    <div class="subbar-row" id="monthChips"></div>
-    <div class="subbar-row" id="catChips"></div>
-    <div class="subbar-row" id="modelChips" style="display:none"></div>
+  <div class="subbar" id="subbar">
+    <button class="subbar-toggle" id="subbarToggle" onclick="App.toggleSubbar()" aria-label="展開/收合篩選">
+      <span id="subbarSummaryText">篩選</span>
+      <span class="subbar-arrow" id="subbarArrow">▲</span>
+    </button>
+    <div id="subbarBody">
+      <div class="subbar-row" id="monthChips"></div>
+      <div class="subbar-row" id="catChips"></div>
+      <div class="subbar-row" id="modelChips" style="display:none"></div>
+    </div>
   </div>
 
   <!-- Layout: sidebar + content -->
@@ -217,7 +217,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
         <!-- Global role switcher (persists across all analysis pages) -->
         <div class="global-role" id="globalRole">
-          <div class="ar-bar" id="analysisRoleBar"></div>
+          <div id="analysisRoleBar" style="display:none"></div>
           <div class="grole-banner" id="globalRoleBanner"></div>
         </div>
 
@@ -671,6 +671,8 @@ function switchMode(mode) {
       dash.classList.add('active');
       rmaDash.style.display = 'none';
       modeBar.style.display = 'flex';
+      const mub = document.getElementById('modeUploadBtn'); if (mub) mub.style.display = '';
+      const rsw = document.getElementById('roleSelWrap'); if (rsw) rsw.style.display = '';
     } else {
       // No data yet — show upload zone
       uploadZone.style.display = 'flex';
@@ -684,6 +686,8 @@ function switchMode(mode) {
     dash.classList.remove('active');
     rmaDash.style.display = 'block';
     modeBar.style.display = 'flex';
+    const mub = document.getElementById('modeUploadBtn'); if (mub) mub.style.display = 'none';
+    const rsw = document.getElementById('roleSelWrap'); if (rsw) rsw.style.display = 'none';
     // Init RMA content container
     const rmaContent = document.getElementById('rmaContent');
     if (rmaContent) {

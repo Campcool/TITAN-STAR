@@ -10,17 +10,6 @@
   var s; try { s = localStorage.getItem('titan_display_size'); } catch(e){}
   document.documentElement.setAttribute('data-fontscale', s || 'md');
 })();
-/* ── 公司 Logo（base64 或 URL，換圖只需改這一行）── */
-window.__LOGO_SRC__ = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIiB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCI+CiAgPGRlZnM+CiAgICA8IS0tIOeQg+mrlOa8uOWxpO+8muW3puS4iuS6ruiXjeKGkuWPs+S4i+a3seiXjee2oCAtLT4KICAgIDxyYWRpYWxHcmFkaWVudCBpZD0iZ2xvYmUiIGN4PSIzOCUiIGN5PSIzNSUiIHI9IjY1JSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiICAgc3RvcC1jb2xvcj0iIzdlY2VmNCIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjQwJSIgIHN0b3AtY29sb3I9IiMyMTk2YzQiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMDA2ZThhIi8+CiAgICA8L3JhZGlhbEdyYWRpZW50PgogICAgPCEtLSDnkrDluLbmvLjlsaQgLS0+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9InJpbmciIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiAgIHN0b3AtY29sb3I9IiNiOGU0ZjUiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSI1MCUiICBzdG9wLWNvbG9yPSIjZmZmZmZmIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzJmYjVkOCIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICAgIDwhLS0g5aSW5ZyI5o+P6YKK5ry45bGkIC0tPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJib3JkZXIiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgICBzdG9wLWNvbG9yPSIjMjE5NmM0Ii8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzAwNmU4YSIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICAgIDxjbGlwUGF0aCBpZD0iY2lyY2xlQ2xpcCI+CiAgICAgIDxjaXJjbGUgY3g9IjEwMCIgY3k9Ijk3IiByPSI4NCIvPgogICAgPC9jbGlwUGF0aD4KICA8L2RlZnM+CgogIDwhLS0g55CD6auU5Li76auUIC0tPgogIDxjaXJjbGUgY3g9IjEwMCIgY3k9Ijk3IiByPSI4NCIgZmlsbD0idXJsKCNnbG9iZSkiLz4KCiAgPCEtLSDnmb3oibLlpKfnkrDluLbvvIjmlpzmqaLlnJPvvIzmqavot6jnkIPpq5TvvIkgLS0+CiAgPGcgY2xpcC1wYXRoPSJ1cmwoI2NpcmNsZUNsaXApIj4KICAgIDxlbGxpcHNlIGN4PSIxMDAiIGN5PSI5NSIgcng9IjEwNSIgcnk9IjMwIgogICAgICAgICAgICAgZmlsbD0idXJsKCNyaW5nKSIgb3BhY2l0eT0iMC45MiIKICAgICAgICAgICAgIHRyYW5zZm9ybT0icm90YXRlKC0xMiAxMDAgOTUpIi8+CiAgICA8IS0tIOeSsOW4tuS6rumCiiAtLT4KICAgIDxlbGxpcHNlIGN4PSIxMDAiIGN5PSI4OCIgcng9IjEwMCIgcnk9IjEwIgogICAgICAgICAgICAgZmlsbD0id2hpdGUiIG9wYWNpdHk9IjAuNTUiCiAgICAgICAgICAgICB0cmFuc2Zvcm09InJvdGF0ZSgtMTIgMTAwIDg4KSIvPgogIDwvZz4KCiAgPCEtLSDlpJblnIjmj4/pgoogLS0+CiAgPGNpcmNsZSBjeD0iMTAwIiBjeT0iOTciIHI9Ijg0IiBmaWxsPSJub25lIiBzdHJva2U9InVybCgjYm9yZGVyKSIgc3Ryb2tlLXdpZHRoPSI1Ii8+CgogIDwhLS0gVElUQU4gU1RBUiDmloflrZcgLS0+CiAgPHRleHQgeD0iMTAwIiB5PSIxNDgiIHRleHQtYW5jaG9yPSJtaWRkbGUiCiAgICAgICAgZm9udC1mYW1pbHk9IkFyaWFsLCBIZWx2ZXRpY2EsIHNhbnMtc2VyaWYiCiAgICAgICAgZm9udC1zaXplPSIyMiIgZm9udC13ZWlnaHQ9ImJvbGQiIGxldHRlci1zcGFjaW5nPSIxLjUiCiAgICAgICAgZmlsbD0iIzFhNWY3YSI+VElUQU4gU1RBUjwvdGV4dD4KPC9zdmc+Cg==';
-document.addEventListener('DOMContentLoaded', function(){
-  var el = document.getElementById('siteLogo');
-  if (el && window.__LOGO_SRC__) { el.src = window.__LOGO_SRC__; }
-  else if (el) {
-    el.style.display = 'none';
-    var fb = document.getElementById('siteLogoFallback');
-    if (fb) fb.style.display = '';
-  }
-});
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -277,6 +266,13 @@ button, input, select { font-family: inherit; }
 }
 .hdr-l { display: flex; align-items: center; gap: 16px; }
 .site-logo { height: 36px; width: auto; object-fit: contain; display: block; }
+.s-icon {
+  width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+  background: linear-gradient(180deg, #38bdf8 0%, #10b981 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 19px; font-weight: 900; color: #fff;
+  font-family: var(--sans); letter-spacing: -.03em; cursor: default;
+}
 .hdr-mark {
   width: 28px; height: 28px; border-radius: 7px;
   background: linear-gradient(135deg, var(--accent), #6366f1);
@@ -316,6 +312,18 @@ button, input, select { font-family: inherit; }
   position: sticky; top: var(--header); z-index: 90;
 }
 .subbar-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.subbar-toggle {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; padding: 0; margin-bottom: 10px;
+  background: none; border: none; cursor: pointer;
+  color: var(--text3); font-size: 12.5px; font-weight: 500;
+  letter-spacing: .08em; text-transform: uppercase;
+}
+.subbar-toggle:hover { color: var(--text2); }
+.subbar-arrow { font-size: 10px; transition: transform .2s; }
+.subbar.collapsed .subbar-arrow { transform: rotate(180deg); }
+.subbar.collapsed #subbarBody { display: none; }
+.subbar.collapsed .subbar-toggle { margin-bottom: 0; }
 .sb-label {
   font-size: 14px; color: var(--text3);
   letter-spacing: .12em; text-transform: uppercase; font-weight: 600;
@@ -1490,6 +1498,42 @@ button, input, select { font-family: inherit; }
   transition: opacity .18s;
 }
 .ls-btn:hover { opacity: .88; }
+
+.mode-upload-btn {
+  font-size: 13px; padding: 5px 12px; border-radius: 8px;
+  background: var(--surface2); border-color: var(--border2);
+  color: var(--text2);
+}
+.mode-upload-btn:hover { background: var(--hover); color: var(--text); }
+
+/* ════════════════ Role Selector (top bar) ════════════════ */
+.role-sel { position: relative; }
+.role-sel-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 10px; border-radius: 8px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer;
+  white-space: nowrap; transition: background .15s;
+}
+.role-sel-btn:hover { background: var(--hover); }
+.role-sel-arrow { color: var(--text3); font-size: 10px; }
+.role-sel-drop {
+  position: absolute; right: 0; top: calc(100% + 6px);
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 12px; padding: 6px;
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 4px; min-width: 220px; z-index: 500;
+  box-shadow: 0 8px 24px rgba(0,0,0,.25);
+}
+.role-sel-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px; border-radius: 8px;
+  background: transparent; border: none;
+  color: var(--text2); font-size: 12.5px; cursor: pointer;
+  white-space: nowrap; transition: background .12s;
+}
+.role-sel-item:hover { background: var(--surface2); color: var(--text); }
+.role-sel-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 
 /* ════════════════ Mode-bar user display ════════════════ */
 .mode-bar-user {
@@ -2776,9 +2820,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
 <!-- ═══════════════ Mode Switcher Header ═══════════════ -->
 <div class="mode-bar" id="modeBar" style="display:none">
   <div class="mode-bar-l">
-    <img id="siteLogo" src="" alt="TITAN-STAR" class="site-logo" onerror="this.style.display='none';document.getElementById('siteLogoFallback').style.display=''">
-    <div id="siteLogoFallback" class="hdr-mark" style="display:none">TS</div>
-    <span class="mode-bar-brand">TITAN-STAR</span>
+    <div class="s-icon">S</div>
   </div>
   <div class="mode-tabs">
     <button class="mode-tab active" id="modeAnalysis" onclick="switchMode('analysis')">
@@ -2790,6 +2832,15 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
     </button>
   </div>
   <div class="mode-bar-r" id="modeBtns">
+    <button class="btn mode-upload-btn" id="modeUploadBtn" onclick="App.openUpload()" style="display:none">⤒ 維修報表上傳</button>
+    <div class="role-sel" id="roleSelWrap" style="display:none">
+      <button class="role-sel-btn" id="roleSelBtn" onclick="App.toggleRoleDropdown()" title="切換分析視角">
+        <span id="roleSelIco">⊞</span>
+        <span id="roleSelLabel">綜合</span>
+        <span class="role-sel-arrow">▾</span>
+      </button>
+      <div class="role-sel-drop" id="roleSelDrop" style="display:none"></div>
+    </div>
     <span class="mode-bar-user" id="modeBarUser"></span>
     <div class="sys-ctl-group">
       <div class="fontsize-ctl" role="group" aria-label="顯示大小">
@@ -2865,17 +2916,21 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
       <div class="hdr-t"><span class="sub" id="hdrSub"></span></div>
     </div>
     <div class="hdr-r">
-      <button class="btn hide-sm" onclick="RepairReport.generate(RepairDB.load())">⤓ 生成報告</button>
-      <button class="btn hide-sm" onclick="switchMode('rma')">◎ RMA管理</button>
-      <button class="btn danger" onclick="App.openUpload()">上傳 / 管理</button>
+      <button class="btn hide-sm" onclick="App.generateRoleReport()">⤓ 生成報告</button>
     </div>
   </div>
 
   <!-- Sub-bar: month + category chips -->
-  <div class="subbar">
-    <div class="subbar-row" id="monthChips"></div>
-    <div class="subbar-row" id="catChips"></div>
-    <div class="subbar-row" id="modelChips" style="display:none"></div>
+  <div class="subbar" id="subbar">
+    <button class="subbar-toggle" id="subbarToggle" onclick="App.toggleSubbar()" aria-label="展開/收合篩選">
+      <span id="subbarSummaryText">篩選</span>
+      <span class="subbar-arrow" id="subbarArrow">▲</span>
+    </button>
+    <div id="subbarBody">
+      <div class="subbar-row" id="monthChips"></div>
+      <div class="subbar-row" id="catChips"></div>
+      <div class="subbar-row" id="modelChips" style="display:none"></div>
+    </div>
   </div>
 
   <!-- Layout: sidebar + content -->
@@ -2946,7 +3001,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
 
         <!-- Global role switcher (persists across all analysis pages) -->
         <div class="global-role" id="globalRole">
-          <div class="ar-bar" id="analysisRoleBar"></div>
+          <div id="analysisRoleBar" style="display:none"></div>
           <div class="grole-banner" id="globalRoleBanner"></div>
         </div>
 
@@ -5282,6 +5337,14 @@ window.App = (function () {
     $('dash').classList.add('active');
     if ($('modeBar')) $('modeBar').style.display = 'flex';
     if ($('rmaDash')) $('rmaDash').style.display = 'none';
+    const mub = $('modeUploadBtn'); if (mub) mub.style.display = '';
+    const rsw = $('roleSelWrap'); if (rsw) rsw.style.display = '';
+    // Restore subbar collapsed state
+    try {
+      const c = localStorage.getItem('titan_subbar_collapsed');
+      const sb = $('subbar');
+      if (sb) sb.classList.toggle('collapsed', c === '1');
+    } catch(e) {}
     // Default: select all months, all categories
     state.selectedMonths = Object.keys(state.db.months).sort();
     state.selectedCategory = '全部';
@@ -5452,6 +5515,7 @@ window.App = (function () {
     updateAlertBadge();
     updateSummaryBadge();
     renderPage();
+    updateSubbarSummary();
   }
 
   // What each role should focus on — shown in the global banner on every page.
@@ -5478,18 +5542,68 @@ window.App = (function () {
   }
 
   function renderAnalysisRoleBar() {
+    // Legacy in-content bar (kept for fallback, may be empty)
     const bar = $('analysisRoleBar');
-    if (!bar) return;
+    if (bar) bar.innerHTML = '';
+
+    // Top-bar compact selector
     const cur = state.analysisRole;
-    bar.innerHTML = Object.entries(ANALYSIS_ROLES).map(([k, r]) => {
-      const active = k === cur;
-      return `<button class="ar-chip ${active ? 'active' : ''}" style="--rc:${r.color}"
-        onclick="App.setAnalysisRole('${k}')" title="${r.desc}">
-        <span class="ar-chip-ico">${r.icon}</span>
-        <span class="ar-chip-t">${r.short}</span>
-      </button>`;
-    }).join('');
+    const curR = ANALYSIS_ROLES[cur] || ANALYSIS_ROLES.all;
+    const ico = $('roleSelIco');
+    const lbl = $('roleSelLabel');
+    if (ico) ico.textContent = curR.icon;
+    if (lbl) lbl.textContent = curR.short;
+
+    // Rebuild dropdown items
+    const drop = $('roleSelDrop');
+    if (drop) {
+      drop.innerHTML = Object.entries(ANALYSIS_ROLES).map(([k, r]) =>
+        `<button class="role-sel-item ${k === cur ? 'active' : ''}"
+          onclick="App.setAnalysisRole('${k}');App.closeRoleDropdown()" title="${r.desc}">
+          <span>${r.icon}</span><span>${r.short}</span>
+        </button>`
+      ).join('');
+    }
+
     renderGlobalRoleBanner();
+  }
+
+  function toggleRoleDropdown() {
+    const drop = $('roleSelDrop');
+    if (!drop) return;
+    const open = drop.style.display !== 'none';
+    drop.style.display = open ? 'none' : '';
+    if (!open) {
+      const close = (e) => {
+        if (!$('roleSelWrap').contains(e.target)) {
+          drop.style.display = 'none';
+          document.removeEventListener('click', close);
+        }
+      };
+      setTimeout(() => document.addEventListener('click', close), 0);
+    }
+  }
+
+  function closeRoleDropdown() {
+    const drop = $('roleSelDrop');
+    if (drop) drop.style.display = 'none';
+  }
+
+  function toggleSubbar() {
+    const sb = $('subbar');
+    if (!sb) return;
+    const collapsed = sb.classList.toggle('collapsed');
+    try { localStorage.setItem('titan_subbar_collapsed', collapsed ? '1' : '0'); } catch(e) {}
+  }
+
+  function updateSubbarSummary() {
+    const el = $('subbarSummaryText');
+    if (!el) return;
+    const months = state.selectedMonths.length ? state.selectedMonths.map(m => {
+      const [y, mo] = m.split('-'); return `${parseInt(y)-1911}/${mo}`;
+    }).join('、') : '全部';
+    const cat = state.selectedCategory || '全部';
+    el.textContent = `月份：${months}　大類：${cat}`;
   }
 
   function renderGlobalRoleBanner() {
@@ -8819,6 +8933,19 @@ window.App = (function () {
   }
   document.addEventListener('DOMContentLoaded', init);
 
+  function generateRoleReport() {
+    const role = state.analysisRole;
+    const roleInfo = ANALYSIS_ROLES[role] || ANALYSIS_ROLES.all;
+    const f = currentFilter();
+    const records = RepairAnalyzer.getRecords(state.db, f);
+    const denom = RepairAnalyzer.getDenominators(state.db, f);
+    const kpis = RepairAnalyzer.computeKPIs(records, denom);
+    const lastMonth = state.selectedMonths.slice().sort().pop();
+    const anoms = RepairAnalyzer.detectAnomalies(state.db, lastMonth);
+    const items = summaryForRole(role, records, kpis, anoms);
+    RepairReport.generate(state.db, { role, roleInfo, items });
+  }
+
   // ─── Auth is wired as window.Auth so it can be called from HTML onclick ───
   // (defined after App IIFE return at bottom of file)
 
@@ -8833,7 +8960,10 @@ window.App = (function () {
     openCostConfig, saveCostConfig, quickEstimateCost,
     toggleRank, toggleRankRow,
     dismissAlertPulse, dismissCrossMonthPulse,
-    generateReport: () => RepairReport.generate(state.db),
+    generateReport: () => generateRoleReport(),
+    generateRoleReport,
+    toggleRoleDropdown, closeRoleDropdown,
+    toggleSubbar,
     exportCrossMatrix,
     // Drawer
     openKpiDrawer, openAnomalyDrawer, openPartDrawer, openModelDrawer, openSerialDrawer, openSerialTimelineDrawer,
@@ -9188,7 +9318,10 @@ window.Auth = (function () {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  function generate(db) {
+  function generate(db, roleCtx) {
+    roleCtx = roleCtx || null;
+    const roleTitle = roleCtx ? roleCtx.roleInfo.label + '視角' : '綜合分析';
+    const roleItems = roleCtx ? roleCtx.items : null;
     const months = Object.keys(db.months).sort();
     if (!months.length) return alert('沒有資料可生成報告');
 
@@ -9244,6 +9377,7 @@ window.Auth = (function () {
       anomalies, critical, warn,
       modelRank, topParts, crossMonth, trend,
       reportDate: new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' }),
+      roleTitle, roleItems,
     });
 
     // Open in new tab
@@ -9482,7 +9616,7 @@ window.Auth = (function () {
   <!-- COVER -->
   <div class="cover">
     <div class="cover-overline">維修月度總結報告</div>
-    <div class="cover-title">${monthLabel} 維修分析摘要</div>
+    <div class="cover-title">${monthLabel} 維修分析摘要（${d.roleTitle || '綜合分析'}）</div>
     <div class="cover-sub">電子工廠 · 報廢與維修狀態總覽</div>
     <div class="cover-meta">
       <span>生成日期：${d.reportDate}</span>
@@ -9490,6 +9624,18 @@ window.Auth = (function () {
       <span>總紀錄：${d.allKpis.totalRepairs.toLocaleString()} 筆</span>
     </div>
   </div>
+
+  ${d.roleItems && d.roleItems.length ? `
+  <!-- Role-specific section -->
+  <div class="exec" style="border-left:3px solid #0ea5e9;background:#f0f9ff;">
+    <div class="exec-h">${escapeHtml(d.roleTitle || '視角')} — 行動項目</div>
+    <div class="exec-body">
+      ${d.roleItems.map(item => `<div style="margin-bottom:8px">
+        <span style="font-weight:600;color:${item.severity==='critical'?'#dc2626':item.severity==='warn'?'#d97706':'#0369a1'}">[${item.severity==='critical'?'嚴重':item.severity==='warn'?'注意':'資訊'}]</span>
+        ${escapeHtml(item.title || '')}${item.body ? ' — ' + escapeHtml(item.body) : ''}
+      </div>`).join('')}
+    </div>
+  </div>` : ''}
 
   <!-- Executive summary -->
   <div class="exec">
@@ -11155,6 +11301,8 @@ function switchMode(mode) {
       dash.classList.add('active');
       rmaDash.style.display = 'none';
       modeBar.style.display = 'flex';
+      const mub = document.getElementById('modeUploadBtn'); if (mub) mub.style.display = '';
+      const rsw = document.getElementById('roleSelWrap'); if (rsw) rsw.style.display = '';
     } else {
       // No data yet — show upload zone
       uploadZone.style.display = 'flex';
@@ -11168,6 +11316,8 @@ function switchMode(mode) {
     dash.classList.remove('active');
     rmaDash.style.display = 'block';
     modeBar.style.display = 'flex';
+    const mub = document.getElementById('modeUploadBtn'); if (mub) mub.style.display = 'none';
+    const rsw = document.getElementById('roleSelWrap'); if (rsw) rsw.style.display = 'none';
     // Init RMA content container
     const rmaContent = document.getElementById('rmaContent');
     if (rmaContent) {

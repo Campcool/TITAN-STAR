@@ -391,6 +391,14 @@ window.App = (function () {
     $('dash').classList.add('active');
     if ($('modeBar')) $('modeBar').style.display = 'flex';
     if ($('rmaDash')) $('rmaDash').style.display = 'none';
+    const mub = $('modeUploadBtn'); if (mub) mub.style.display = '';
+    const rsw = $('roleSelWrap'); if (rsw) rsw.style.display = '';
+    // Restore subbar collapsed state
+    try {
+      const c = localStorage.getItem('titan_subbar_collapsed');
+      const sb = $('subbar');
+      if (sb) sb.classList.toggle('collapsed', c === '1');
+    } catch(e) {}
     // Default: select all months, all categories
     state.selectedMonths = Object.keys(state.db.months).sort();
     state.selectedCategory = '全部';
@@ -561,6 +569,7 @@ window.App = (function () {
     updateAlertBadge();
     updateSummaryBadge();
     renderPage();
+    updateSubbarSummary();
   }
 
   // What each role should focus on — shown in the global banner on every page.
@@ -587,18 +596,68 @@ window.App = (function () {
   }
 
   function renderAnalysisRoleBar() {
+    // Legacy in-content bar (kept for fallback, may be empty)
     const bar = $('analysisRoleBar');
-    if (!bar) return;
+    if (bar) bar.innerHTML = '';
+
+    // Top-bar compact selector
     const cur = state.analysisRole;
-    bar.innerHTML = Object.entries(ANALYSIS_ROLES).map(([k, r]) => {
-      const active = k === cur;
-      return `<button class="ar-chip ${active ? 'active' : ''}" style="--rc:${r.color}"
-        onclick="App.setAnalysisRole('${k}')" title="${r.desc}">
-        <span class="ar-chip-ico">${r.icon}</span>
-        <span class="ar-chip-t">${r.short}</span>
-      </button>`;
-    }).join('');
+    const curR = ANALYSIS_ROLES[cur] || ANALYSIS_ROLES.all;
+    const ico = $('roleSelIco');
+    const lbl = $('roleSelLabel');
+    if (ico) ico.textContent = curR.icon;
+    if (lbl) lbl.textContent = curR.short;
+
+    // Rebuild dropdown items
+    const drop = $('roleSelDrop');
+    if (drop) {
+      drop.innerHTML = Object.entries(ANALYSIS_ROLES).map(([k, r]) =>
+        `<button class="role-sel-item ${k === cur ? 'active' : ''}"
+          onclick="App.setAnalysisRole('${k}');App.closeRoleDropdown()" title="${r.desc}">
+          <span>${r.icon}</span><span>${r.short}</span>
+        </button>`
+      ).join('');
+    }
+
     renderGlobalRoleBanner();
+  }
+
+  function toggleRoleDropdown() {
+    const drop = $('roleSelDrop');
+    if (!drop) return;
+    const open = drop.style.display !== 'none';
+    drop.style.display = open ? 'none' : '';
+    if (!open) {
+      const close = (e) => {
+        if (!$('roleSelWrap').contains(e.target)) {
+          drop.style.display = 'none';
+          document.removeEventListener('click', close);
+        }
+      };
+      setTimeout(() => document.addEventListener('click', close), 0);
+    }
+  }
+
+  function closeRoleDropdown() {
+    const drop = $('roleSelDrop');
+    if (drop) drop.style.display = 'none';
+  }
+
+  function toggleSubbar() {
+    const sb = $('subbar');
+    if (!sb) return;
+    const collapsed = sb.classList.toggle('collapsed');
+    try { localStorage.setItem('titan_subbar_collapsed', collapsed ? '1' : '0'); } catch(e) {}
+  }
+
+  function updateSubbarSummary() {
+    const el = $('subbarSummaryText');
+    if (!el) return;
+    const months = state.selectedMonths.length ? state.selectedMonths.map(m => {
+      const [y, mo] = m.split('-'); return `${parseInt(y)-1911}/${mo}`;
+    }).join('、') : '全部';
+    const cat = state.selectedCategory || '全部';
+    el.textContent = `月份：${months}　大類：${cat}`;
   }
 
   function renderGlobalRoleBanner() {
@@ -3928,6 +3987,19 @@ window.App = (function () {
   }
   document.addEventListener('DOMContentLoaded', init);
 
+  function generateRoleReport() {
+    const role = state.analysisRole;
+    const roleInfo = ANALYSIS_ROLES[role] || ANALYSIS_ROLES.all;
+    const f = currentFilter();
+    const records = RepairAnalyzer.getRecords(state.db, f);
+    const denom = RepairAnalyzer.getDenominators(state.db, f);
+    const kpis = RepairAnalyzer.computeKPIs(records, denom);
+    const lastMonth = state.selectedMonths.slice().sort().pop();
+    const anoms = RepairAnalyzer.detectAnomalies(state.db, lastMonth);
+    const items = summaryForRole(role, records, kpis, anoms);
+    RepairReport.generate(state.db, { role, roleInfo, items });
+  }
+
   // ─── Auth is wired as window.Auth so it can be called from HTML onclick ───
   // (defined after App IIFE return at bottom of file)
 
@@ -3942,7 +4014,10 @@ window.App = (function () {
     openCostConfig, saveCostConfig, quickEstimateCost,
     toggleRank, toggleRankRow,
     dismissAlertPulse, dismissCrossMonthPulse,
-    generateReport: () => RepairReport.generate(state.db),
+    generateReport: () => generateRoleReport(),
+    generateRoleReport,
+    toggleRoleDropdown, closeRoleDropdown,
+    toggleSubbar,
     exportCrossMatrix,
     // Drawer
     openKpiDrawer, openAnomalyDrawer, openPartDrawer, openModelDrawer, openSerialDrawer, openSerialTimelineDrawer,

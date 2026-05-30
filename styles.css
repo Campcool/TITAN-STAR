@@ -250,6 +250,13 @@ button, input, select { font-family: inherit; }
 }
 .hdr-l { display: flex; align-items: center; gap: 16px; }
 .site-logo { height: 36px; width: auto; object-fit: contain; display: block; }
+.s-icon {
+  width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+  background: linear-gradient(180deg, #38bdf8 0%, #10b981 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 19px; font-weight: 900; color: #fff;
+  font-family: var(--sans); letter-spacing: -.03em; cursor: default;
+}
 .hdr-mark {
   width: 28px; height: 28px; border-radius: 7px;
   background: linear-gradient(135deg, var(--accent), #6366f1);
@@ -289,6 +296,18 @@ button, input, select { font-family: inherit; }
   position: sticky; top: var(--header); z-index: 90;
 }
 .subbar-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.subbar-toggle {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; padding: 0; margin-bottom: 10px;
+  background: none; border: none; cursor: pointer;
+  color: var(--text3); font-size: 12.5px; font-weight: 500;
+  letter-spacing: .08em; text-transform: uppercase;
+}
+.subbar-toggle:hover { color: var(--text2); }
+.subbar-arrow { font-size: 10px; transition: transform .2s; }
+.subbar.collapsed .subbar-arrow { transform: rotate(180deg); }
+.subbar.collapsed #subbarBody { display: none; }
+.subbar.collapsed .subbar-toggle { margin-bottom: 0; }
 .sb-label {
   font-size: 14px; color: var(--text3);
   letter-spacing: .12em; text-transform: uppercase; font-weight: 600;
@@ -1463,6 +1482,42 @@ button, input, select { font-family: inherit; }
   transition: opacity .18s;
 }
 .ls-btn:hover { opacity: .88; }
+
+.mode-upload-btn {
+  font-size: 13px; padding: 5px 12px; border-radius: 8px;
+  background: var(--surface2); border-color: var(--border2);
+  color: var(--text2);
+}
+.mode-upload-btn:hover { background: var(--hover); color: var(--text); }
+
+/* ════════════════ Role Selector (top bar) ════════════════ */
+.role-sel { position: relative; }
+.role-sel-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 10px; border-radius: 8px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer;
+  white-space: nowrap; transition: background .15s;
+}
+.role-sel-btn:hover { background: var(--hover); }
+.role-sel-arrow { color: var(--text3); font-size: 10px; }
+.role-sel-drop {
+  position: absolute; right: 0; top: calc(100% + 6px);
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 12px; padding: 6px;
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 4px; min-width: 220px; z-index: 500;
+  box-shadow: 0 8px 24px rgba(0,0,0,.25);
+}
+.role-sel-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px; border-radius: 8px;
+  background: transparent; border: none;
+  color: var(--text2); font-size: 12.5px; cursor: pointer;
+  white-space: nowrap; transition: background .12s;
+}
+.role-sel-item:hover { background: var(--surface2); color: var(--text); }
+.role-sel-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 
 /* ════════════════ Mode-bar user display ════════════════ */
 .mode-bar-user {
