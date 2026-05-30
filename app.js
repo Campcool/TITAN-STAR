@@ -509,13 +509,31 @@ window.App = (function () {
     renderFilters();
     renderAnalysisRoleBar();
     updateAlertBadge();
+    updateSummaryBadge();
     renderPage();
   }
+
+  // What each role should focus on — shown in the global banner on every page.
+  const ROLE_FOCUS = {
+    all:      '全域核心指標與最嚴重異常',
+    ceo:      '戰略績效、財務曝險與紅線異常',
+    factory:  '跨部門待協調事項與產能積壓',
+    procure:  '高用量零件、出廠批次來料瑕疵與安全庫存',
+    prod:     '高故障/高報廢機種、製程與批次缺陷',
+    qa:       '重複維修、批次/早夭、CAPA 與保固責任',
+    logistics:'報廢影響出貨、重工循環與流量',
+    cs:       '跨月重複故障客戶、保固曝險與客訴風險',
+    repair:   '主力備料、報廢主因與返修品質',
+    hw:       '設計缺陷、元件可靠性與 ECO 候選',
+    fw:       '韌體關鍵字故障與 OTA 候選',
+    finance:  '品質成本 COPQ、報廢金額與改善 ROI',
+    sales:    '產品口碑紅黃綠燈與可推廣機種',
+  };
 
   function setAnalysisRole(role) {
     state.analysisRole = role;
     renderAnalysisRoleBar();
-    if (state.currentPage === 'overview') renderPage();
+    renderPage();   // role now affects every page (summary / overview / per-page banner)
   }
 
   function renderAnalysisRoleBar() {
@@ -530,6 +548,22 @@ window.App = (function () {
         <span class="ar-chip-t">${r.short}</span>
       </button>`;
     }).join('');
+    renderGlobalRoleBanner();
+  }
+
+  function renderGlobalRoleBanner() {
+    const el = $('globalRoleBanner');
+    if (!el) return;
+    const r = ANALYSIS_ROLES[state.analysisRole] || ANALYSIS_ROLES.all;
+    const focus = ROLE_FOCUS[state.analysisRole] || ROLE_FOCUS.all;
+    const isAll = state.analysisRole === 'all';
+    el.style.setProperty('--rc', r.color);
+    el.innerHTML = `
+      <span class="grole-ico" style="color:${r.color}">${r.icon}</span>
+      <span class="grole-label">${r.label}視角</span>
+      <span class="grole-focus">重點關注：${focus}</span>
+      ${isAll ? '' : `<button class="grole-sum" onclick="App.switchPage('summary')">★ 我的摘要 →</button>`}
+    `;
   }
 
   // ─── Role-specific insight engine ───
@@ -810,6 +844,215 @@ window.App = (function () {
     };
   }
 
+  // ═══════════════ Manager Summary (per-role digest report) ═══════════════
+  // Gather findings from EVERY analysis engine, tag each with the roles that
+  // care + a drill-down page; the summary page then filters by role and groups
+  // by severity — so each manager sees a clean, prioritised "to-track" list.
+  const SEV_RANK = { critical: 0, warn: 1, info: 2 };
+  const PAGE_NAME = { summary:'主管摘要', overview:'總覽', alerts:'異常偵測', parts:'零件 Pareto', cross:'跨機種矩陣', trend:'月份趨勢', reason:'故障原因', quality:'品質/SPC', batch:'製造批次', risk:'風險/根因', capa:'CAPA', cost:'成本量化', scrap:'報廢/重修', detail:'明細' };
+
+  function gatherFindings(records, kpis, anoms) {
+    const f = currentFilter();
+    const findings = [];
+    const add = (o) => findings.push(o);
+
+    // (1) Anomalies → role-tagged
+    const anomRoles = (a) => {
+      const t = a.title || '';
+      const roles = new Set(['factory']);
+      if (a.severity === 'critical') ['ceo', 'qa'].forEach(r => roles.add(r));
+      if (t.includes('零件') || t.includes('用量')) ['procure', 'repair'].forEach(r => roles.add(r));
+      if (t.includes('故障') || t.includes('機種')) ['prod', 'sales'].forEach(r => roles.add(r));
+      if (t.includes('重複')) ['qa', 'cs', 'repair', 'hw'].forEach(r => roles.add(r));
+      if (t.includes('報廢')) ['prod', 'finance', 'logistics'].forEach(r => roles.add(r));
+      if (t.includes('保固')) ['qa', 'cs'].forEach(r => roles.add(r));
+      return Array.from(roles);
+    };
+    for (const a of anoms) {
+      add({ sev: a.severity === 'critical' ? 'critical' : a.severity === 'warn' ? 'warn' : 'info',
+        area: '異常偵測', icon: a.icon || '!', title: a.title,
+        detail: `${a.subject || ''}${a.message ? '：' + a.message : ''}`,
+        action: '至「異常偵測」查看完整清單與下鑽', page: 'alerts', roles: anomRoles(a) });
+    }
+
+    // (2) Manufacture/origin-batch flags
+    const batch = RepairAnalyzer.batchAnalysis(records);
+    for (const b of batch) {
+      for (const fl of b.flags) {
+        let sev = 'warn', roles = ['qa', 'prod'], action = '';
+        if (fl === '全新早夭') { sev = 'critical'; roles = ['prod', 'hw', 'qa', 'ceo']; action = '檢討該機種 OQC 出廠檢驗項目，擋下問題批'; }
+        else if (fl === '整新後即壞') { sev = 'critical'; roles = ['repair', 'qa']; action = '檢討整新製程與整新後驗收'; }
+        else if (fl === '出廠批次集中') { roles = ['procure', 'hw', 'qa', 'prod']; action = `追溯 ${b.topOrigin ? b.topOrigin.month : ''} 出廠批的料號/供應商/產線`; }
+        else if (fl === '製造批次集中') { roles = ['prod', 'qa', 'repair']; action = '補上製令以區分出廠批或整新梯次'; }
+        const topO = b.topOrigin ? `出廠批 ${b.topOrigin.month}(${(b.topOriginPct * 100).toFixed(0)}%)` : '';
+        add({ sev, area: '製造批次', icon: '⊞', title: `${b.model}：${fl}`,
+          detail: `維修 ${b.total} 件${topO ? '，' + topO : ''}${b.earlyNew ? `，全新早夭 ${b.earlyNew} 件` : ''}${b.earlyRefurb ? `，整新後即壞 ${b.earlyRefurb} 件` : ''}`,
+          action, page: 'batch', roles });
+      }
+    }
+
+    // (3) Origin-batch defect localisation (元件瑕疵落點)
+    const ob = RepairAnalyzer.originBatchPareto(records);
+    if (ob.list.length && ob.list[0].pct >= 0.25 && ob.total >= 20) {
+      const t = ob.list[0];
+      add({ sev: 'warn', area: '元件瑕疵', icon: '🏭', title: `元件瑕疵落點：${t.month} 出廠批`,
+        detail: `${t.month} 出廠批佔故障 ${t.count} 件（${(t.pct * 100).toFixed(0)}%），機種 ${t.models.join('、')}`,
+        action: '追溯該出廠批的元件來料批與供應商', page: 'batch', roles: ['procure', 'hw', 'qa'] });
+    }
+
+    // (4) FMEA high-RPN parts
+    const fmea = RepairAnalyzer.fmeaAnalysis(records, state.db);
+    for (const m of fmea.filter(x => x.rpn >= 100).slice(0, 4)) {
+      add({ sev: m.rpn >= 200 ? 'critical' : 'warn', area: '風險(FMEA)', icon: '⚠',
+        title: `${m.part} 風險 RPN ${m.rpn}`,
+        detail: `S${m.severity}×O${m.occurrence}×D${m.detection}＝${m.rpn}，維修 ${m.count} 件、報廢 ${m.scrap} 件`,
+        action: m.rpn >= 200 ? '立即開立 CAPA 改善專案' : '本月內評估開立 CAPA', page: 'risk', roles: ['qa', 'hw', 'repair'] });
+    }
+
+    // (5) Overdue CAPA
+    const capa = loadCapa();
+    const today = new Date().toISOString().slice(0, 10);
+    const overdue = capa.filter(c => c.due && c.status !== 'closed' && c.due < today);
+    if (overdue.length) add({ sev: 'warn', area: 'CAPA', icon: '✓', title: `CAPA 逾期 ${overdue.length} 項`,
+      detail: `${overdue.slice(0, 3).map(c => `#${c.id} ${c.problem || ''}`).join('；')}${overdue.length > 3 ? ' …' : ''}`,
+      action: '至 CAPA 追蹤頁催辦或調整截止日', page: 'capa', roles: ['qa', 'factory', 'ceo'] });
+
+    // (6) Cross-month repeats
+    const cross = RepairAnalyzer.crossMonthSerials(state.db, {});
+    if (cross.length) add({ sev: cross.length >= 5 ? 'warn' : 'info', area: '重複維修', icon: '⇄',
+      title: `跨月重複故障 ${cross.length} 台`,
+      detail: `同一序號跨月再進廠，疑似未根治；最高 ${cross[0].model} #${cross[0].serial} 共 ${cross[0].visitCount} 次`,
+      action: '開立 CAPA 並比對首修紀錄/韌體版本', page: 'scrap', roles: ['qa', 'cs', 'repair', 'hw'] });
+
+    // (7) Quality cost COPQ
+    const cfg = (function () { try { return JSON.parse(localStorage.getItem('titan_cost_cfg_v1') || 'null'); } catch { return null; } })();
+    const cost = RepairAnalyzer.costAnalysis(records, cfg || {});
+    if (cost.configured && cost.totalCost > 0) {
+      const money = (n) => 'NT$ ' + Math.round(n).toLocaleString('en');
+      add({ sev: 'info', area: '品質成本', icon: '$', title: `本期 COPQ ${money(cost.totalCost)}`,
+        detail: `報廢 ${money(cost.scrapCost)} + 工時 ${money(cost.laborCost)}${cost.byCategory.length ? `，最高 ${cost.byCategory[0].cat}` : ''}`,
+        action: '用於管理層 ROI 與改善優先序排定', page: 'cost', roles: ['finance', 'ceo'] });
+    }
+
+    // (8) Component-category dominance
+    const cc = RepairAnalyzer.componentCategoryPareto(state.db, f);
+    if (cc.list.length && cc.list[0].pct >= 0.3) {
+      const c = cc.list[0];
+      add({ sev: 'info', area: '零件大類', icon: '🧩', title: `故障集中於「${c.name}」類`,
+        detail: `${c.name} 佔故障零件 ${(c.pct * 100).toFixed(0)}%（${c.count} 件），主要：${c.topParts.slice(0, 2).map(p => p.name).join('、')}`,
+        action: '針對該零件大類找供應商/設計根因', page: 'parts', roles: ['procure', 'hw', 'repair'] });
+    }
+
+    // (9) High fault-rate models
+    const denom = RepairAnalyzer.getDenominators(state.db, f);
+    const ranks = RepairAnalyzer.modelRank(records, denom, state.db, state.selectedMonths);
+    for (const r of ranks.filter(r => (r.faultRate || 0) >= 0.1).slice(0, 3)) {
+      add({ sev: r.faultRate >= 0.2 ? 'critical' : 'warn', area: '高故障機種', icon: '⚙',
+        title: `${r.model} 故障率 ${(r.faultRate * 100).toFixed(1)}%`,
+        detail: `維修 ${r.count} 件${r.scrap ? `、報廢 ${r.scrap} 件` : ''}，高於 10% 警戒線`,
+        action: '生產/研發排查製程或設計；業務對外溝通宜保守', page: 'overview', roles: ['prod', 'ceo', 'sales', 'qa'] });
+    }
+
+    // (10) Overall scrap rate
+    if (kpis.scrapPct >= 5) add({ sev: kpis.scrapPct >= 10 ? 'critical' : 'warn', area: '報廢', icon: '✕',
+      title: `整體報廢率 ${fmt.pct(kpis.scrapPct)}`,
+      detail: `報廢 ${kpis.scrap} 件，${kpis.scrapPct >= 10 ? '已達高風險' : '達警戒線 (5%)'}`,
+      action: '調查報廢主因機種與原因集中度', page: 'scrap', roles: ['prod', 'finance', 'logistics', 'ceo', 'qa'] });
+
+    return findings;
+  }
+
+  function summaryForRole(role, records, kpis, anoms) {
+    const all = gatherFindings(records, kpis, anoms);
+    const mine = (role === 'all') ? all.slice() : all.filter(x => x.roles.includes(role));
+    mine.sort((a, b) => SEV_RANK[a.sev] - SEV_RANK[b.sev]);
+    return mine;
+  }
+
+  function updateSummaryBadge() {
+    try {
+      const f = currentFilter();
+      const records = RepairAnalyzer.getRecords(state.db, f);
+      const denom = RepairAnalyzer.getDenominators(state.db, f);
+      const kpis = RepairAnalyzer.computeKPIs(records, denom);
+      const lastMonth = state.selectedMonths.slice().sort().pop();
+      const anoms = RepairAnalyzer.detectAnomalies(state.db, lastMonth);
+      const mine = summaryForRole(state.analysisRole, records, kpis, anoms);
+      const crit = mine.filter(x => x.sev === 'critical').length;
+      const sb = $('summaryBadge');
+      if (!sb) return;
+      const n = crit || mine.length;
+      if (n > 0) { sb.style.display = ''; sb.textContent = n; sb.classList.toggle('crit-level', crit > 0); }
+      else sb.style.display = 'none';
+    } catch (e) { /* badge is best-effort */ }
+  }
+
+  function renderSummary() {
+    const f = currentFilter();
+    const records = RepairAnalyzer.getRecords(state.db, f);
+    const denom = RepairAnalyzer.getDenominators(state.db, f);
+    const kpis = RepairAnalyzer.computeKPIs(records, denom);
+    const lastMonth = state.selectedMonths.slice().sort().pop();
+    const anoms = RepairAnalyzer.detectAnomalies(state.db, lastMonth);
+
+    const role = state.analysisRole;
+    const roleInfo = ANALYSIS_ROLES[role] || ANALYSIS_ROLES.all;
+    const mine = summaryForRole(role, records, kpis, anoms);
+    const crit = mine.filter(x => x.sev === 'critical');
+    const warn = mine.filter(x => x.sev === 'warn');
+    const info = mine.filter(x => x.sev === 'info');
+
+    $('summaryMeta').textContent = `${mine.length} 項應追蹤 · ${crit.length} 立即處理`;
+    const sb = $('summaryBadge');
+    if (sb) { const n = crit.length || mine.length; if (n) { sb.style.display = ''; sb.textContent = n; sb.classList.toggle('crit-level', crit.length > 0); } else sb.style.display = 'none'; }
+
+    $('sumBanner').innerHTML = `
+      <div class="sum-banner-inner" style="--rc:${roleInfo.color}">
+        <span class="sum-banner-ico">${roleInfo.icon}</span>
+        <div>
+          <div class="sum-banner-t">${roleInfo.label} · 應追蹤摘要</div>
+          <div class="sum-banner-d">${roleInfo.desc}　·　重點關注：${ROLE_FOCUS[role] || ''}</div>
+        </div>
+        <div class="sum-banner-meta">${state.analysisRole === 'all' ? '綜合視角：顯示全部findings' : `已過濾出 ${roleInfo.label}相關事項`}</div>
+      </div>`;
+
+    $('sumKpi').innerHTML = `
+      <div class="kpi k-red"><div class="kpi-h"><div class="kpi-l">立即處理</div><div class="kpi-ico">!</div></div>
+        <div class="kpi-v">${crit.length}</div><div class="kpi-d"><span class="muted">嚴重 · 需馬上行動</span></div></div>
+      <div class="kpi k-warn"><div class="kpi-h"><div class="kpi-l">本期關注</div><div class="kpi-ico">▲</div></div>
+        <div class="kpi-v">${warn.length}</div><div class="kpi-d"><span class="muted">警示 · 本期內處理</span></div></div>
+      <div class="kpi k-blue"><div class="kpi-h"><div class="kpi-l">整體故障率</div><div class="kpi-ico">%</div></div>
+        <div class="kpi-v">${fmt.pct(kpis.denomPct)}</div><div class="kpi-d"><span class="muted">${fmt.int(kpis.totalRepairs)} / ${fmt.int(kpis.denomTotal)}</span></div></div>
+      <div class="kpi k-info"><div class="kpi-h"><div class="kpi-l">報廢率</div><div class="kpi-ico">✕</div></div>
+        <div class="kpi-v">${fmt.pct(kpis.scrapPct)}</div><div class="kpi-d"><span class="muted">${kpis.scrap} 件</span></div></div>
+    `;
+
+    const section = (label, items, cls) => {
+      if (!items.length) return '';
+      return `
+        <div class="sum-sec">
+          <div class="sum-sec-h ${cls}"><span class="sum-sec-dot"></span>${label}<span class="sum-sec-n">${items.length}</span></div>
+          <div class="sum-cards">
+            ${items.map(x => `
+              <div class="sum-card ${x.sev}">
+                <div class="sum-card-top"><span class="sum-card-ico">${x.icon}</span><span class="sum-card-area">${x.area}</span></div>
+                <div class="sum-card-title">${escapeHtml(x.title)}</div>
+                <div class="sum-card-detail">${escapeHtml(x.detail)}</div>
+                ${x.action ? `<div class="sum-card-action">💡 ${escapeHtml(x.action)}</div>` : ''}
+                <button class="sum-card-go" onclick="App.switchPage('${x.page}')">前往 ${PAGE_NAME[x.page] || x.page} →</button>
+              </div>`).join('')}
+          </div>
+        </div>`;
+    };
+
+    const body = $('sumBody');
+    if (!mine.length) {
+      body.innerHTML = `<div class="card"><div class="empty"><div class="empty-ico">✓</div><div class="empty-t">本期此視角未偵測到須追蹤事項</div><div class="empty-d">可切換其他角色，或檢視「總覽」掌握全貌</div></div></div>`;
+      return;
+    }
+    body.innerHTML = section('應立即追蹤', crit, 'critical') + section('本期應關注', warn, 'warn') + section('持續監控', info, 'info');
+  }
+
   function updateAlertBadge() {
     const lastMonth = state.selectedMonths.slice().sort().pop();
     const anoms = RepairAnalyzer.detectAnomalies(state.db, lastMonth);
@@ -854,6 +1097,23 @@ window.App = (function () {
 
   // ─────────────── 使用說明 (per-page help) ───────────────
   const HELP = {
+    summary: {
+      what: '依您選的主管視角，把全報表（異常偵測、製造批次、出廠批次/元件瑕疵、FMEA 風險、CAPA、跨月重複、品質成本、零件大類、高故障機種、報廢率）的發現「彙整成一份報告」，過濾出與您角色相關者，再依嚴重度分為「應立即追蹤 / 本期應關注 / 持續監控」三層，每項附建議行動與下鑽連結。上方角色列可隨時切換，全站每頁都會跟著切換視角。',
+      meaning: '這頁解決「資訊雜湊」問題：不必逐頁翻找，系統替每位主管把「該你管的事」挑出來、排好序。紅色＝嚴重需馬上行動；橙色＝本期內處理；藍色＝持續監控。卡片的「💡建議行動」是下一步，「前往 →」直接跳到對應分析頁深究。',
+      who: '所有層級主管的每日起點。董事長/廠長：看跨部門紅線；品檢：看批次/早夭/CAPA/重複維修；採購：看出廠批次來料瑕疵與高用量零件；研發：看 FMEA 與元件瑕疵落點；財務：看 COPQ；業務：看高故障機種口碑。切到「綜合視角」則顯示全部發現。',
+      kpis: [
+        { name:'立即處理', formula:'此角色相關的嚴重(critical)發現數', benchmark:'目標為 0；>0 代表有需馬上行動的事項', tip:'紅卡都應在 24–72 小時內指派負責人' },
+        { name:'本期關注', formula:'此角色相關的警示(warn)發現數', benchmark:'本期(本月)內應處理完', tip:'橙卡建議轉為 CAPA 追蹤' },
+        { name:'整體故障率 / 報廢率', formula:'維修數÷整新數 / 報廢數÷維修數', benchmark:'故障率趨勢向下、報廢率<5% 為佳', tip:'這兩個共用指標讓各角色有共同基準' },
+      ],
+      tips: [
+        '先切到自己的角色，再由上而下處理「應立即追蹤」紅卡',
+        '每張卡的「前往 →」會跳到對應分析頁，可深入查證再決策',
+        '紅/橙卡建議直接到 CAPA 頁開立追蹤，形成品質閉環',
+        '切到「綜合視角」可一覽全公司所有發現，適合主管會議',
+        '導覽列「主管摘要」的紅色數字 = 你目前視角的待處理嚴重事項數',
+      ],
+    },
     overview: {
       what: '一眼掌握本期維修總量、報廢、重複維修、機種故障率排名與最常更換零件。上方可切換 13 種主管視角，系統會自動提煉該角色關心的洞察卡。',
       meaning: '故障率 = 維修數 ÷ 整新數（整新數是產能基數代理值）。報廢率高 → 良率或來料問題；重複維修多 → 治標未治本；機種排名紅色（≥10%）為高風險，黃色（5–10%）需觀察，綠色（<5%）正常。',
@@ -1106,7 +1366,9 @@ window.App = (function () {
       if (state.charts[k]) { state.charts[k].destroy(); state.charts[k] = null; }
     }
     injectHelp(state.currentPage);
+    renderGlobalRoleBanner();
     switch (state.currentPage) {
+      case 'summary':  renderSummary(); break;
       case 'overview': renderOverview(); break;
       case 'alerts':   renderAlerts(); break;
       case 'parts':    renderParts(); break;

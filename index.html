@@ -171,6 +171,10 @@
     <nav class="sidebar">
       <div class="snav">
         <div class="snav-h">分析</div>
+        <button class="snav-item" data-page="summary" onclick="App.switchPage('summary')">
+          <div class="snav-l"><span class="snav-ico">★</span> 主管摘要</div>
+          <span class="snav-badge" id="summaryBadge" style="display:none">0</span>
+        </button>
         <button class="snav-item active" data-page="overview" onclick="App.switchPage('overview')">
           <div class="snav-l"><span class="snav-ico">◈</span> 總覽</div>
         </button>
@@ -225,6 +229,26 @@
     <main class="content">
       <div class="content-inner">
 
+        <!-- Global role switcher (persists across all analysis pages) -->
+        <div class="global-role" id="globalRole">
+          <div class="ar-bar" id="analysisRoleBar"></div>
+          <div class="grole-banner" id="globalRoleBanner"></div>
+        </div>
+
+        <!-- Manager Summary -->
+        <div class="page" id="pageSummary">
+          <div class="page-h">
+            <div>
+              <div class="page-t">主管摘要</div>
+              <div class="page-d">依角色彙整全報表的應追蹤事項 · 依嚴重度分層 · 含建議行動與下鑽連結</div>
+            </div>
+            <div class="page-meta" id="summaryMeta"></div>
+          </div>
+          <div class="sum-banner" id="sumBanner"></div>
+          <div class="kpi-grid" id="sumKpi"></div>
+          <div id="sumBody"></div>
+        </div>
+
         <!-- Overview -->
         <div class="page active" id="pageOverview">
           <div class="page-h">
@@ -234,8 +258,6 @@
             </div>
             <div class="page-meta" id="overviewMeta"></div>
           </div>
-          <!-- Analysis Role Bar -->
-          <div class="ar-bar" id="analysisRoleBar"></div>
           <!-- Role Insight Panel -->
           <div class="ri-panel" id="roleInsightPanel"></div>
           <div class="kpi-grid" id="kpiGrid"></div>
