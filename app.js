@@ -917,12 +917,16 @@ window.App = (function () {
       detail: `${overdue.slice(0, 3).map(c => `#${c.id} ${c.problem || ''}`).join('；')}${overdue.length > 3 ? ' …' : ''}`,
       action: '至 CAPA 追蹤頁催辦或調整截止日', page: 'capa', roles: ['qa', 'factory', 'ceo'] });
 
-    // (6) Cross-month repeats
+    // (6) Cross-month repeats — 重複進廠＝整新放行品質 + 物流來回成本 + 客訴風險
     const cross = RepairAnalyzer.crossMonthSerials(state.db, {});
-    if (cross.length) add({ sev: cross.length >= 5 ? 'warn' : 'info', area: '重複維修', icon: '⇄',
-      title: `跨月重複故障 ${cross.length} 台`,
-      detail: `同一序號跨月再進廠，疑似未根治；最高 ${cross[0].model} #${cross[0].serial} 共 ${cross[0].visitCount} 次`,
-      action: '開立 CAPA 並比對首修紀錄/韌體版本', page: 'scrap', roles: ['qa', 'cs', 'repair', 'hw'] });
+    if (cross.length) {
+      const heavy = cross.filter(c => c.visitCount >= 3).length;
+      add({ sev: cross.length >= 5 ? 'warn' : 'info', area: '重複維修', icon: '⇄',
+        title: `跨月重複故障 ${cross.length} 台`,
+        detail: `同一序號跨月再進廠，疑似未根治${heavy ? `；其中 ${heavy} 台進廠≥3次（建議主動換機）` : ''}；最高 ${cross[0].model} #${cross[0].serial} 共 ${cross[0].visitCount} 次`,
+        action: '開立 CAPA、比對首修紀錄/韌體版本；進廠≥3次者由客服主動換機', page: 'scrap',
+        roles: ['qa', 'cs', 'repair', 'hw', 'prod', 'logistics'] });
+    }
 
     // (7) Quality cost COPQ
     const cfg = (function () { try { return JSON.parse(localStorage.getItem('titan_cost_cfg_v1') || 'null'); } catch { return null; } })();
@@ -932,6 +936,11 @@ window.App = (function () {
       add({ sev: 'info', area: '品質成本', icon: '$', title: `本期 COPQ ${money(cost.totalCost)}`,
         detail: `報廢 ${money(cost.scrapCost)} + 工時 ${money(cost.laborCost)}${cost.byCategory.length ? `，最高 ${cost.byCategory[0].cat}` : ''}`,
         action: '用於管理層 ROI 與改善優先序排定', page: 'cost', roles: ['finance', 'ceo'] });
+    } else {
+      // 成本參數未設定 → 給財務一個「立即上線」的行動卡，而非空白
+      add({ sev: 'warn', area: '品質成本', icon: '$', title: '品質成本(COPQ)尚未啟用',
+        detail: `本期報廢 ${kpis.scrap} 件、跨月重複 ${cross.length} 台，財務影響尚未量化——僅需填入「每台維修成本/每台報廢損失/單次物流成本」即可即時估算`,
+        action: '至「成本量化」用快速估算模式 5 分鐘上線', page: 'cost', roles: ['finance', 'ceo'] });
     }
 
     // (8) Component-category dominance
@@ -951,6 +960,20 @@ window.App = (function () {
         title: `${r.model} 故障率 ${(r.faultRate * 100).toFixed(1)}%`,
         detail: `維修 ${r.count} 件${r.scrap ? `、報廢 ${r.scrap} 件` : ''}，高於 10% 警戒線`,
         action: '生產/研發排查製程或設計；業務對外溝通宜保守', page: 'overview', roles: ['prod', 'ceo', 'sales', 'qa'] });
+    }
+
+    // (11) Firmware / software signal in fault text → 韌體研發視角
+    const FW_RE = /當機|死機|無法開機|重開機|軟體|韌體|程式|更新失敗|升級失敗|連線異常|連不上|藍[牙芽]|閃退|系統異常|無回應|無反應|誤報|誤動作/;
+    const fwHits = records.filter(r => FW_RE.test(`${r.reason || ''} ${r.reasonRaw || ''} ${r.content || ''}`));
+    if (fwHits.length) {
+      const fwPct = records.length ? fwHits.length / records.length : 0;
+      const byModel = {};
+      for (const r of fwHits) byModel[r.model] = (byModel[r.model] || 0) + 1;
+      const topM = Object.entries(byModel).sort((a, b) => b[1] - a[1])[0];
+      add({ sev: fwPct >= 0.05 ? 'warn' : 'info', area: '韌體/軟體', icon: '⌨',
+        title: `疑似韌體/軟體相關故障 ${fwHits.length} 件`,
+        detail: `佔本期維修 ${(fwPct * 100).toFixed(1)}%${topM ? `，最多 ${topM[0]}（${topM[1]} 件）` : ''}；關鍵字：當機/無回應/更新失敗/連線異常等`,
+        action: '比對韌體版本與故障序號，評估是否需發佈修正版或召回更新', page: 'parts', roles: ['fw', 'qa', 'cs'] });
     }
 
     // (10) Overall scrap rate
@@ -1775,8 +1798,12 @@ window.App = (function () {
         },
       });
     }
-    // breakdown list with top parts per category
-    listEl.innerHTML = cc.list.slice(0, 8).map((c, i) => `
+    // breakdown list with top parts per category + 建議備料量 (近期故障數 × 1.5 安全係數)
+    const monthsN = Math.max(1, (f.months && f.months.length) || (state.selectedMonths || []).length || 1);
+    listEl.innerHTML = cc.list.slice(0, 8).map((c, i) => {
+      const perMonth = c.count / monthsN;
+      const suggest = Math.ceil(perMonth * 1.5);
+      return `
       <div class="comp-cat-item">
         <div class="comp-cat-head">
           <span class="comp-cat-dot" style="background:${PALETTE[i % PALETTE.length]}"></span>
@@ -1784,8 +1811,9 @@ window.App = (function () {
           <span class="comp-cat-val">${c.count} 件 · ${(c.pct * 100).toFixed(1)}%</span>
         </div>
         <div class="comp-cat-parts">${c.topParts.map(p => `${escapeHtml(p.name)}<span class="ccp-n">×${p.count}</span>`).join(' · ')}</div>
-      </div>
-    `).join('') + (cc.uncategorized ? `<div class="comp-cat-foot">未能歸類 ${cc.uncategorized} 件（品號不在料號表）</div>` : '');
+        <div class="comp-cat-stock">📦 建議安全備料 <b>${suggest}</b> 個/月　<span class="muted">（近 ${monthsN} 月月均 ${perMonth.toFixed(1)} 件 × 1.5 安全係數）</span></div>
+      </div>`;
+    }).join('') + (cc.uncategorized ? `<div class="comp-cat-foot">未能歸類 ${cc.uncategorized} 件（品號不在料號表）</div>` : '');
   }
 
   // ─────────────── Manufacture / origin batch analysis ───────────────
@@ -1804,6 +1832,15 @@ window.App = (function () {
 
     const badge = $('batchBadge');
     if (badge) { if (flagged.length) { badge.style.display = ''; badge.textContent = flagged.length; } else badge.style.display = 'none'; }
+
+    const orderPct = total ? withOrder / total : 0;
+    const noticeEl = $('batchNotice');
+    if (noticeEl) {
+      if (cond.known === 0 && orderPct < 0.5) {
+        noticeEl.innerHTML = `<div class="data-notice warn"><span class="dn-ico">⚠</span><div><strong>製令資料不完整，全新/整新分析暫停。</strong>目前僅 ${withOrder}/${total}（${Math.round(orderPct * 100)}%）筆有製令，且無單筆同時具備「製令＋製造日期」。<br>請工廠在 Excel 每張工作表加上「製令」欄位（出廠身分證，格式 YYMMDD+3碼序號），並保留「製造日期」，系統即可自動研判全新/整新與責任落點。</div></div>`;
+        noticeEl.style.display = '';
+      } else { noticeEl.style.display = 'none'; }
+    }
 
     $('batchKpi').innerHTML = `
       <div class="kpi k-red"><div class="kpi-h"><div class="kpi-l">全新早夭件數</div><div class="kpi-ico">⏱</div></div>
@@ -3232,7 +3269,21 @@ window.App = (function () {
     $('costMeta').textContent = cost.configured ? `${fmt.int(records.length)} 筆記錄` : '尚未設定單價';
 
     if (!cost.configured) {
-      $('costContent').innerHTML = `<div class="empty"><div class="empty-ico">$</div><div class="empty-t">尚未設定單價</div><div class="empty-d">點右上角「⚙ 單價設定」輸入各類別/機種單價與工時成本，即可換算報廢與維修成本</div></div>`;
+      const scrapN = records.filter(r => r.isScrap).length;
+      $('costContent').innerHTML = `
+        <div class="card sec">
+          <div class="card-h"><div class="card-t">⚡ 快速估算模式（5 分鐘上線）</div></div>
+          <div class="card-sub" style="margin:4px 0 14px">先填三個概略單價即可立刻看到本期品質成本(COPQ)估算，不需逐類別細設。日後可再用右上角「⚙ 單價設定」精算。</div>
+          <div class="cc-grid">
+            <div class="cc-row"><label>每台維修成本 (NT$)</label><input type="number" class="ls-input" id="qe_labor" placeholder="例 300"></div>
+            <div class="cc-row"><label>每台報廢損失 (NT$)</label><input type="number" class="ls-input" id="qe_scrap" placeholder="例 2500"></div>
+            <div class="cc-row"><label>單次物流成本 (NT$，選填)</label><input type="number" class="ls-input" id="qe_logi" placeholder="例 150"></div>
+          </div>
+          <div style="margin-top:16px"><button class="btn primary" onclick="App.quickEstimateCost()">立即估算並啟用</button>
+            <span class="muted" style="font-size:12px;margin-left:10px">本期 ${fmt.int(records.length)} 件維修、${scrapN} 件報廢</span></div>
+          <div id="qeResult" style="margin-top:16px"></div>
+        </div>
+        <div class="empty sm"><div class="empty-d">或點右上角「⚙ 單價設定」做各類別/機種精細單價設定</div></div>`;
       return;
     }
 
@@ -3248,9 +3299,10 @@ window.App = (function () {
     const hasTrend = costByMonth.length >= 2;
 
     $('costContent').innerHTML = `
+      ${cfg.estimated ? `<div class="data-notice" style="margin-bottom:14px"><span class="dn-ico">⚡</span><div><strong>估算模式</strong>：以單一概略單價推估，僅供量級參考。如需各類別/機種精算，請點右上角「⚙ 單價設定」。</div></div>` : ''}
       <div class="kpi-grid">
         <div class="kpi k-red">
-          <div class="kpi-h"><div class="kpi-l">報廢成本</div><div class="kpi-ico">✕</div></div>
+          <div class="kpi-h"><div class="kpi-l">報廢成本${cfg.estimated ? ' (估)' : ''}</div><div class="kpi-ico">✕</div></div>
           <div class="kpi-v" style="font-size:34px">${fmtMoney(cost.scrapCost)}</div>
           <div class="kpi-d"><span class="muted">${cost.scrapCount} 件報廢 · 平均 ${fmtMoney(cost.avgScrapCost)}</span></div>
         </div>
@@ -3349,6 +3401,25 @@ window.App = (function () {
     if (state.currentPage === 'cost') renderCost();
   }
 
+  function quickEstimateCost() {
+    const labor = parseFloat(document.getElementById('qe_labor')?.value) || 0;
+    const scrap = parseFloat(document.getElementById('qe_scrap')?.value) || 0;
+    const logi = parseFloat(document.getElementById('qe_logi')?.value) || 0;
+    if (scrap <= 0 && labor <= 0) {
+      const r = $('qeResult'); if (r) r.innerHTML = `<div class="empty sm"><div class="empty-d">請至少填入「每台維修成本」或「每台報廢損失」</div></div>`;
+      return;
+    }
+    const cfg = loadCostCfg();
+    cfg.categories = {};
+    cfg.models = {};
+    cfg.laborPerRepair = labor + logi; // 物流併入單件成本，作為估算
+    cfg.scrapDefault = scrap;
+    cfg.estimated = true;
+    saveCostCfg(cfg);
+    if (state.currentPage === 'cost') renderCost();
+    updateSummaryBadge();
+  }
+
   function exportCostCsv() {
     const f = currentFilter();
     const records = RepairAnalyzer.getRecords(state.db, f);
@@ -3403,7 +3474,7 @@ window.App = (function () {
     setMonth, setCategory, setModel,
     setAnalysisRole,
     openCapaForm, setCapaStatus, deleteCapa,
-    openCostConfig, saveCostConfig,
+    openCostConfig, saveCostConfig, quickEstimateCost,
     toggleRank, toggleRankRow,
     dismissAlertPulse, dismissCrossMonthPulse,
     generateReport: () => RepairReport.generate(state.db),
