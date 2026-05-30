@@ -391,6 +391,28 @@ window.App = (function () {
     $('dash').classList.add('active');
     if ($('modeBar')) $('modeBar').style.display = 'flex';
     if ($('rmaDash')) $('rmaDash').style.display = 'none';
+    const mub = $('modeUploadBtn'); if (mub) mub.style.display = '';
+    const mrb = $('modeReportBtn'); if (mrb) mrb.style.display = '';
+    const rsw = $('roleSelWrap'); if (rsw) rsw.style.display = '';
+    const mrma = $('modeRma'); if (mrma) mrma.style.display = '';
+    // Restore subbar collapsed state
+    try {
+      const c = localStorage.getItem('titan_subbar_collapsed');
+      const sb = $('subbar');
+      if (sb) sb.classList.toggle('collapsed', c === '1');
+    } catch(e) {}
+    // Restore sidebar mini state
+    try {
+      const m = localStorage.getItem('titan_sidebar_mini');
+      const sbar = $('sidebar');
+      const layout = document.querySelector('.layout');
+      const miniBtn = $('sidebarMiniToggle');
+      if (m === '1') {
+        if (sbar) sbar.classList.add('mini');
+        if (layout) layout.classList.add('sidebar-mini');
+        if (miniBtn) miniBtn.textContent = '▷';
+      }
+    } catch(e) {}
     // Default: select all months, all categories
     state.selectedMonths = Object.keys(state.db.months).sort();
     state.selectedCategory = '全部';
@@ -421,6 +443,12 @@ window.App = (function () {
     if (name === 'summary') dismissSummaryBadge();
     if (name === 'alerts') dismissAlertPulse();
     if (name === 'scrap') dismissCrossMonthPulse();
+    // Auto-collapse subbar on page navigation
+    const sb = $('subbar');
+    if (sb && !sb.classList.contains('collapsed')) {
+      sb.classList.add('collapsed');
+      try { localStorage.setItem('titan_subbar_collapsed', '1'); } catch(e) {}
+    }
     closeNav();
     renderPage();
     window.scrollTo(0, 0);
@@ -469,7 +497,8 @@ window.App = (function () {
   }
   function syncDisplaySizeButtons() {
     const cur = document.documentElement.getAttribute('data-fontscale') || 'md';
-    document.querySelectorAll('.fsc-btn').forEach(b => b.classList.toggle('active', b.dataset.size === cur));
+    const sel = document.getElementById('fontsizeSel');
+    if (sel) sel.value = cur;
   }
 
   // ─────────────── Filter chips ───────────────
@@ -561,6 +590,7 @@ window.App = (function () {
     updateAlertBadge();
     updateSummaryBadge();
     renderPage();
+    updateSubbarSummary();
   }
 
   // What each role should focus on — shown in the global banner on every page.
@@ -587,33 +617,110 @@ window.App = (function () {
   }
 
   function renderAnalysisRoleBar() {
+    // Legacy in-content bar (kept for fallback, may be empty)
     const bar = $('analysisRoleBar');
-    if (!bar) return;
+    if (bar) bar.innerHTML = '';
+
+    // Top-bar compact selector
     const cur = state.analysisRole;
-    bar.innerHTML = Object.entries(ANALYSIS_ROLES).map(([k, r]) => {
-      const active = k === cur;
-      return `<button class="ar-chip ${active ? 'active' : ''}" style="--rc:${r.color}"
-        onclick="App.setAnalysisRole('${k}')" title="${r.desc}">
-        <span class="ar-chip-ico">${r.icon}</span>
-        <span class="ar-chip-t">${r.short}</span>
-      </button>`;
-    }).join('');
-    renderGlobalRoleBanner();
+    const curR = ANALYSIS_ROLES[cur] || ANALYSIS_ROLES.all;
+    const ico = $('roleSelIco');
+    const lbl = $('roleSelLabel');
+    const foc = $('roleSelFocus');
+    if (ico) { ico.textContent = curR.icon; ico.style.color = curR.color; }
+    if (lbl) lbl.textContent = curR.short;
+    if (foc) foc.textContent = '重點：' + (ROLE_FOCUS[cur] || curR.desc);
+
+    // Rebuild dropdown items
+    const drop = $('roleSelDrop');
+    if (drop) {
+      drop.innerHTML = Object.entries(ANALYSIS_ROLES).map(([k, r]) =>
+        `<button class="role-sel-item ${k === cur ? 'active' : ''}" style="--rc:${r.color}"
+          onclick="App.setAnalysisRole('${k}');App.closeRoleDropdown()" title="${r.desc}">
+          <span style="color:${r.color}">${r.icon}</span><span>${r.short}</span>
+        </button>`
+      ).join('');
+    }
+
+    // In-content banner hidden: focus now shown beside the top-bar selector
+    const gb = $('globalRoleBanner');
+    if (gb) gb.style.display = 'none';
+  }
+
+  function toggleRoleDropdown() {
+    const drop = $('roleSelDrop');
+    if (!drop) return;
+    const open = drop.style.display !== 'none';
+    drop.style.display = open ? 'none' : '';
+    if (!open) {
+      const close = (e) => {
+        if (!$('roleSelWrap').contains(e.target)) {
+          drop.style.display = 'none';
+          document.removeEventListener('click', close);
+        }
+      };
+      setTimeout(() => document.addEventListener('click', close), 0);
+    }
+  }
+
+  function closeRoleDropdown() {
+    const drop = $('roleSelDrop');
+    if (drop) drop.style.display = 'none';
+  }
+
+  function toggleSidebarMini() {
+    const sidebar = $('sidebar');
+    const layout = document.querySelector('.layout');
+    if (!sidebar) return;
+    const isMini = sidebar.classList.toggle('mini');
+    if (layout) layout.classList.toggle('sidebar-mini', isMini);
+    const btn = $('sidebarMiniToggle');
+    if (btn) btn.textContent = isMini ? '▷' : '◁';
+    try { localStorage.setItem('titan_sidebar_mini', isMini ? '1' : '0'); } catch(e) {}
+  }
+
+  function toggleSubbar() {
+    const sb = $('subbar');
+    if (!sb) return;
+    const collapsed = sb.classList.toggle('collapsed');
+    try { localStorage.setItem('titan_subbar_collapsed', collapsed ? '1' : '0'); } catch(e) {}
+  }
+
+  function updateSubbarSummary() {
+    const el = $('subbarSummaryText');
+    if (!el) return;
+    const months = state.selectedMonths.length ? state.selectedMonths.map(m => {
+      const [y, mo] = m.split('-'); return `${parseInt(y)-1911}/${mo}`;
+    }).join('、') : '全部';
+    const cat = state.selectedCategory || '全部';
+    el.textContent = `月份：${months}　大類：${cat}`;
+    // Update db summary line
+    let dbLine = $('subbarDbLine');
+    if (!dbLine) {
+      dbLine = document.createElement('span');
+      dbLine.id = 'subbarDbLine';
+      dbLine.className = 'subbar-db-line';
+      const toggle = $('subbarToggle');
+      if (toggle) toggle.parentNode.insertBefore(dbLine, toggle.nextSibling);
+    }
+    if (state.db) {
+      const allMonthKeys = Object.keys(state.db.months).sort();
+      const totalRecords = Object.values(state.db.months).reduce((s, m) => s + (m.records ? m.records.length : 0), 0);
+      const totalRefurb = Object.values(state.db.months).reduce((s, m) => s + (m.records ? m.records.filter(r => r.isRefurb || r.condition === '整新').length : 0), 0);
+      if (allMonthKeys.length) {
+        const labels = allMonthKeys.map(m => { const [y, mo] = m.split('-'); return `${parseInt(y)-1911}/${mo}`; });
+        dbLine.textContent = `資料庫：${labels.join('、')} (${allMonthKeys.length}個月 · ${totalRecords.toLocaleString()}筆紀錄${totalRefurb > 0 ? ` · 整新數 ${totalRefurb.toLocaleString()}` : ''})`;
+        dbLine.style.display = '';
+      } else {
+        dbLine.style.display = 'none';
+      }
+    }
   }
 
   function renderGlobalRoleBanner() {
+    // 角色焦點已移至頂列選擇器旁，內容區橫幅不再顯示
     const el = $('globalRoleBanner');
-    if (!el) return;
-    const r = ANALYSIS_ROLES[state.analysisRole] || ANALYSIS_ROLES.all;
-    const focus = ROLE_FOCUS[state.analysisRole] || ROLE_FOCUS.all;
-    const isAll = state.analysisRole === 'all';
-    el.style.setProperty('--rc', r.color);
-    el.innerHTML = `
-      <span class="grole-ico" style="color:${r.color}">${r.icon}</span>
-      <span class="grole-label">${r.label}視角</span>
-      <span class="grole-focus">重點關注：${focus}</span>
-      ${isAll ? '' : `<button class="grole-sum" onclick="App.switchPage('summary')">★ 我的摘要 →</button>`}
-    `;
+    if (el) { el.style.display = 'none'; el.innerHTML = ''; }
   }
 
   // ─── Role-specific insight engine ───
@@ -1128,8 +1235,7 @@ window.App = (function () {
       if (!sb) return;
       const n = crit || mine.length;
       if (n > 0 && !state.summaryBadgeDismissed) {
-        sb.style.display = '';
-        sb.textContent = n;
+        sb.style.display = ''; sb.textContent = n;
         sb.classList.toggle('crit-level', crit > 0);
         sb.classList.add('pulse');
       } else {
@@ -1160,7 +1266,6 @@ window.App = (function () {
     const info = mine.filter(x => x.sev === 'info');
 
     $('summaryMeta').textContent = `${mine.length} 項應追蹤 · ${crit.length} 立即處理`;
-    // Badge already handled by updateSummaryBadge; just ensure dismissed state is respected
     updateSummaryBadge();
 
     $('sumBanner').innerHTML = `
@@ -1496,46 +1601,71 @@ window.App = (function () {
     const help = HELP[pageName];
     const pageEl = $(`page${pageName.charAt(0).toUpperCase() + pageName.slice(1)}`);
     if (!pageEl) return;
-    let box = pageEl.querySelector(':scope > .page-help');
-    if (!help) { if (box) box.remove(); return; }
-    if (!box) {
-      box = document.createElement('div');
-      box.className = 'page-help collapsed';
-      const header = pageEl.querySelector(':scope > .page-h');
-      if (header && header.nextSibling) pageEl.insertBefore(box, header.nextSibling);
-      else pageEl.appendChild(box);
+    // Remove old inline help block if any
+    const old = pageEl.querySelector(':scope > .page-help');
+    if (old) old.remove();
+    if (!help) return;
+    // Inject i-button into page-h
+    const header = pageEl.querySelector(':scope > .page-h');
+    if (!header) return;
+    let ibtn = header.querySelector('.ph-icon-btn');
+    if (!ibtn) {
+      ibtn = document.createElement('button');
+      ibtn.className = 'ph-icon-btn';
+      ibtn.title = '使用說明';
+      ibtn.textContent = 'i';
+      ibtn.onclick = () => App.showHelpModal(pageName);
+      header.appendChild(ibtn);
     }
-    box.innerHTML = `
-      <button class="ph-toggle" onclick="this.parentElement.classList.toggle('collapsed')">
-        <span class="ph-ico">ⓘ</span> 使用說明 <span class="ph-chev">▾</span>
-      </button>
-      <div class="ph-body">
-        <div class="ph-item"><span class="ph-k">📊 能看出什麼</span><span class="ph-v">${help.what}</span></div>
-        <div class="ph-item"><span class="ph-k">💡 代表什麼</span><span class="ph-v">${help.meaning}</span></div>
-        <div class="ph-item"><span class="ph-k">👥 哪些單位要注意</span><span class="ph-v">${help.who}</span></div>
-        ${help.kpis && help.kpis.length ? `
-        <div class="ph-item ph-item-full">
-          <span class="ph-k">📐 指標說明</span>
-          <div class="ph-kpi-table">
-            ${help.kpis.map(k => `
-              <div class="ph-kpi-row">
-                <div class="ph-kpi-name">${k.name}</div>
-                <div class="ph-kpi-body">
-                  <div class="ph-kpi-formula"><span class="ph-kpi-label">計算</span>${k.formula}</div>
-                  <div class="ph-kpi-benchmark"><span class="ph-kpi-label">參考值</span>${k.benchmark}</div>
-                  ${k.tip ? `<div class="ph-kpi-tip"><span class="ph-kpi-label">提示</span>${k.tip}</div>` : ''}
-                </div>
-              </div>`).join('')}
-          </div>
-        </div>` : ''}
-        ${help.tips && help.tips.length ? `
-        <div class="ph-item ph-item-full">
-          <span class="ph-k">✅ 操作提示</span>
-          <ul class="ph-tips">
-            ${help.tips.map(t => `<li>${t}</li>`).join('')}
-          </ul>
-        </div>` : ''}
+  }
+
+  function showHelpModal(pageName) {
+    const help = HELP[pageName];
+    if (!help) return;
+    let modal = $('helpModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'helpModal';
+      modal.className = 'help-modal-mask';
+      modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+      document.body.appendChild(modal);
+    }
+    modal.innerHTML = `
+      <div class="help-modal">
+        <div class="help-modal-h">
+          <span class="help-modal-ico">i</span>
+          <span class="help-modal-title">使用說明</span>
+          <button class="help-modal-close" onclick="document.getElementById('helpModal').style.display='none'">✕</button>
+        </div>
+        <div class="help-modal-body">
+          <div class="ph-item"><span class="ph-k">📊 能看出什麼</span><span class="ph-v">${help.what}</span></div>
+          <div class="ph-item"><span class="ph-k">💡 代表什麼</span><span class="ph-v">${help.meaning}</span></div>
+          <div class="ph-item"><span class="ph-k">👥 哪些單位要注意</span><span class="ph-v">${help.who}</span></div>
+          ${help.kpis && help.kpis.length ? `
+          <div class="ph-item ph-item-full">
+            <span class="ph-k">📐 指標說明</span>
+            <div class="ph-kpi-table">
+              ${help.kpis.map(k => `
+                <div class="ph-kpi-row">
+                  <div class="ph-kpi-name">${k.name}</div>
+                  <div class="ph-kpi-body">
+                    <div class="ph-kpi-formula"><span class="ph-kpi-label">計算</span>${k.formula}</div>
+                    <div class="ph-kpi-benchmark"><span class="ph-kpi-label">參考值</span>${k.benchmark}</div>
+                    ${k.tip ? `<div class="ph-kpi-tip"><span class="ph-kpi-label">提示</span>${k.tip}</div>` : ''}
+                  </div>
+                </div>`).join('')}
+            </div>
+          </div>` : ''}
+          ${help.tips && help.tips.length ? `
+          <div class="ph-item ph-item-full">
+            <span class="ph-k">✅ 操作提示</span>
+            <ul class="ph-tips">
+              ${help.tips.map(t => `<li>${t}</li>`).join('')}
+            </ul>
+          </div>` : ''}
+        </div>
       </div>`;
+    modal.style.display = 'flex';
   }
 
   function renderPage() {
@@ -3930,6 +4060,19 @@ window.App = (function () {
   }
   document.addEventListener('DOMContentLoaded', init);
 
+  function generateRoleReport() {
+    const role = state.analysisRole;
+    const roleInfo = ANALYSIS_ROLES[role] || ANALYSIS_ROLES.all;
+    const f = currentFilter();
+    const records = RepairAnalyzer.getRecords(state.db, f);
+    const denom = RepairAnalyzer.getDenominators(state.db, f);
+    const kpis = RepairAnalyzer.computeKPIs(records, denom);
+    const lastMonth = state.selectedMonths.slice().sort().pop();
+    const anoms = RepairAnalyzer.detectAnomalies(state.db, lastMonth);
+    const items = summaryForRole(role, records, kpis, anoms);
+    RepairReport.generate(state.db, { role, roleInfo, items });
+  }
+
   // ─── Auth is wired as window.Auth so it can be called from HTML onclick ───
   // (defined after App IIFE return at bottom of file)
 
@@ -3944,7 +4087,10 @@ window.App = (function () {
     openCostConfig, saveCostConfig, quickEstimateCost,
     toggleRank, toggleRankRow,
     dismissAlertPulse, dismissCrossMonthPulse,
-    generateReport: () => RepairReport.generate(state.db),
+    generateReport: () => generateRoleReport(),
+    generateRoleReport,
+    toggleRoleDropdown, closeRoleDropdown,
+    toggleSubbar, toggleSidebarMini, showHelpModal,
     exportCrossMatrix,
     // Drawer
     openKpiDrawer, openAnomalyDrawer, openPartDrawer, openModelDrawer, openSerialDrawer, openSerialTimelineDrawer,
@@ -3995,12 +4141,11 @@ window.Auth = (function () {
 
     // Always ensure admin exists locally
     if (!users[ADMIN_ID]) {
-      users[ADMIN_ID] = {
-        hash: await hashPwd(ADMIN_ID, ADMIN_ID),
-        isAdmin: true,
-        mustChange: false,
-        localChanged: true,
-      };
+      users[ADMIN_ID] = { hash: '', isAdmin: true, mustChange: false, localChanged: true };
+    }
+    // Seed second built-in user
+    if (!users['773999']) {
+      users['773999'] = { hash: '', isAdmin: false, mustChange: false, localChanged: true };
     }
 
     // Merge cloud users

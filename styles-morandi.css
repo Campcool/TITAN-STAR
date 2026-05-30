@@ -209,3 +209,10 @@ input:focus, select:focus, textarea:focus {
 ::-webkit-scrollbar-track { background: var(--surface2); }
 ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-mute); }
+
+/* ─── New UI elements ─── */
+.fsc-sel { background: var(--surface2); color: var(--text); border-color: var(--border); }
+.sidebar-mini-toggle { border-color: var(--border); color: var(--text3); }
+.ph-icon-btn { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-strong); }
+.help-modal { background: var(--surface); border-color: var(--border); }
+.help-modal-h { border-color: var(--border); }

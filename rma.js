@@ -498,25 +498,30 @@ window.RMA = (function () {
           </div>
         </div>
 
-        <!-- ── Role switcher ── -->
-        <div class="rma-role-bar">
-          ${Object.entries(ROLES).map(([k, r]) => `
-            <button class="rma-role-chip ${role === k ? 'active' : ''}"
-                    style="${role === k ? `--rc:${r.color}` : ''}"
-                    onclick="RMA.setRole('${k}')" title="${r.desc}">
-              <span class="rma-role-ico">${r.icon}</span>
-              <span class="rma-role-label">${r.short}</span>
-            </button>
-          `).join('')}
-        </div>
-
-        <!-- ── Role context banner ── -->
+        <!-- ── Role context banner (compact) ── -->
         <div class="rma-role-banner" style="--rc:${roleInfo.color}">
           <span class="rma-role-banner-ico">${roleInfo.icon}</span>
           <div>
             <div class="rma-role-banner-t">${roleInfo.label} 視角</div>
             <div class="rma-role-banner-d">${roleInfo.desc}</div>
           </div>
+          <div class="rma-role-quick">
+            ${Object.entries(ROLES).filter(([k]) => k !== role).slice(0,5).map(([k, r]) => `
+              <button class="rma-role-quick-btn" onclick="RMA.setRole('${k}')" title="${r.desc}" style="--rc:${r.color}">
+                <span>${r.icon}</span><span>${r.short}</span>
+              </button>`).join('')}
+            <button class="rma-role-quick-btn rma-role-quick-more" onclick="RMA.toggleRolePanel()" title="更多角色">···</button>
+          </div>
+        </div>
+        <div class="rma-role-panel" id="rmaRolePanel" style="display:none">
+          ${Object.entries(ROLES).map(([k, r]) => `
+            <button class="rma-role-chip ${role === k ? 'active' : ''}"
+                    style="${role === k ? `--rc:${r.color}` : ''}"
+                    onclick="RMA.setRole('${k}');RMA.toggleRolePanel(false)" title="${r.desc}">
+              <span class="rma-role-ico">${r.icon}</span>
+              <span class="rma-role-label">${r.short}</span>
+            </button>
+          `).join('')}
         </div>
 
         <!-- ── KPI strip (dynamic per role) ── -->
@@ -1024,6 +1029,13 @@ window.RMA = (function () {
     render();
   }
 
+  function toggleRolePanel(forceHide) {
+    const p = document.getElementById('rmaRolePanel');
+    if (!p) return;
+    const show = forceHide === false ? false : p.style.display === 'none';
+    p.style.display = show ? '' : 'none';
+  }
+
   function goList() {
     state.page = 'list';
     state.detailId = null;
@@ -1325,7 +1337,7 @@ window.RMA = (function () {
 
   return {
     init, render, goList, goNew, goDetail,
-    setFilter, setRole, autofillCategory, submitNew,
+    setFilter, setRole, toggleRolePanel, autofillCategory, submitNew,
     advance, reopenCase,
     toggleEditSection, saveDiagnosis, saveRepair,
     editField, saveEditField,

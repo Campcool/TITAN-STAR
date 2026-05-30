@@ -10,17 +10,6 @@
   var s; try { s = localStorage.getItem('titan_display_size'); } catch(e){}
   document.documentElement.setAttribute('data-fontscale', s || 'md');
 })();
-/* ── 公司 Logo（base64 或 URL，換圖只需改這一行）── */
-window.__LOGO_SRC__ = '';  // TODO: 貼入 base64 字串後啟用
-document.addEventListener('DOMContentLoaded', function(){
-  var el = document.getElementById('siteLogo');
-  if (el && window.__LOGO_SRC__) { el.src = window.__LOGO_SRC__; }
-  else if (el) {
-    el.style.display = 'none';
-    var fb = document.getElementById('siteLogoFallback');
-    if (fb) fb.style.display = '';
-  }
-});
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -277,6 +266,13 @@ button, input, select { font-family: inherit; }
 }
 .hdr-l { display: flex; align-items: center; gap: 16px; }
 .site-logo { height: 36px; width: auto; object-fit: contain; display: block; }
+.s-icon {
+  width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+  background: linear-gradient(180deg, #38bdf8 0%, #10b981 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 19px; font-weight: 900; color: #fff;
+  font-family: var(--sans); letter-spacing: -.03em; cursor: default;
+}
 .hdr-mark {
   width: 28px; height: 28px; border-radius: 7px;
   background: linear-gradient(135deg, var(--accent), #6366f1);
@@ -316,6 +312,18 @@ button, input, select { font-family: inherit; }
   position: sticky; top: var(--header); z-index: 90;
 }
 .subbar-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.subbar-toggle {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; padding: 0; margin-bottom: 10px;
+  background: none; border: none; cursor: pointer;
+  color: var(--text3); font-size: 12.5px; font-weight: 500;
+  letter-spacing: .08em; text-transform: uppercase;
+}
+.subbar-toggle:hover { color: var(--text2); }
+.subbar-arrow { font-size: 10px; transition: transform .2s; }
+.subbar.collapsed .subbar-arrow { transform: rotate(180deg); }
+.subbar.collapsed #subbarBody { display: none; }
+.subbar.collapsed .subbar-toggle { margin-bottom: 0; }
 .sb-label {
   font-size: 14px; color: var(--text3);
   letter-spacing: .12em; text-transform: uppercase; font-weight: 600;
@@ -1491,6 +1499,42 @@ button, input, select { font-family: inherit; }
 }
 .ls-btn:hover { opacity: .88; }
 
+.mode-upload-btn {
+  font-size: 13px; padding: 5px 12px; border-radius: 8px;
+  background: var(--surface2); border-color: var(--border2);
+  color: var(--text2);
+}
+.mode-upload-btn:hover { background: var(--hover); color: var(--text); }
+
+/* ════════════════ Role Selector (top bar) ════════════════ */
+.role-sel { position: relative; }
+.role-sel-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 10px; border-radius: 8px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer;
+  white-space: nowrap; transition: background .15s;
+}
+.role-sel-btn:hover { background: var(--hover); }
+.role-sel-arrow { color: var(--text3); font-size: 10px; }
+.role-sel-drop {
+  position: absolute; right: 0; top: calc(100% + 6px);
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 12px; padding: 6px;
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 4px; min-width: 220px; z-index: 500;
+  box-shadow: 0 8px 24px rgba(0,0,0,.25);
+}
+.role-sel-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px; border-radius: 8px;
+  background: transparent; border: none;
+  color: var(--text2); font-size: 12.5px; cursor: pointer;
+  white-space: nowrap; transition: background .12s;
+}
+.role-sel-item:hover { background: var(--surface2); color: var(--text); }
+.role-sel-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
 /* ════════════════ Mode-bar user display ════════════════ */
 .mode-bar-user {
   font-size: 13px; color: var(--text2);
@@ -2246,6 +2290,138 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
   .nav-toggle { width: 42px; height: 42px; }
 }
 
+/* ════════════ Top-bar unified controls (overrides) ════════════ */
+.mode-bar-r { display: flex; align-items: center; gap: 8px; }
+.topbar-btn {
+  height: 34px; display: inline-flex; align-items: center;
+  padding: 0 12px; font-size: 13px; font-weight: 600;
+  border-radius: 9px; background: var(--surface2);
+  border: 1px solid var(--border2); color: var(--text2);
+  white-space: nowrap;
+}
+.topbar-btn:hover { background: var(--hover); color: var(--text); }
+/* role selector aligned to same height */
+.role-sel-btn { height: 34px; border-radius: 9px; }
+.role-sel-focus {
+  font-size: 12px; color: var(--text3); font-weight: 500;
+  max-width: 280px; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; border-left: 1px solid var(--border2);
+  padding-left: 8px; margin-left: 2px;
+}
+.role-sel-item { gap: 6px; }
+.role-sel-item.active { background: var(--accent-soft); color: var(--accent); }
+/* unify font-size group + theme toggle to same height */
+.sys-ctl-group { height: 34px; box-sizing: border-box; }
+.theme-toggle {
+  height: 28px; min-width: 34px; display: inline-flex;
+  align-items: center; justify-content: center; font-size: 16px;
+  padding: 0 6px;
+}
+@media (max-width: 900px) {
+  .role-sel-focus { display: none; }
+}
+
+/* ─── Sidebar mini mode ─── */
+.sidebar-mini-toggle {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 28px; margin-bottom: 10px;
+  background: none; border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text3); cursor: pointer; font-size: 11px;
+  transition: background .15s;
+}
+.sidebar-mini-toggle:hover { background: var(--hover); color: var(--text); }
+.sidebar.mini { width: 48px; padding: 12px 6px; }
+.sidebar.mini .snav-item span:not(.snav-ico) { display: none; }
+.sidebar.mini .snav-item .snav-badge { display: none; }
+.sidebar.mini .snav-h, .sidebar.mini .snav-sep { display: none; }
+.sidebar.mini .snav-item { padding: 10px; justify-content: center; }
+.sidebar.mini .snav-l { gap: 0; }
+.sidebar.mini .snav-ico { font-size: 16px; width: auto; }
+.layout.sidebar-mini { /* content expands */ }
+
+/* ─── Font size select ─── */
+.fsc-sel {
+  height: 28px; padding: 0 8px;
+  background: var(--surface2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px;
+  font-size: 13px; cursor: pointer; font-family: inherit;
+}
+.fsc-sel:focus { outline: none; border-color: var(--accent); }
+
+/* ─── Help i-button ─── */
+.ph-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--accent-soft); color: var(--accent);
+  border: 1px solid var(--accent-strong); cursor: pointer;
+  font-size: 12px; font-weight: 700; font-family: var(--mono);
+  flex-shrink: 0; margin-left: auto;
+  transition: background .15s;
+}
+.ph-icon-btn:hover { background: var(--accent); color: #0a0d12; }
+
+/* ─── Help modal ─── */
+.help-modal-mask {
+  display: none; position: fixed; inset: 0; z-index: 800;
+  background: rgba(0,0,0,.55); align-items: flex-start;
+  justify-content: flex-end; padding: 60px 20px 20px;
+}
+.help-modal {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; width: 440px; max-width: calc(100vw - 40px);
+  max-height: calc(100vh - 100px); display: flex; flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+}
+.help-modal-h {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px; border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.help-modal-ico {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--accent-soft); color: var(--accent);
+  border: 1px solid var(--accent-strong);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; font-family: var(--mono); flex-shrink: 0;
+}
+.help-modal-title { font-weight: 600; font-size: 14px; flex: 1; }
+.help-modal-close {
+  background: none; border: none; color: var(--text3); cursor: pointer;
+  font-size: 16px; padding: 4px;
+}
+.help-modal-close:hover { color: var(--text); }
+.help-modal-body {
+  padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
+}
+
+/* ─── Subbar DB line ─── */
+.subbar-db-line {
+  font-size: 12px; color: var(--text3); padding: 2px 14px 6px;
+  font-family: var(--mono); display: block;
+}
+
+/* ─── RMA role quick strip ─── */
+.rma-role-quick {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-left: auto; align-items: center;
+}
+.rma-role-quick-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border-radius: 16px;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+  color: var(--text2); font-size: 12px; cursor: pointer;
+  transition: background .15s;
+}
+.rma-role-quick-btn:hover { background: rgba(255,255,255,.12); color: var(--text); }
+.rma-role-quick-more { font-weight: 700; letter-spacing: .05em; }
+.rma-role-panel {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 10px 0 6px;
+}
+
+/* ─── Mode tabs ─── */
+.mode-tabs { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+
 </style>
 <style>
 /* ════════════════════════════════════════════════════════════════════
@@ -2601,7 +2777,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
 
 /* ── Role context banner ── */
 .rma-role-banner {
-  display: flex; align-items: center; gap: 14px;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
   padding: 12px 18px; border-radius: 12px;
   border-left: 4px solid var(--rc, var(--accent));
   background: color-mix(in srgb, var(--rc, var(--accent)) 8%, transparent);
@@ -2760,11 +2936,40 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
 </head>
 <body>
 
-<!-- 登入頁面已停用（選色期間直接進入） -->
-<div id="loginScreen" style="display:none"></div>
-<div id="changePwScreen" style="display:none"></div>
-<input type="hidden" id="loginUser" value="031780">
-<input type="hidden" id="loginPwd" value="">
+<!-- ═══════════════ Login Screen ═══════════════ -->
+<div id="loginScreen" style="display:none;position:fixed;inset:0;z-index:900;background:var(--bg);align-items:center;justify-content:center;flex-direction:column">
+  <div style="text-align:center;margin-bottom:32px">
+    <div class="s-icon" style="margin:0 auto 16px;width:52px;height:52px;font-size:22px;line-height:52px">S</div>
+    <div style="font-size:22px;font-weight:700;letter-spacing:0.05em">TITAN-STAR</div>
+    <div style="font-size:13px;color:var(--text2);margin-top:4px">維修分析 &amp; RMA 管理系統</div>
+  </div>
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:32px;width:320px;max-width:90vw">
+    <div style="font-size:15px;font-weight:600;margin-bottom:20px">請輸入工號登入</div>
+    <input id="loginUser" type="text" placeholder="工號（如 031780）"
+      style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:15px;margin-bottom:12px"
+      onkeydown="if(event.key==='Enter')Auth.doLogin()">
+    <input id="loginPwd" type="hidden" value="">
+    <div id="loginErr" style="color:#e55;font-size:13px;min-height:18px;margin-bottom:8px"></div>
+    <button class="btn primary" onclick="Auth.doLogin()" style="width:100%;padding:10px;font-size:15px">登入</button>
+  </div>
+</div>
+
+<!-- ═══════════════ Change Password Screen ═══════════════ -->
+<div id="changePwScreen" style="display:none;position:fixed;inset:0;z-index:900;background:var(--bg);align-items:center;justify-content:center;flex-direction:column">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:32px;width:340px;max-width:90vw">
+    <div style="font-size:15px;font-weight:600;margin-bottom:4px">修改密碼</div>
+    <div id="changePwSub" style="font-size:13px;color:var(--text2);margin-bottom:20px"></div>
+    <input id="cpOld" type="password" placeholder="舊密碼"
+      style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px;margin-bottom:10px">
+    <input id="cpNew" type="password" placeholder="新密碼（至少6碼）"
+      style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px;margin-bottom:10px">
+    <input id="cpConfirm" type="password" placeholder="確認新密碼"
+      style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px;margin-bottom:12px"
+      onkeydown="if(event.key==='Enter')Auth.doChangePw()">
+    <div id="changePwErr" style="color:#e55;font-size:13px;min-height:18px;margin-bottom:8px"></div>
+    <button class="btn primary" onclick="Auth.doChangePw()" style="width:100%;padding:10px;font-size:15px">確認</button>
+  </div>
+</div>
 
 <!-- ═══════════════ Loading Overlay ═══════════════ -->
 <div class="load-ov" id="loadOv" style="display:none">
@@ -2776,29 +2981,38 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
 <!-- ═══════════════ Mode Switcher Header ═══════════════ -->
 <div class="mode-bar" id="modeBar" style="display:none">
   <div class="mode-bar-l">
-    <img id="siteLogo" src="" alt="TITAN-STAR" class="site-logo" onerror="this.style.display='none';document.getElementById('siteLogoFallback').style.display=''">
-    <div id="siteLogoFallback" class="hdr-mark" style="display:none">TS</div>
-    <span class="mode-bar-brand">TITAN-STAR</span>
+    <div class="s-icon">S</div>
   </div>
   <div class="mode-tabs">
     <button class="mode-tab active" id="modeAnalysis" onclick="switchMode('analysis')">
-      <span class="mode-tab-ico">◈</span> 維修分析報表
+      <span class="mode-tab-ico">◈</span> 維修分析
     </button>
-    <button class="mode-tab" id="modeRma" onclick="switchMode('rma')">
-      <span class="mode-tab-ico">◎</span> RMA 管理
-      <span class="mode-badge" id="rmaBadge" style="display:none">0</span>
-    </button>
+    <!-- Role selector embedded next to analysis tab -->
+    <div class="role-sel" id="roleSelWrap" style="display:none">
+      <button class="role-sel-btn" id="roleSelBtn" onclick="App.toggleRoleDropdown()" title="切換分析視角">
+        <span id="roleSelIco">⊞</span>
+        <span id="roleSelLabel">綜合</span>
+        <span class="role-sel-focus" id="roleSelFocus"></span>
+        <span class="role-sel-arrow">▾</span>
+      </button>
+      <div class="role-sel-drop" id="roleSelDrop" style="display:none"></div>
+    </div>
   </div>
   <div class="mode-bar-r" id="modeBtns">
+    <button class="btn topbar-btn" id="modeReportBtn" onclick="App.generateRoleReport()" style="display:none">⤓ 生成報告</button>
+    <button class="mode-tab" id="modeRma" onclick="switchMode('rma')" style="display:none">
+      <span class="mode-tab-ico">◎</span> RMA
+      <span class="mode-badge" id="rmaBadge" style="display:none">0</span>
+    </button>
+    <button class="btn topbar-btn" id="modeUploadBtn" onclick="App.openUpload()" style="display:none" title="上傳報表">⤒</button>
     <span class="mode-bar-user" id="modeBarUser"></span>
     <div class="sys-ctl-group">
-      <div class="fontsize-ctl" role="group" aria-label="顯示大小">
-        <span class="fsc-label">字級</span>
-        <button class="fsc-btn" data-size="sm" onclick="App.setDisplaySize('sm')" title="標準">標準</button>
-        <button class="fsc-btn" data-size="md" onclick="App.setDisplaySize('md')" title="大">大</button>
-        <button class="fsc-btn" data-size="lg" onclick="App.setDisplaySize('lg')" title="特大">特大</button>
-      </div>
-      <button class="btn theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="切換色系">🌙 深色</button>
+      <select class="fsc-sel" id="fontsizeSel" onchange="App.setDisplaySize(this.value)" title="字型大小">
+        <option value="sm">標準</option>
+        <option value="md">大</option>
+        <option value="lg">特大</option>
+      </select>
+      <button class="btn theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="切換色系">🌙</button>
     </div>
     <button class="btn" id="adminPanelBtn" style="display:none" onclick="Auth.openAdminPanel()">⚙ 帳號管理</button>
   </div>
@@ -2864,18 +3078,20 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
       <button class="nav-toggle" id="navToggle" onclick="App.toggleNav()" aria-label="開啟選單">☰</button>
       <div class="hdr-t"><span class="sub" id="hdrSub"></span></div>
     </div>
-    <div class="hdr-r">
-      <button class="btn hide-sm" onclick="RepairReport.generate(RepairDB.load())">⤓ 生成報告</button>
-      <button class="btn hide-sm" onclick="switchMode('rma')">◎ RMA管理</button>
-      <button class="btn danger" onclick="App.openUpload()">上傳 / 管理</button>
-    </div>
+    <div class="hdr-r"></div>
   </div>
 
   <!-- Sub-bar: month + category chips -->
-  <div class="subbar">
-    <div class="subbar-row" id="monthChips"></div>
-    <div class="subbar-row" id="catChips"></div>
-    <div class="subbar-row" id="modelChips" style="display:none"></div>
+  <div class="subbar" id="subbar">
+    <button class="subbar-toggle" id="subbarToggle" onclick="App.toggleSubbar()" aria-label="展開/收合篩選">
+      <span id="subbarSummaryText">篩選</span>
+      <span class="subbar-arrow" id="subbarArrow">▲</span>
+    </button>
+    <div id="subbarBody">
+      <div class="subbar-row" id="monthChips"></div>
+      <div class="subbar-row" id="catChips"></div>
+      <div class="subbar-row" id="modelChips" style="display:none"></div>
+    </div>
   </div>
 
   <!-- Layout: sidebar + content -->
@@ -2884,6 +3100,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
     <div class="nav-overlay" id="navOverlay" onclick="App.closeNav()"></div>
     <!-- Sidebar -->
     <nav class="sidebar" id="sidebar">
+      <button class="sidebar-mini-toggle" id="sidebarMiniToggle" onclick="App.toggleSidebarMini()" title="收合側欄">◁</button>
       <div class="snav">
         <div class="snav-h">分析</div>
         <button class="snav-item" data-page="summary" onclick="App.switchPage('summary')">
@@ -2946,7 +3163,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
 
         <!-- Global role switcher (persists across all analysis pages) -->
         <div class="global-role" id="globalRole">
-          <div class="ar-bar" id="analysisRoleBar"></div>
+          <div id="analysisRoleBar" style="display:none"></div>
           <div class="grole-banner" id="globalRoleBanner"></div>
         </div>
 
@@ -3296,7 +3513,6 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
       <div class="hdr-t"><span class="sub">RMA 管理</span></div>
     </div>
     <div class="hdr-r">
-      <button class="btn" onclick="switchMode('analysis')">◈ 分析報表</button>
       <button class="btn primary" onclick="RMA.goNew()">+ 新增 RMA</button>
     </div>
   </div>
@@ -5282,6 +5498,28 @@ window.App = (function () {
     $('dash').classList.add('active');
     if ($('modeBar')) $('modeBar').style.display = 'flex';
     if ($('rmaDash')) $('rmaDash').style.display = 'none';
+    const mub = $('modeUploadBtn'); if (mub) mub.style.display = '';
+    const mrb = $('modeReportBtn'); if (mrb) mrb.style.display = '';
+    const rsw = $('roleSelWrap'); if (rsw) rsw.style.display = '';
+    const mrma = $('modeRma'); if (mrma) mrma.style.display = '';
+    // Restore subbar collapsed state
+    try {
+      const c = localStorage.getItem('titan_subbar_collapsed');
+      const sb = $('subbar');
+      if (sb) sb.classList.toggle('collapsed', c === '1');
+    } catch(e) {}
+    // Restore sidebar mini state
+    try {
+      const m = localStorage.getItem('titan_sidebar_mini');
+      const sbar = $('sidebar');
+      const layout = document.querySelector('.layout');
+      const miniBtn = $('sidebarMiniToggle');
+      if (m === '1') {
+        if (sbar) sbar.classList.add('mini');
+        if (layout) layout.classList.add('sidebar-mini');
+        if (miniBtn) miniBtn.textContent = '▷';
+      }
+    } catch(e) {}
     // Default: select all months, all categories
     state.selectedMonths = Object.keys(state.db.months).sort();
     state.selectedCategory = '全部';
@@ -5312,6 +5550,12 @@ window.App = (function () {
     if (name === 'summary') dismissSummaryBadge();
     if (name === 'alerts') dismissAlertPulse();
     if (name === 'scrap') dismissCrossMonthPulse();
+    // Auto-collapse subbar on page navigation
+    const sb = $('subbar');
+    if (sb && !sb.classList.contains('collapsed')) {
+      sb.classList.add('collapsed');
+      try { localStorage.setItem('titan_subbar_collapsed', '1'); } catch(e) {}
+    }
     closeNav();
     renderPage();
     window.scrollTo(0, 0);
@@ -5360,7 +5604,8 @@ window.App = (function () {
   }
   function syncDisplaySizeButtons() {
     const cur = document.documentElement.getAttribute('data-fontscale') || 'md';
-    document.querySelectorAll('.fsc-btn').forEach(b => b.classList.toggle('active', b.dataset.size === cur));
+    const sel = document.getElementById('fontsizeSel');
+    if (sel) sel.value = cur;
   }
 
   // ─────────────── Filter chips ───────────────
@@ -5452,6 +5697,7 @@ window.App = (function () {
     updateAlertBadge();
     updateSummaryBadge();
     renderPage();
+    updateSubbarSummary();
   }
 
   // What each role should focus on — shown in the global banner on every page.
@@ -5478,33 +5724,110 @@ window.App = (function () {
   }
 
   function renderAnalysisRoleBar() {
+    // Legacy in-content bar (kept for fallback, may be empty)
     const bar = $('analysisRoleBar');
-    if (!bar) return;
+    if (bar) bar.innerHTML = '';
+
+    // Top-bar compact selector
     const cur = state.analysisRole;
-    bar.innerHTML = Object.entries(ANALYSIS_ROLES).map(([k, r]) => {
-      const active = k === cur;
-      return `<button class="ar-chip ${active ? 'active' : ''}" style="--rc:${r.color}"
-        onclick="App.setAnalysisRole('${k}')" title="${r.desc}">
-        <span class="ar-chip-ico">${r.icon}</span>
-        <span class="ar-chip-t">${r.short}</span>
-      </button>`;
-    }).join('');
-    renderGlobalRoleBanner();
+    const curR = ANALYSIS_ROLES[cur] || ANALYSIS_ROLES.all;
+    const ico = $('roleSelIco');
+    const lbl = $('roleSelLabel');
+    const foc = $('roleSelFocus');
+    if (ico) { ico.textContent = curR.icon; ico.style.color = curR.color; }
+    if (lbl) lbl.textContent = curR.short;
+    if (foc) foc.textContent = '重點：' + (ROLE_FOCUS[cur] || curR.desc);
+
+    // Rebuild dropdown items
+    const drop = $('roleSelDrop');
+    if (drop) {
+      drop.innerHTML = Object.entries(ANALYSIS_ROLES).map(([k, r]) =>
+        `<button class="role-sel-item ${k === cur ? 'active' : ''}" style="--rc:${r.color}"
+          onclick="App.setAnalysisRole('${k}');App.closeRoleDropdown()" title="${r.desc}">
+          <span style="color:${r.color}">${r.icon}</span><span>${r.short}</span>
+        </button>`
+      ).join('');
+    }
+
+    // In-content banner hidden: focus now shown beside the top-bar selector
+    const gb = $('globalRoleBanner');
+    if (gb) gb.style.display = 'none';
+  }
+
+  function toggleRoleDropdown() {
+    const drop = $('roleSelDrop');
+    if (!drop) return;
+    const open = drop.style.display !== 'none';
+    drop.style.display = open ? 'none' : '';
+    if (!open) {
+      const close = (e) => {
+        if (!$('roleSelWrap').contains(e.target)) {
+          drop.style.display = 'none';
+          document.removeEventListener('click', close);
+        }
+      };
+      setTimeout(() => document.addEventListener('click', close), 0);
+    }
+  }
+
+  function closeRoleDropdown() {
+    const drop = $('roleSelDrop');
+    if (drop) drop.style.display = 'none';
+  }
+
+  function toggleSidebarMini() {
+    const sidebar = $('sidebar');
+    const layout = document.querySelector('.layout');
+    if (!sidebar) return;
+    const isMini = sidebar.classList.toggle('mini');
+    if (layout) layout.classList.toggle('sidebar-mini', isMini);
+    const btn = $('sidebarMiniToggle');
+    if (btn) btn.textContent = isMini ? '▷' : '◁';
+    try { localStorage.setItem('titan_sidebar_mini', isMini ? '1' : '0'); } catch(e) {}
+  }
+
+  function toggleSubbar() {
+    const sb = $('subbar');
+    if (!sb) return;
+    const collapsed = sb.classList.toggle('collapsed');
+    try { localStorage.setItem('titan_subbar_collapsed', collapsed ? '1' : '0'); } catch(e) {}
+  }
+
+  function updateSubbarSummary() {
+    const el = $('subbarSummaryText');
+    if (!el) return;
+    const months = state.selectedMonths.length ? state.selectedMonths.map(m => {
+      const [y, mo] = m.split('-'); return `${parseInt(y)-1911}/${mo}`;
+    }).join('、') : '全部';
+    const cat = state.selectedCategory || '全部';
+    el.textContent = `月份：${months}　大類：${cat}`;
+    // Update db summary line
+    let dbLine = $('subbarDbLine');
+    if (!dbLine) {
+      dbLine = document.createElement('span');
+      dbLine.id = 'subbarDbLine';
+      dbLine.className = 'subbar-db-line';
+      const toggle = $('subbarToggle');
+      if (toggle) toggle.parentNode.insertBefore(dbLine, toggle.nextSibling);
+    }
+    if (state.db) {
+      const allMonthKeys = Object.keys(state.db.months).sort();
+      const totalRecords = Object.values(state.db.months).reduce((s, m) => s + (m.records ? m.records.length : 0), 0);
+      const totalRefurb = Object.values(state.db.months).reduce((s, m) => s + (m.records ? m.records.filter(r => r.isRefurb || r.condition === '整新').length : 0), 0);
+      if (allMonthKeys.length) {
+        const labels = allMonthKeys.map(m => { const [y, mo] = m.split('-'); return `${parseInt(y)-1911}/${mo}`; });
+        dbLine.textContent = `資料庫：${labels.join('、')} (${allMonthKeys.length}個月 · ${totalRecords.toLocaleString()}筆紀錄${totalRefurb > 0 ? ` · 整新數 ${totalRefurb.toLocaleString()}` : ''})`;
+        dbLine.style.display = '';
+      } else {
+        dbLine.style.display = 'none';
+      }
+    }
   }
 
   function renderGlobalRoleBanner() {
+    // 角色焦點已移至頂列選擇器旁，內容區橫幅不再顯示
     const el = $('globalRoleBanner');
-    if (!el) return;
-    const r = ANALYSIS_ROLES[state.analysisRole] || ANALYSIS_ROLES.all;
-    const focus = ROLE_FOCUS[state.analysisRole] || ROLE_FOCUS.all;
-    const isAll = state.analysisRole === 'all';
-    el.style.setProperty('--rc', r.color);
-    el.innerHTML = `
-      <span class="grole-ico" style="color:${r.color}">${r.icon}</span>
-      <span class="grole-label">${r.label}視角</span>
-      <span class="grole-focus">重點關注：${focus}</span>
-      ${isAll ? '' : `<button class="grole-sum" onclick="App.switchPage('summary')">★ 我的摘要 →</button>`}
-    `;
+    if (el) { el.style.display = 'none'; el.innerHTML = ''; }
   }
 
   // ─── Role-specific insight engine ───
@@ -6019,8 +6342,7 @@ window.App = (function () {
       if (!sb) return;
       const n = crit || mine.length;
       if (n > 0 && !state.summaryBadgeDismissed) {
-        sb.style.display = '';
-        sb.textContent = n;
+        sb.style.display = ''; sb.textContent = n;
         sb.classList.toggle('crit-level', crit > 0);
         sb.classList.add('pulse');
       } else {
@@ -6051,7 +6373,6 @@ window.App = (function () {
     const info = mine.filter(x => x.sev === 'info');
 
     $('summaryMeta').textContent = `${mine.length} 項應追蹤 · ${crit.length} 立即處理`;
-    // Badge already handled by updateSummaryBadge; just ensure dismissed state is respected
     updateSummaryBadge();
 
     $('sumBanner').innerHTML = `
@@ -6387,46 +6708,71 @@ window.App = (function () {
     const help = HELP[pageName];
     const pageEl = $(`page${pageName.charAt(0).toUpperCase() + pageName.slice(1)}`);
     if (!pageEl) return;
-    let box = pageEl.querySelector(':scope > .page-help');
-    if (!help) { if (box) box.remove(); return; }
-    if (!box) {
-      box = document.createElement('div');
-      box.className = 'page-help collapsed';
-      const header = pageEl.querySelector(':scope > .page-h');
-      if (header && header.nextSibling) pageEl.insertBefore(box, header.nextSibling);
-      else pageEl.appendChild(box);
+    // Remove old inline help block if any
+    const old = pageEl.querySelector(':scope > .page-help');
+    if (old) old.remove();
+    if (!help) return;
+    // Inject i-button into page-h
+    const header = pageEl.querySelector(':scope > .page-h');
+    if (!header) return;
+    let ibtn = header.querySelector('.ph-icon-btn');
+    if (!ibtn) {
+      ibtn = document.createElement('button');
+      ibtn.className = 'ph-icon-btn';
+      ibtn.title = '使用說明';
+      ibtn.textContent = 'i';
+      ibtn.onclick = () => App.showHelpModal(pageName);
+      header.appendChild(ibtn);
     }
-    box.innerHTML = `
-      <button class="ph-toggle" onclick="this.parentElement.classList.toggle('collapsed')">
-        <span class="ph-ico">ⓘ</span> 使用說明 <span class="ph-chev">▾</span>
-      </button>
-      <div class="ph-body">
-        <div class="ph-item"><span class="ph-k">📊 能看出什麼</span><span class="ph-v">${help.what}</span></div>
-        <div class="ph-item"><span class="ph-k">💡 代表什麼</span><span class="ph-v">${help.meaning}</span></div>
-        <div class="ph-item"><span class="ph-k">👥 哪些單位要注意</span><span class="ph-v">${help.who}</span></div>
-        ${help.kpis && help.kpis.length ? `
-        <div class="ph-item ph-item-full">
-          <span class="ph-k">📐 指標說明</span>
-          <div class="ph-kpi-table">
-            ${help.kpis.map(k => `
-              <div class="ph-kpi-row">
-                <div class="ph-kpi-name">${k.name}</div>
-                <div class="ph-kpi-body">
-                  <div class="ph-kpi-formula"><span class="ph-kpi-label">計算</span>${k.formula}</div>
-                  <div class="ph-kpi-benchmark"><span class="ph-kpi-label">參考值</span>${k.benchmark}</div>
-                  ${k.tip ? `<div class="ph-kpi-tip"><span class="ph-kpi-label">提示</span>${k.tip}</div>` : ''}
-                </div>
-              </div>`).join('')}
-          </div>
-        </div>` : ''}
-        ${help.tips && help.tips.length ? `
-        <div class="ph-item ph-item-full">
-          <span class="ph-k">✅ 操作提示</span>
-          <ul class="ph-tips">
-            ${help.tips.map(t => `<li>${t}</li>`).join('')}
-          </ul>
-        </div>` : ''}
+  }
+
+  function showHelpModal(pageName) {
+    const help = HELP[pageName];
+    if (!help) return;
+    let modal = $('helpModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'helpModal';
+      modal.className = 'help-modal-mask';
+      modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+      document.body.appendChild(modal);
+    }
+    modal.innerHTML = `
+      <div class="help-modal">
+        <div class="help-modal-h">
+          <span class="help-modal-ico">i</span>
+          <span class="help-modal-title">使用說明</span>
+          <button class="help-modal-close" onclick="document.getElementById('helpModal').style.display='none'">✕</button>
+        </div>
+        <div class="help-modal-body">
+          <div class="ph-item"><span class="ph-k">📊 能看出什麼</span><span class="ph-v">${help.what}</span></div>
+          <div class="ph-item"><span class="ph-k">💡 代表什麼</span><span class="ph-v">${help.meaning}</span></div>
+          <div class="ph-item"><span class="ph-k">👥 哪些單位要注意</span><span class="ph-v">${help.who}</span></div>
+          ${help.kpis && help.kpis.length ? `
+          <div class="ph-item ph-item-full">
+            <span class="ph-k">📐 指標說明</span>
+            <div class="ph-kpi-table">
+              ${help.kpis.map(k => `
+                <div class="ph-kpi-row">
+                  <div class="ph-kpi-name">${k.name}</div>
+                  <div class="ph-kpi-body">
+                    <div class="ph-kpi-formula"><span class="ph-kpi-label">計算</span>${k.formula}</div>
+                    <div class="ph-kpi-benchmark"><span class="ph-kpi-label">參考值</span>${k.benchmark}</div>
+                    ${k.tip ? `<div class="ph-kpi-tip"><span class="ph-kpi-label">提示</span>${k.tip}</div>` : ''}
+                  </div>
+                </div>`).join('')}
+            </div>
+          </div>` : ''}
+          ${help.tips && help.tips.length ? `
+          <div class="ph-item ph-item-full">
+            <span class="ph-k">✅ 操作提示</span>
+            <ul class="ph-tips">
+              ${help.tips.map(t => `<li>${t}</li>`).join('')}
+            </ul>
+          </div>` : ''}
+        </div>
       </div>`;
+    modal.style.display = 'flex';
   }
 
   function renderPage() {
@@ -8821,6 +9167,19 @@ window.App = (function () {
   }
   document.addEventListener('DOMContentLoaded', init);
 
+  function generateRoleReport() {
+    const role = state.analysisRole;
+    const roleInfo = ANALYSIS_ROLES[role] || ANALYSIS_ROLES.all;
+    const f = currentFilter();
+    const records = RepairAnalyzer.getRecords(state.db, f);
+    const denom = RepairAnalyzer.getDenominators(state.db, f);
+    const kpis = RepairAnalyzer.computeKPIs(records, denom);
+    const lastMonth = state.selectedMonths.slice().sort().pop();
+    const anoms = RepairAnalyzer.detectAnomalies(state.db, lastMonth);
+    const items = summaryForRole(role, records, kpis, anoms);
+    RepairReport.generate(state.db, { role, roleInfo, items });
+  }
+
   // ─── Auth is wired as window.Auth so it can be called from HTML onclick ───
   // (defined after App IIFE return at bottom of file)
 
@@ -8835,7 +9194,10 @@ window.App = (function () {
     openCostConfig, saveCostConfig, quickEstimateCost,
     toggleRank, toggleRankRow,
     dismissAlertPulse, dismissCrossMonthPulse,
-    generateReport: () => RepairReport.generate(state.db),
+    generateReport: () => generateRoleReport(),
+    generateRoleReport,
+    toggleRoleDropdown, closeRoleDropdown,
+    toggleSubbar, toggleSidebarMini, showHelpModal,
     exportCrossMatrix,
     // Drawer
     openKpiDrawer, openAnomalyDrawer, openPartDrawer, openModelDrawer, openSerialDrawer, openSerialTimelineDrawer,
@@ -8886,12 +9248,11 @@ window.Auth = (function () {
 
     // Always ensure admin exists locally
     if (!users[ADMIN_ID]) {
-      users[ADMIN_ID] = {
-        hash: await hashPwd(ADMIN_ID, ADMIN_ID),
-        isAdmin: true,
-        mustChange: false,
-        localChanged: true,
-      };
+      users[ADMIN_ID] = { hash: '', isAdmin: true, mustChange: false, localChanged: true };
+    }
+    // Seed second built-in user
+    if (!users['773999']) {
+      users['773999'] = { hash: '', isAdmin: false, mustChange: false, localChanged: true };
     }
 
     // Merge cloud users
@@ -9240,12 +9601,17 @@ window.Auth = (function () {
       faultRate: curKpis.denomPct - prevKpis.denomPct,
     } : null;
 
+    const fontScale = (function(){ try { return localStorage.getItem('titan_display_size') || 'md'; } catch(e) { return 'md'; } })();
     const html = buildHTML({
       months, latestMonth, prevMonth,
       curKpis, prevKpis, allKpis, delta,
       anomalies, critical, warn,
       modelRank, topParts, crossMonth, trend,
       reportDate: new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' }),
+      fontScale,
+      roleTitle: roleCtx ? roleCtx.roleTitle : null,
+      roleItems: roleCtx ? roleCtx.items : null,
+      isAllRole: roleCtx ? roleCtx.isAllRole : true,
     });
 
     // Open in new tab
@@ -9271,9 +9637,13 @@ window.Auth = (function () {
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   @page { size: A4; margin: 14mm 12mm; }
-  html, body { font-family: 'Inter', 'Noto Sans TC', system-ui, sans-serif; color: #1e293b; line-height: 1.5; background: #f8fafc; }
-  body { padding: 24px; }
-  .doc { max-width: 1000px; margin: 0 auto; background: white; padding: 40px 48px; box-shadow: 0 2px 12px rgba(0,0,0,.06); }
+  html, body { font-family: 'Inter', 'Noto Sans TC', system-ui, sans-serif; color: #1e293b; line-height: 1.6; background: #f8fafc; font-size: ${d.fontScale === 'lg' ? '17px' : d.fontScale === 'sm' ? '13px' : '15px'}; }
+  body { padding: 16px; }
+  .doc { max-width: 1000px; margin: 0 auto; background: white; padding: 32px 40px; box-shadow: 0 2px 12px rgba(0,0,0,.06); }
+  @media (max-width: 700px) {
+    body { padding: 0; }
+    .doc { padding: 20px 16px; box-shadow: none; }
+  }
   @media print {
     body { background: white; padding: 0; }
     .doc { box-shadow: none; padding: 0; max-width: none; }
@@ -9300,20 +9670,20 @@ window.Auth = (function () {
     padding-bottom: 24px; margin-bottom: 32px;
   }
   .cover-overline {
-    font-size: 11px; color: #64748b; letter-spacing: .18em; text-transform: uppercase;
+    font-size: 0.75em; color: #64748b; letter-spacing: .18em; text-transform: uppercase;
     font-weight: 700; margin-bottom: 8px;
   }
-  .cover-title { font-size: 32px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 6px; color: #0f172a; }
-  .cover-sub { font-size: 14px; color: #475569; font-family: 'JetBrains Mono', monospace; }
+  .cover-title { font-size: 2em; font-weight: 700; letter-spacing: -.02em; margin-bottom: 6px; color: #0f172a; }
+  .cover-sub { font-size: 0.9em; color: #475569; font-family: 'JetBrains Mono', monospace; }
   .cover-meta {
-    margin-top: 14px; display: flex; gap: 20px;
-    font-size: 12px; color: #64748b;
+    margin-top: 14px; display: flex; gap: 20px; flex-wrap: wrap;
+    font-size: 0.8em; color: #64748b;
   }
   .cover-meta span { font-family: 'JetBrains Mono', monospace; }
 
   /* Section heading */
   h2.sec {
-    font-size: 16px; color: #0f172a;
+    font-size: 1.07em; color: #0f172a;
     margin: 32px 0 14px;
     padding-bottom: 8px; border-bottom: 1.5px solid #e2e8f0;
     letter-spacing: -.01em; font-weight: 700;
@@ -9322,10 +9692,11 @@ window.Auth = (function () {
   h2.sec::before {
     content: ''; width: 4px; height: 16px; background: #0ea5e9; border-radius: 2px;
   }
-  h2.sec .meta { margin-left: auto; font-size: 11px; color: #94a3b8; font-weight: 400; letter-spacing: .04em; }
+  h2.sec .meta { margin-left: auto; font-size: 0.75em; color: #94a3b8; font-weight: 400; letter-spacing: .04em; }
 
   /* KPI grid */
   .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  @media (max-width: 600px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
   .kpi {
     background: #f8fafc; border: 1px solid #e2e8f0;
     padding: 16px 18px; border-radius: 8px;
@@ -9334,20 +9705,20 @@ window.Auth = (function () {
   .kpi.warn { border-left-color: #f59e0b; }
   .kpi.bad { border-left-color: #ef4444; }
   .kpi-l {
-    font-size: 10.5px; color: #64748b; letter-spacing: .1em;
+    font-size: 0.72em; color: #64748b; letter-spacing: .1em;
     text-transform: uppercase; font-weight: 700; margin-bottom: 8px;
   }
   .kpi-v {
-    font-family: 'JetBrains Mono', monospace; font-size: 28px;
+    font-family: 'JetBrains Mono', monospace; font-size: 1.75em;
     font-weight: 700; line-height: 1; letter-spacing: -.02em; color: #0f172a;
   }
   .kpi-d {
-    margin-top: 8px; font-size: 11.5px; color: #64748b;
-    display: flex; align-items: baseline; gap: 6px;
+    margin-top: 8px; font-size: 0.78em; color: #64748b;
+    display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
   }
   .kpi-d .pct { color: #0f172a; font-family: 'JetBrains Mono', monospace; font-weight: 700; }
   .kpi-d .delta {
-    font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.72em;
     padding: 2px 6px; border-radius: 8px; font-weight: 700;
   }
   .kpi-d .delta.up { color: #ef4444; background: #fef2f2; }
@@ -9361,10 +9732,10 @@ window.Auth = (function () {
     margin: 20px 0;
   }
   .exec-h {
-    font-size: 11px; color: #7dd3fc; letter-spacing: .14em; text-transform: uppercase;
+    font-size: 0.75em; color: #7dd3fc; letter-spacing: .14em; text-transform: uppercase;
     font-weight: 700; margin-bottom: 12px;
   }
-  .exec-body { font-size: 14px; line-height: 1.8; color: #f0f9ff; }
+  .exec-body { font-size: 1em; line-height: 1.8; color: #f0f9ff; }
   .exec-body strong { color: white; font-weight: 700; }
 
   /* Anomaly card */
@@ -9381,30 +9752,30 @@ window.Auth = (function () {
   .anom.info { border-left-color: #6366f1; background: #eef2ff; }
   .anom-l { min-width: 0; }
   .anom-h { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-  .anom-t { font-size: 10.5px; color: #475569; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; }
+  .anom-t { font-size: 0.72em; color: #475569; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; }
   .anom-sev {
-    font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.65em;
     padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: .04em;
   }
   .anom.critical .anom-sev { background: #fecaca; color: #991b1b; }
   .anom.warn .anom-sev { background: #fde68a; color: #92400e; }
   .anom.info .anom-sev { background: #c7d2fe; color: #3730a3; }
-  .anom-s { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 2px; word-break: break-word; }
-  .anom-m { font-size: 12px; color: #475569; font-family: 'JetBrains Mono', monospace; }
+  .anom-s { font-size: 0.93em; font-weight: 700; color: #0f172a; margin-bottom: 2px; word-break: break-word; }
+  .anom-m { font-size: 0.8em; color: #475569; font-family: 'JetBrains Mono', monospace; }
   .anom-r {
     text-align: right;
     font-family: 'JetBrains Mono', monospace;
   }
-  .anom-metric { font-size: 22px; font-weight: 700; line-height: 1; }
+  .anom-metric { font-size: 1.45em; font-weight: 700; line-height: 1; }
   .anom.critical .anom-metric { color: #dc2626; }
   .anom.warn .anom-metric { color: #d97706; }
   .anom.info .anom-metric { color: #4f46e5; }
   .anom-mlabel { font-size: 10px; color: #64748b; margin-top: 3px; }
 
   /* Tables */
-  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
   thead th {
-    text-align: left; padding: 10px 12px; font-size: 10.5px;
+    text-align: left; padding: 10px 12px; font-size: 0.72em;
     letter-spacing: .08em; text-transform: uppercase; color: #64748b; font-weight: 700;
     border-bottom: 1.5px solid #cbd5e1; background: #f1f5f9;
   }
@@ -9744,7 +10115,7 @@ window.Auth = (function () {
 
 </script>
 <script>
-window.__morandiCSS__ = "/* ════════════════════════════════════════════════════════════════════\n   TITAN-STAR — 莫蘭迪/大地色系主題\n   疊加在 styles.css 之後；只覆蓋 :root 色彩變數，其餘 UI 結構不變\n   ════════════════════════════════════════════════════════════════════ */\n\n:root {\n  /* ── 底色系：溫潤米白，護眼不刺眼 ── */\n  --bg:       #EDECEA;   /* 大地米白底 */\n  --surface:  #F8F7F5;   /* 卡片近白 */\n  --surface2: #EEECEA;   /* 次表面淺米 */\n  --surface3: #E2E0DC;   /* 三級灰 */\n  --hover:    rgba(0,0,0,0.04);\n\n  /* ── 邊框：柔和陰影邊 ── */\n  --border:  rgba(0,0,0,0.09);\n  --border2: rgba(0,0,0,0.16);\n\n  /* ── 文字：暖灰黑層次 ── */\n  --text:      #28241F;  /* 深暖黑，主要文字 */\n  --text2:     #514D47;  /* 中暖灰，次要文字 */\n  --text3:     #857F77;  /* 輕灰棕，標籤/輔助 */\n  --text-mute: #ADA89F;  /* 最淡，placeholder */\n\n  /* ── 強調色：霧霾藍（主要互動/連結/高亮） ── */\n  --accent:        #5B82A6;\n  --accent-soft:   rgba(91,130,166,0.10);\n  --accent-strong: rgba(91,130,166,0.22);\n\n  /* ── 嚴重警示：柔和磚紅 ── */\n  --critical:        #C26360;\n  --critical-soft:   rgba(194,99,96,0.10);\n  --critical-strong: rgba(194,99,96,0.20);\n\n  /* ── 警告：暖琥珀褐 ── */\n  --warn:        #B8833A;\n  --warn-soft:   rgba(184,131,58,0.10);\n  --warn-strong: rgba(184,131,58,0.20);\n\n  /* ── 達標/正常：鼠尾草綠 ── */\n  --ok:      #6E9C68;\n  --ok-soft: rgba(110,156,104,0.12);\n\n  /* ── 資訊/中性：暖灰褐 ── */\n  --info:      #8C8275;\n  --info-soft: rgba(140,130,117,0.12);\n}\n\n/* ──────────────────────────────────────────────────────────────────\n   深色主題中寫死的白色系元素，在淺色主題需要反轉\n   ────────────────────────────────────────────────────────────────── */\n\n/* 整體底色已由 :root --bg 控制，body 跟著走 */\nbody {\n  background: var(--bg);\n  color: var(--text);\n}\n\n/* ── 頂部 Logo 漸層 → 改為品牌藍方向 ── */\n.uz-logo, .logo-badge {\n  background: linear-gradient(135deg, var(--accent), #7A9EBF) !important;\n  color: #fff !important;\n}\n\n/* ── 主 nav sidebar ── */\n#sidebar {\n  background: var(--surface) !important;\n  border-right: 1px solid var(--border) !important;\n}\n.nav-item { color: var(--text2) !important; }\n.nav-item:hover { background: var(--surface2) !important; color: var(--text) !important; }\n.nav-item.active {\n  background: var(--accent-soft) !important;\n  color: var(--accent) !important;\n  border-left-color: var(--accent) !important;\n}\n\n/* ── 頁面 header ── */\n#pageHeader {\n  background: var(--surface) !important;\n  border-bottom: 1px solid var(--border) !important;\n}\n.page-title { color: var(--text) !important; }\n\n/* ── 卡片 ── */\n.card, .sum-card, .kpi-card, .trend-card {\n  background: var(--surface) !important;\n  border-color: var(--border) !important;\n  box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;\n}\n\n/* ── KPI 數字：保留語意色，不改 ── */\n\n/* ── 表格 ── */\ntable thead th {\n  background: var(--surface2) !important;\n  color: var(--text2) !important;\n  border-color: var(--border2) !important;\n}\ntable tbody tr { border-bottom: 1px solid var(--border) !important; }\ntable tbody tr:nth-child(even) { background: rgba(0,0,0,0.025) !important; }\ntable tbody tr:hover { background: var(--accent-soft) !important; }\ntable td, table th { border-color: var(--border) !important; }\ntable td { border-bottom: 1px solid var(--border) !important; }\n\n/* ── 機種排名 mrank cards ── */\n.mrank-row {\n  border: 1px solid var(--border2) !important;\n  box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;\n}\n.mrank-row + .mrank-row { margin-top: 6px; }\n.mrank-top:hover { background: var(--accent-soft) !important; }\n\n/* ── 按鈕 ── */\n.btn-primary, .sum-card-go {\n  background: var(--accent) !important;\n  color: #fff !important;\n}\n.btn-primary:hover, .sum-card-go:hover {\n  background: #4A6F93 !important;\n}\n.btn-outline, .sum-card-capa {\n  border-color: var(--accent) !important;\n  color: var(--accent) !important;\n  background: transparent !important;\n}\n.btn-outline:hover, .sum-card-capa:hover {\n  background: var(--accent-soft) !important;\n}\n\n/* ── 輸入框 ── */\ninput, select, textarea {\n  background: var(--surface) !important;\n  color: var(--text) !important;\n  border-color: var(--border2) !important;\n}\ninput:focus, select:focus, textarea:focus {\n  border-color: var(--accent) !important;\n  outline: none !important;\n  box-shadow: 0 0 0 2px var(--accent-soft) !important;\n}\n\n/* ── 抽屜/Modal ── */\n#drawer, .modal-panel {\n  background: var(--surface) !important;\n  border-left: 1px solid var(--border) !important;\n}\n\n/* ── 搜尋列 ── */\n.search-bar, #detailSearch {\n  background: var(--surface2) !important;\n  border-color: var(--border) !important;\n  color: var(--text) !important;\n}\n\n/* ── 標籤 Chip ── */\n.chip, .tag, .badge {\n  background: var(--surface2) !important;\n  color: var(--text2) !important;\n  border-color: var(--border) !important;\n}\n\n/* ── COPQ onboarding 步驟 ── */\n.ob-step { background: var(--surface2) !important; color: var(--text3) !important; }\n.ob-step.ob-active { background: var(--accent-soft) !important; color: var(--accent) !important; }\n.ob-num { background: var(--surface3) !important; color: var(--text2) !important; }\n.ob-step.ob-active .ob-num { background: var(--accent) !important; color: #fff !important; }\n\n/* ── CEO 摘要框 ── */\n.exec-brief {\n  background: var(--accent-soft) !important;\n  border-left: 4px solid var(--accent) !important;\n}\n.eb-label { color: var(--accent) !important; }\n.eb-text  { color: var(--text) !important; }\n\n/* ── CAPA 表單 ── */\n.capa-row { border-bottom-color: var(--border) !important; }\n.capa-id  { color: var(--text3) !important; }\n\n/* ── data quality panel ── */\n.dq-item { background: var(--surface2) !important; }\n.dq-ok   { color: var(--ok) !important; }\n.dq-warn { color: var(--warn) !important; }\n.dq-bad  { color: var(--critical) !important; }\n\n/* ── 上傳區 ── */\n.uz-card { background: var(--surface) !important; border-color: var(--border2) !important; }\n.uz-card.drag { border-color: var(--accent) !important; background: var(--accent-soft) !important; }\n\n/* ── 分頁/子選單列 ── */\n.sub-nav, .tab-bar {\n  background: var(--surface2) !important;\n  border-bottom-color: var(--border) !important;\n}\n.sub-nav-item.active, .tab-item.active {\n  color: var(--accent) !important;\n  border-bottom-color: var(--accent) !important;\n}\n\n/* ── 月份卡片 ── */\n.uz-month-card {\n  background: var(--surface) !important;\n  border-color: var(--border) !important;\n}\n.uz-month-card:hover { border-color: var(--border2) !important; }\n\n/* ── scroll bar（Webkit） ── */\n::-webkit-scrollbar { width: 6px; height: 6px; }\n::-webkit-scrollbar-track { background: var(--surface2); }\n::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }\n::-webkit-scrollbar-thumb:hover { background: var(--text-mute); }\n";
+window.__morandiCSS__ = "/* ════════════════════════════════════════════════════════════════════\n   TITAN-STAR — 莫蘭迪/大地色系主題\n   疊加在 styles.css 之後；只覆蓋 :root 色彩變數，其餘 UI 結構不變\n   ════════════════════════════════════════════════════════════════════ */\n\n:root {\n  /* ── 底色系：溫潤米白，護眼不刺眼 ── */\n  --bg:       #EDECEA;   /* 大地米白底 */\n  --surface:  #F8F7F5;   /* 卡片近白 */\n  --surface2: #EEECEA;   /* 次表面淺米 */\n  --surface3: #E2E0DC;   /* 三級灰 */\n  --hover:    rgba(0,0,0,0.04);\n\n  /* ── 邊框：柔和陰影邊 ── */\n  --border:  rgba(0,0,0,0.09);\n  --border2: rgba(0,0,0,0.16);\n\n  /* ── 文字：暖灰黑層次 ── */\n  --text:      #28241F;  /* 深暖黑，主要文字 */\n  --text2:     #514D47;  /* 中暖灰，次要文字 */\n  --text3:     #857F77;  /* 輕灰棕，標籤/輔助 */\n  --text-mute: #ADA89F;  /* 最淡，placeholder */\n\n  /* ── 強調色：霧霾藍（主要互動/連結/高亮） ── */\n  --accent:        #5B82A6;\n  --accent-soft:   rgba(91,130,166,0.10);\n  --accent-strong: rgba(91,130,166,0.22);\n\n  /* ── 嚴重警示：柔和磚紅 ── */\n  --critical:        #C26360;\n  --critical-soft:   rgba(194,99,96,0.10);\n  --critical-strong: rgba(194,99,96,0.20);\n\n  /* ── 警告：暖琥珀褐 ── */\n  --warn:        #B8833A;\n  --warn-soft:   rgba(184,131,58,0.10);\n  --warn-strong: rgba(184,131,58,0.20);\n\n  /* ── 達標/正常：鼠尾草綠 ── */\n  --ok:      #6E9C68;\n  --ok-soft: rgba(110,156,104,0.12);\n\n  /* ── 資訊/中性：暖灰褐 ── */\n  --info:      #8C8275;\n  --info-soft: rgba(140,130,117,0.12);\n}\n\n/* ──────────────────────────────────────────────────────────────────\n   深色主題中寫死的白色系元素，在淺色主題需要反轉\n   ────────────────────────────────────────────────────────────────── */\n\n/* 整體底色已由 :root --bg 控制，body 跟著走 */\nbody {\n  background: var(--bg);\n  color: var(--text);\n}\n\n/* ── 頂部 Logo 漸層 → 改為品牌藍方向 ── */\n.uz-logo, .logo-badge {\n  background: linear-gradient(135deg, var(--accent), #7A9EBF) !important;\n  color: #fff !important;\n}\n\n/* ── 主 nav sidebar ── */\n#sidebar {\n  background: var(--surface) !important;\n  border-right: 1px solid var(--border) !important;\n}\n.nav-item { color: var(--text2) !important; }\n.nav-item:hover { background: var(--surface2) !important; color: var(--text) !important; }\n.nav-item.active {\n  background: var(--accent-soft) !important;\n  color: var(--accent) !important;\n  border-left-color: var(--accent) !important;\n}\n\n/* ── 頁面 header ── */\n#pageHeader {\n  background: var(--surface) !important;\n  border-bottom: 1px solid var(--border) !important;\n}\n.page-title { color: var(--text) !important; }\n\n/* ── 卡片 ── */\n.card, .sum-card, .kpi-card, .trend-card {\n  background: var(--surface) !important;\n  border-color: var(--border) !important;\n  box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;\n}\n\n/* ── KPI 數字：保留語意色，不改 ── */\n\n/* ── 表格 ── */\ntable thead th {\n  background: var(--surface2) !important;\n  color: var(--text2) !important;\n  border-color: var(--border2) !important;\n}\ntable tbody tr { border-bottom: 1px solid var(--border) !important; }\ntable tbody tr:nth-child(even) { background: rgba(0,0,0,0.025) !important; }\ntable tbody tr:hover { background: var(--accent-soft) !important; }\ntable td, table th { border-color: var(--border) !important; }\ntable td { border-bottom: 1px solid var(--border) !important; }\n\n/* ── 機種排名 mrank cards ── */\n.mrank-row {\n  border: 1px solid var(--border2) !important;\n  box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;\n}\n.mrank-row + .mrank-row { margin-top: 6px; }\n.mrank-top:hover { background: var(--accent-soft) !important; }\n\n/* ── 按鈕 ── */\n.btn-primary, .sum-card-go {\n  background: var(--accent) !important;\n  color: #fff !important;\n}\n.btn-primary:hover, .sum-card-go:hover {\n  background: #4A6F93 !important;\n}\n.btn-outline, .sum-card-capa {\n  border-color: var(--accent) !important;\n  color: var(--accent) !important;\n  background: transparent !important;\n}\n.btn-outline:hover, .sum-card-capa:hover {\n  background: var(--accent-soft) !important;\n}\n\n/* ── 輸入框 ── */\ninput, select, textarea {\n  background: var(--surface) !important;\n  color: var(--text) !important;\n  border-color: var(--border2) !important;\n}\ninput:focus, select:focus, textarea:focus {\n  border-color: var(--accent) !important;\n  outline: none !important;\n  box-shadow: 0 0 0 2px var(--accent-soft) !important;\n}\n\n/* ── 抽屜/Modal ── */\n#drawer, .modal-panel {\n  background: var(--surface) !important;\n  border-left: 1px solid var(--border) !important;\n}\n\n/* ── 搜尋列 ── */\n.search-bar, #detailSearch {\n  background: var(--surface2) !important;\n  border-color: var(--border) !important;\n  color: var(--text) !important;\n}\n\n/* ── 標籤 Chip ── */\n.chip, .tag, .badge {\n  background: var(--surface2) !important;\n  color: var(--text2) !important;\n  border-color: var(--border) !important;\n}\n\n/* ── COPQ onboarding 步驟 ── */\n.ob-step { background: var(--surface2) !important; color: var(--text3) !important; }\n.ob-step.ob-active { background: var(--accent-soft) !important; color: var(--accent) !important; }\n.ob-num { background: var(--surface3) !important; color: var(--text2) !important; }\n.ob-step.ob-active .ob-num { background: var(--accent) !important; color: #fff !important; }\n\n/* ── CEO 摘要框 ── */\n.exec-brief {\n  background: var(--accent-soft) !important;\n  border-left: 4px solid var(--accent) !important;\n}\n.eb-label { color: var(--accent) !important; }\n.eb-text  { color: var(--text) !important; }\n\n/* ── CAPA 表單 ── */\n.capa-row { border-bottom-color: var(--border) !important; }\n.capa-id  { color: var(--text3) !important; }\n\n/* ── data quality panel ── */\n.dq-item { background: var(--surface2) !important; }\n.dq-ok   { color: var(--ok) !important; }\n.dq-warn { color: var(--warn) !important; }\n.dq-bad  { color: var(--critical) !important; }\n\n/* ── 上傳區 ── */\n.uz-card { background: var(--surface) !important; border-color: var(--border2) !important; }\n.uz-card.drag { border-color: var(--accent) !important; background: var(--accent-soft) !important; }\n\n/* ── 分頁/子選單列 ── */\n.sub-nav, .tab-bar {\n  background: var(--surface2) !important;\n  border-bottom-color: var(--border) !important;\n}\n.sub-nav-item.active, .tab-item.active {\n  color: var(--accent) !important;\n  border-bottom-color: var(--accent) !important;\n}\n\n/* ── 月份卡片 ── */\n.uz-month-card {\n  background: var(--surface) !important;\n  border-color: var(--border) !important;\n}\n.uz-month-card:hover { border-color: var(--border2) !important; }\n\n/* ── scroll bar（Webkit） ── */\n::-webkit-scrollbar { width: 6px; height: 6px; }\n::-webkit-scrollbar-track { background: var(--surface2); }\n::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }\n::-webkit-scrollbar-thumb:hover { background: var(--text-mute); }\n\n/* ─── New UI elements ─── */\n.fsc-sel { background: var(--surface2); color: var(--text); border-color: var(--border); }\n.sidebar-mini-toggle { border-color: var(--border); color: var(--text3); }\n.ph-icon-btn { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-strong); }\n.help-modal { background: var(--surface); border-color: var(--border); }\n.help-modal-h { border-color: var(--border); }\n";
 </script>
 <script>
 // ════════════════════════════════════════════════════════════════════
@@ -10247,25 +10618,30 @@ window.RMA = (function () {
           </div>
         </div>
 
-        <!-- ── Role switcher ── -->
-        <div class="rma-role-bar">
-          ${Object.entries(ROLES).map(([k, r]) => `
-            <button class="rma-role-chip ${role === k ? 'active' : ''}"
-                    style="${role === k ? `--rc:${r.color}` : ''}"
-                    onclick="RMA.setRole('${k}')" title="${r.desc}">
-              <span class="rma-role-ico">${r.icon}</span>
-              <span class="rma-role-label">${r.short}</span>
-            </button>
-          `).join('')}
-        </div>
-
-        <!-- ── Role context banner ── -->
+        <!-- ── Role context banner (compact) ── -->
         <div class="rma-role-banner" style="--rc:${roleInfo.color}">
           <span class="rma-role-banner-ico">${roleInfo.icon}</span>
           <div>
             <div class="rma-role-banner-t">${roleInfo.label} 視角</div>
             <div class="rma-role-banner-d">${roleInfo.desc}</div>
           </div>
+          <div class="rma-role-quick">
+            ${Object.entries(ROLES).filter(([k]) => k !== role).slice(0,5).map(([k, r]) => `
+              <button class="rma-role-quick-btn" onclick="RMA.setRole('${k}')" title="${r.desc}" style="--rc:${r.color}">
+                <span>${r.icon}</span><span>${r.short}</span>
+              </button>`).join('')}
+            <button class="rma-role-quick-btn rma-role-quick-more" onclick="RMA.toggleRolePanel()" title="更多角色">···</button>
+          </div>
+        </div>
+        <div class="rma-role-panel" id="rmaRolePanel" style="display:none">
+          ${Object.entries(ROLES).map(([k, r]) => `
+            <button class="rma-role-chip ${role === k ? 'active' : ''}"
+                    style="${role === k ? `--rc:${r.color}` : ''}"
+                    onclick="RMA.setRole('${k}');RMA.toggleRolePanel(false)" title="${r.desc}">
+              <span class="rma-role-ico">${r.icon}</span>
+              <span class="rma-role-label">${r.short}</span>
+            </button>
+          `).join('')}
         </div>
 
         <!-- ── KPI strip (dynamic per role) ── -->
@@ -10773,6 +11149,13 @@ window.RMA = (function () {
     render();
   }
 
+  function toggleRolePanel(forceHide) {
+    const p = document.getElementById('rmaRolePanel');
+    if (!p) return;
+    const show = forceHide === false ? false : p.style.display === 'none';
+    p.style.display = show ? '' : 'none';
+  }
+
   function goList() {
     state.page = 'list';
     state.detailId = null;
@@ -11074,7 +11457,7 @@ window.RMA = (function () {
 
   return {
     init, render, goList, goNew, goDetail,
-    setFilter, setRole, autofillCategory, submitNew,
+    setFilter, setRole, toggleRolePanel, autofillCategory, submitNew,
     advance, reopenCase,
     toggleEditSection, saveDiagnosis, saveRepair,
     editField, saveEditField,
@@ -11101,10 +11484,10 @@ function applyTheme(theme) {
       style.textContent = window.__morandiCSS__ || '';
       document.head.appendChild(style);
     }
-    if (btn) btn.textContent = '☀ 莫蘭迪';
+    if (btn) btn.textContent = '☀';
   } else {
     if (existing) existing.remove();
-    if (btn) btn.textContent = '🌙 深色';
+    if (btn) btn.textContent = '🌙';
   }
 }
 
@@ -11157,6 +11540,7 @@ function switchMode(mode) {
       dash.classList.add('active');
       rmaDash.style.display = 'none';
       modeBar.style.display = 'flex';
+      ['modeUploadBtn','modeReportBtn','roleSelWrap','modeRma'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
     } else {
       // No data yet — show upload zone
       uploadZone.style.display = 'flex';
@@ -11170,6 +11554,9 @@ function switchMode(mode) {
     dash.classList.remove('active');
     rmaDash.style.display = 'block';
     modeBar.style.display = 'flex';
+    ['modeUploadBtn','modeReportBtn','roleSelWrap'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+    const modeRmaEl = document.getElementById('modeRma');
+    if (modeRmaEl) modeRmaEl.style.display = '';
     // Init RMA content container
     const rmaContent = document.getElementById('rmaContent');
     if (rmaContent) {

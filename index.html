@@ -10,17 +10,6 @@
   var s; try { s = localStorage.getItem('titan_display_size'); } catch(e){}
   document.documentElement.setAttribute('data-fontscale', s || 'md');
 })();
-/* ── 公司 Logo（base64 或 URL，換圖只需改這一行）── */
-window.__LOGO_SRC__ = '';  // TODO: 貼入 base64 字串後啟用
-document.addEventListener('DOMContentLoaded', function(){
-  var el = document.getElementById('siteLogo');
-  if (el && window.__LOGO_SRC__) { el.src = window.__LOGO_SRC__; }
-  else if (el) {
-    el.style.display = 'none';
-    var fb = document.getElementById('siteLogoFallback');
-    if (fb) fb.style.display = '';
-  }
-});
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -31,11 +20,40 @@ document.addEventListener('DOMContentLoaded', function(){
 </head>
 <body>
 
-<!-- 登入頁面已停用（選色期間直接進入） -->
-<div id="loginScreen" style="display:none"></div>
-<div id="changePwScreen" style="display:none"></div>
-<input type="hidden" id="loginUser" value="031780">
-<input type="hidden" id="loginPwd" value="">
+<!-- ═══════════════ Login Screen ═══════════════ -->
+<div id="loginScreen" style="display:none;position:fixed;inset:0;z-index:900;background:var(--bg);align-items:center;justify-content:center;flex-direction:column">
+  <div style="text-align:center;margin-bottom:32px">
+    <div class="s-icon" style="margin:0 auto 16px;width:52px;height:52px;font-size:22px;line-height:52px">S</div>
+    <div style="font-size:22px;font-weight:700;letter-spacing:0.05em">TITAN-STAR</div>
+    <div style="font-size:13px;color:var(--text2);margin-top:4px">維修分析 &amp; RMA 管理系統</div>
+  </div>
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:32px;width:320px;max-width:90vw">
+    <div style="font-size:15px;font-weight:600;margin-bottom:20px">請輸入工號登入</div>
+    <input id="loginUser" type="text" placeholder="工號（如 031780）"
+      style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:15px;margin-bottom:12px"
+      onkeydown="if(event.key==='Enter')Auth.doLogin()">
+    <input id="loginPwd" type="hidden" value="">
+    <div id="loginErr" style="color:#e55;font-size:13px;min-height:18px;margin-bottom:8px"></div>
+    <button class="btn primary" onclick="Auth.doLogin()" style="width:100%;padding:10px;font-size:15px">登入</button>
+  </div>
+</div>
+
+<!-- ═══════════════ Change Password Screen ═══════════════ -->
+<div id="changePwScreen" style="display:none;position:fixed;inset:0;z-index:900;background:var(--bg);align-items:center;justify-content:center;flex-direction:column">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:32px;width:340px;max-width:90vw">
+    <div style="font-size:15px;font-weight:600;margin-bottom:4px">修改密碼</div>
+    <div id="changePwSub" style="font-size:13px;color:var(--text2);margin-bottom:20px"></div>
+    <input id="cpOld" type="password" placeholder="舊密碼"
+      style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px;margin-bottom:10px">
+    <input id="cpNew" type="password" placeholder="新密碼（至少6碼）"
+      style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px;margin-bottom:10px">
+    <input id="cpConfirm" type="password" placeholder="確認新密碼"
+      style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px;margin-bottom:12px"
+      onkeydown="if(event.key==='Enter')Auth.doChangePw()">
+    <div id="changePwErr" style="color:#e55;font-size:13px;min-height:18px;margin-bottom:8px"></div>
+    <button class="btn primary" onclick="Auth.doChangePw()" style="width:100%;padding:10px;font-size:15px">確認</button>
+  </div>
+</div>
 
 <!-- ═══════════════ Loading Overlay ═══════════════ -->
 <div class="load-ov" id="loadOv" style="display:none">
@@ -47,29 +65,38 @@ document.addEventListener('DOMContentLoaded', function(){
 <!-- ═══════════════ Mode Switcher Header ═══════════════ -->
 <div class="mode-bar" id="modeBar" style="display:none">
   <div class="mode-bar-l">
-    <img id="siteLogo" src="" alt="TITAN-STAR" class="site-logo" onerror="this.style.display='none';document.getElementById('siteLogoFallback').style.display=''">
-    <div id="siteLogoFallback" class="hdr-mark" style="display:none">TS</div>
-    <span class="mode-bar-brand">TITAN-STAR</span>
+    <div class="s-icon">S</div>
   </div>
   <div class="mode-tabs">
     <button class="mode-tab active" id="modeAnalysis" onclick="switchMode('analysis')">
-      <span class="mode-tab-ico">◈</span> 維修分析報表
+      <span class="mode-tab-ico">◈</span> 維修分析
     </button>
-    <button class="mode-tab" id="modeRma" onclick="switchMode('rma')">
-      <span class="mode-tab-ico">◎</span> RMA 管理
-      <span class="mode-badge" id="rmaBadge" style="display:none">0</span>
-    </button>
+    <!-- Role selector embedded next to analysis tab -->
+    <div class="role-sel" id="roleSelWrap" style="display:none">
+      <button class="role-sel-btn" id="roleSelBtn" onclick="App.toggleRoleDropdown()" title="切換分析視角">
+        <span id="roleSelIco">⊞</span>
+        <span id="roleSelLabel">綜合</span>
+        <span class="role-sel-focus" id="roleSelFocus"></span>
+        <span class="role-sel-arrow">▾</span>
+      </button>
+      <div class="role-sel-drop" id="roleSelDrop" style="display:none"></div>
+    </div>
   </div>
   <div class="mode-bar-r" id="modeBtns">
+    <button class="btn topbar-btn" id="modeReportBtn" onclick="App.generateRoleReport()" style="display:none">⤓ 生成報告</button>
+    <button class="mode-tab" id="modeRma" onclick="switchMode('rma')" style="display:none">
+      <span class="mode-tab-ico">◎</span> RMA
+      <span class="mode-badge" id="rmaBadge" style="display:none">0</span>
+    </button>
+    <button class="btn topbar-btn" id="modeUploadBtn" onclick="App.openUpload()" style="display:none" title="上傳報表">⤒</button>
     <span class="mode-bar-user" id="modeBarUser"></span>
     <div class="sys-ctl-group">
-      <div class="fontsize-ctl" role="group" aria-label="顯示大小">
-        <span class="fsc-label">字級</span>
-        <button class="fsc-btn" data-size="sm" onclick="App.setDisplaySize('sm')" title="標準">標準</button>
-        <button class="fsc-btn" data-size="md" onclick="App.setDisplaySize('md')" title="大">大</button>
-        <button class="fsc-btn" data-size="lg" onclick="App.setDisplaySize('lg')" title="特大">特大</button>
-      </div>
-      <button class="btn theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="切換色系">🌙 深色</button>
+      <select class="fsc-sel" id="fontsizeSel" onchange="App.setDisplaySize(this.value)" title="字型大小">
+        <option value="sm">標準</option>
+        <option value="md">大</option>
+        <option value="lg">特大</option>
+      </select>
+      <button class="btn theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="切換色系">🌙</button>
     </div>
     <button class="btn" id="adminPanelBtn" style="display:none" onclick="Auth.openAdminPanel()">⚙ 帳號管理</button>
   </div>
@@ -135,18 +162,20 @@ document.addEventListener('DOMContentLoaded', function(){
       <button class="nav-toggle" id="navToggle" onclick="App.toggleNav()" aria-label="開啟選單">☰</button>
       <div class="hdr-t"><span class="sub" id="hdrSub"></span></div>
     </div>
-    <div class="hdr-r">
-      <button class="btn hide-sm" onclick="RepairReport.generate(RepairDB.load())">⤓ 生成報告</button>
-      <button class="btn hide-sm" onclick="switchMode('rma')">◎ RMA管理</button>
-      <button class="btn danger" onclick="App.openUpload()">上傳 / 管理</button>
-    </div>
+    <div class="hdr-r"></div>
   </div>
 
   <!-- Sub-bar: month + category chips -->
-  <div class="subbar">
-    <div class="subbar-row" id="monthChips"></div>
-    <div class="subbar-row" id="catChips"></div>
-    <div class="subbar-row" id="modelChips" style="display:none"></div>
+  <div class="subbar" id="subbar">
+    <button class="subbar-toggle" id="subbarToggle" onclick="App.toggleSubbar()" aria-label="展開/收合篩選">
+      <span id="subbarSummaryText">篩選</span>
+      <span class="subbar-arrow" id="subbarArrow">▲</span>
+    </button>
+    <div id="subbarBody">
+      <div class="subbar-row" id="monthChips"></div>
+      <div class="subbar-row" id="catChips"></div>
+      <div class="subbar-row" id="modelChips" style="display:none"></div>
+    </div>
   </div>
 
   <!-- Layout: sidebar + content -->
@@ -155,6 +184,7 @@ document.addEventListener('DOMContentLoaded', function(){
     <div class="nav-overlay" id="navOverlay" onclick="App.closeNav()"></div>
     <!-- Sidebar -->
     <nav class="sidebar" id="sidebar">
+      <button class="sidebar-mini-toggle" id="sidebarMiniToggle" onclick="App.toggleSidebarMini()" title="收合側欄">◁</button>
       <div class="snav">
         <div class="snav-h">分析</div>
         <button class="snav-item" data-page="summary" onclick="App.switchPage('summary')">
@@ -217,7 +247,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
         <!-- Global role switcher (persists across all analysis pages) -->
         <div class="global-role" id="globalRole">
-          <div class="ar-bar" id="analysisRoleBar"></div>
+          <div id="analysisRoleBar" style="display:none"></div>
           <div class="grole-banner" id="globalRoleBanner"></div>
         </div>
 
@@ -567,7 +597,6 @@ document.addEventListener('DOMContentLoaded', function(){
       <div class="hdr-t"><span class="sub">RMA 管理</span></div>
     </div>
     <div class="hdr-r">
-      <button class="btn" onclick="switchMode('analysis')">◈ 分析報表</button>
       <button class="btn primary" onclick="RMA.goNew()">+ 新增 RMA</button>
     </div>
   </div>
@@ -615,10 +644,10 @@ function applyTheme(theme) {
       style.textContent = window.__morandiCSS__ || '';
       document.head.appendChild(style);
     }
-    if (btn) btn.textContent = '☀ 莫蘭迪';
+    if (btn) btn.textContent = '☀';
   } else {
     if (existing) existing.remove();
-    if (btn) btn.textContent = '🌙 深色';
+    if (btn) btn.textContent = '🌙';
   }
 }
 
@@ -671,6 +700,7 @@ function switchMode(mode) {
       dash.classList.add('active');
       rmaDash.style.display = 'none';
       modeBar.style.display = 'flex';
+      ['modeUploadBtn','modeReportBtn','roleSelWrap','modeRma'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
     } else {
       // No data yet — show upload zone
       uploadZone.style.display = 'flex';
@@ -684,6 +714,9 @@ function switchMode(mode) {
     dash.classList.remove('active');
     rmaDash.style.display = 'block';
     modeBar.style.display = 'flex';
+    ['modeUploadBtn','modeReportBtn','roleSelWrap'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+    const modeRmaEl = document.getElementById('modeRma');
+    if (modeRmaEl) modeRmaEl.style.display = '';
     // Init RMA content container
     const rmaContent = document.getElementById('rmaContent');
     if (rmaContent) {
