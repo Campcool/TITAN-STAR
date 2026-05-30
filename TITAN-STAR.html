@@ -10,6 +10,17 @@
   var s; try { s = localStorage.getItem('titan_display_size'); } catch(e){}
   document.documentElement.setAttribute('data-fontscale', s || 'md');
 })();
+/* ── 公司 Logo（base64 或 URL，換圖只需改這一行）── */
+window.__LOGO_SRC__ = '';  // TODO: 貼入 base64 字串後啟用
+document.addEventListener('DOMContentLoaded', function(){
+  var el = document.getElementById('siteLogo');
+  if (el && window.__LOGO_SRC__) { el.src = window.__LOGO_SRC__; }
+  else if (el) {
+    el.style.display = 'none';
+    var fb = document.getElementById('siteLogoFallback');
+    if (fb) fb.style.display = '';
+  }
+});
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -265,6 +276,7 @@ button, input, select { font-family: inherit; }
   display: flex; align-items: center; justify-content: space-between;
 }
 .hdr-l { display: flex; align-items: center; gap: 16px; }
+.site-logo { height: 36px; width: auto; object-fit: contain; display: block; }
 .hdr-mark {
   width: 28px; height: 28px; border-radius: 7px;
   background: linear-gradient(135deg, var(--accent), #6366f1);
@@ -2117,6 +2129,26 @@ html[data-fontscale="sm"] body { zoom: 1; }
 html[data-fontscale="md"] body { zoom: 1.12; }   /* 預設：適合長輩 */
 html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
 
+/* 系統控制群組（字級 + 深淺色，放同一組） */
+.sys-ctl-group {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 3px 8px 3px 4px;
+}
+.sys-ctl-group .fontsize-ctl {
+  background: none; border: none; border-radius: 0; padding: 0;
+}
+.sys-ctl-group .theme-toggle {
+  background: none; border: none; box-shadow: none;
+  padding: 4px 6px; font-size: 13px; font-weight: 600;
+  color: var(--text2); border-radius: 6px;
+}
+.sys-ctl-group .theme-toggle:hover { background: var(--hover); color: var(--text); }
+/* 字級與主題之間的細分隔線 */
+.sys-ctl-group::after {
+  display: none; /* 已整合，不需要分隔線 */
+}
+
 /* 顯示大小切換控制 */
 .fontsize-ctl {
   display: inline-flex; align-items: center; gap: 2px;
@@ -2744,7 +2776,8 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
 <!-- ═══════════════ Mode Switcher Header ═══════════════ -->
 <div class="mode-bar" id="modeBar" style="display:none">
   <div class="mode-bar-l">
-    <div class="hdr-mark">TS</div>
+    <img id="siteLogo" src="" alt="TITAN-STAR" class="site-logo" onerror="this.style.display='none';document.getElementById('siteLogoFallback').style.display=''">
+    <div id="siteLogoFallback" class="hdr-mark" style="display:none">TS</div>
     <span class="mode-bar-brand">TITAN-STAR</span>
   </div>
   <div class="mode-tabs">
@@ -2758,7 +2791,15 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
   </div>
   <div class="mode-bar-r" id="modeBtns">
     <span class="mode-bar-user" id="modeBarUser"></span>
-    <button class="btn theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="切換色系">🌙 深色</button>
+    <div class="sys-ctl-group">
+      <div class="fontsize-ctl" role="group" aria-label="顯示大小">
+        <span class="fsc-label">字級</span>
+        <button class="fsc-btn" data-size="sm" onclick="App.setDisplaySize('sm')" title="標準">標準</button>
+        <button class="fsc-btn" data-size="md" onclick="App.setDisplaySize('md')" title="大">大</button>
+        <button class="fsc-btn" data-size="lg" onclick="App.setDisplaySize('lg')" title="特大">特大</button>
+      </div>
+      <button class="btn theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="切換色系">🌙 深色</button>
+    </div>
     <button class="btn" id="adminPanelBtn" style="display:none" onclick="Auth.openAdminPanel()">⚙ 帳號管理</button>
   </div>
 </div>
@@ -2821,16 +2862,9 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
   <div class="hdr">
     <div class="hdr-l">
       <button class="nav-toggle" id="navToggle" onclick="App.toggleNav()" aria-label="開啟選單">☰</button>
-      <div class="hdr-mark">TS</div>
-      <div class="hdr-t">TITAN-STAR <span class="sub" id="hdrSub"></span></div>
+      <div class="hdr-t"><span class="sub" id="hdrSub"></span></div>
     </div>
     <div class="hdr-r">
-      <div class="fontsize-ctl" role="group" aria-label="顯示大小">
-        <span class="fsc-label">字級</span>
-        <button class="fsc-btn" data-size="sm" onclick="App.setDisplaySize('sm')" title="標準">標準</button>
-        <button class="fsc-btn" data-size="md" onclick="App.setDisplaySize('md')" title="大">大</button>
-        <button class="fsc-btn" data-size="lg" onclick="App.setDisplaySize('lg')" title="特大">特大</button>
-      </div>
       <button class="btn hide-sm" onclick="RepairReport.generate(RepairDB.load())">⤓ 生成報告</button>
       <button class="btn hide-sm" onclick="switchMode('rma')">◎ RMA管理</button>
       <button class="btn danger" onclick="App.openUpload()">上傳 / 管理</button>
@@ -3259,8 +3293,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
   <!-- RMA Header -->
   <div class="hdr">
     <div class="hdr-l">
-      <div class="hdr-mark">TS</div>
-      <div class="hdr-t">TITAN-STAR <span class="sub">RMA 管理</span></div>
+      <div class="hdr-t"><span class="sub">RMA 管理</span></div>
     </div>
     <div class="hdr-r">
       <button class="btn" onclick="switchMode('analysis')">◈ 分析報表</button>
