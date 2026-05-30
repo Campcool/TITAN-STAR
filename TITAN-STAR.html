@@ -6443,7 +6443,7 @@ window.App = (function () {
                 ${x.action ? `<div class="sum-card-action">💡 ${escapeHtml(x.action)}</div>` : ''}
                 <div class="sum-card-btns">
                   <button class="sum-card-go" onclick="App.switchPage('${x.page}')">前往 ${PAGE_NAME[x.page] || x.page} →</button>
-                  <button class="sum-card-capa" onclick="App.openCapaForm({problem:${JSON.stringify(x.title)},action:${JSON.stringify(x.action||'')},severity:'${x.sev}'})">＋CAPA</button>
+                  <button class="sum-card-capa" onclick="App.openCapaForm(${escapeAttr(JSON.stringify({ problem: x.title, action: x.action || '', severity: x.sev }))})">＋CAPA</button>
                 </div>
               </div>`).join('')}
           </div>
