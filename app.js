@@ -3902,7 +3902,14 @@ window.App = (function () {
     // 1. Fetch cloud data first (needed to seed users before login screen)
     const cloud = await syncCloud();
     // 2. Boot auth — merges cloud users and shows login screen (or restores session)
-    const loggedIn = await Auth.boot(cloud ? cloud.users : null);
+    let loggedIn = false;
+    try {
+      loggedIn = await Auth.boot(cloud ? cloud.users : null);
+    } catch (e) {
+      console.error('Auth boot error:', e);
+      // boot failed (e.g. crypto.subtle unavailable) — show login screen anyway
+      document.getElementById('loginScreen').style.display = 'flex';
+    }
     // 3. Set up rest of app
     setupUpload();
     state.db = RepairDB.load();
@@ -3955,8 +3962,15 @@ window.Auth = (function () {
   // ─── Crypto ───
   async function hashPwd(username, password) {
     const raw = username + ':' + password;
-    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
-    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    // crypto.subtle requires secure context (HTTPS/localhost); fallback for file:// or older mobile
+    if (crypto && crypto.subtle) {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+    // Fallback: deterministic hash for non-secure contexts (file://)
+    let h = 5381;
+    for (let i = 0; i < raw.length; i++) h = ((h << 5) + h) ^ raw.charCodeAt(i);
+    return 'fb_' + (h >>> 0).toString(16).padStart(8, '0');
   }
 
   // ─── Users storage ───
@@ -4069,7 +4083,11 @@ window.Auth = (function () {
 
     if (!username || !password) { errEl.textContent = '請輸入帳號與密碼'; return; }
 
-    const users = loadUsers();
+    let users = loadUsers();
+    // If admin account missing (boot may have failed), attempt re-seed
+    if (!users[ADMIN_ID]) {
+      try { users = await initUsers(null); } catch (e) { /* ignore */ }
+    }
     const u = users[username];
     if (!u) { errEl.textContent = '帳號不存在，請聯繫管理員'; return; }
 
