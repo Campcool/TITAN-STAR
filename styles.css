@@ -43,7 +43,7 @@
 
   /* Layout */
   --sidebar: 240px;
-  --header: 60px;
+  --header: 52px;   /* 對齊上方 mode-bar 高度 */
   --subbar: 56px;
 
   /* Type */
@@ -240,6 +240,7 @@ button, input, select { font-family: inherit; }
 .dash.active { display: block; }
 
 .hdr {
+  display: none;   /* 桌機：內容已移至上方 mode-bar，隱藏空白列 */
   position: sticky; top: 0; z-index: 100;
   height: var(--header);
   background: rgba(22,29,40,.82);
@@ -1415,7 +1416,7 @@ button, input, select { font-family: inherit; }
 /* ════════════════ RWD：手機 (≤680px) ════════════════ */
 @media (max-width: 680px) {
   html, body { font-size: 17px; }
-  .hdr { padding: 0 14px; height: auto; min-height: var(--header); flex-wrap: wrap; gap: 8px; }
+  .hdr { display: flex; padding: 0 14px; height: auto; min-height: var(--header); flex-wrap: wrap; gap: 8px; }
   .hdr-r { flex-wrap: wrap; gap: 6px; }
   .hdr-r .btn { font-size: 14px; padding: 8px 12px; }
   .subbar { padding: 10px 14px; }

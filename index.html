@@ -652,7 +652,7 @@ function applyTheme(theme) {
 }
 
 function toggleTheme() {
-  const current = localStorage.getItem(THEME_KEY) || 'dark';
+  const current = localStorage.getItem(THEME_KEY) || 'morandi';
   const next = current === 'dark' ? 'morandi' : 'dark';
   localStorage.setItem(THEME_KEY, next);
   applyTheme(next);

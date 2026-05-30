@@ -552,6 +552,18 @@ window.App = (function () {
     }
   }
 
+  function collapseSidebarMini() {
+    const sidebar = $('sidebar');
+    const layout = document.querySelector('.layout');
+    if (sidebar && !sidebar.classList.contains('mini')) {
+      sidebar.classList.add('mini');
+      if (layout) layout.classList.add('sidebar-mini');
+      const btn = $('sidebarMiniToggle');
+      if (btn) btn.textContent = '▷';
+      try { localStorage.setItem('titan_sidebar_mini', '1'); } catch(e) {}
+    }
+  }
+
   function setMonth(mk) {
     const allMonths = Object.keys(state.db.months).sort();
     if (mk === '__ALL__') {
@@ -4065,11 +4077,13 @@ window.App = (function () {
       if (e.key === 'Escape' && $('drawer').classList.contains('open')) closeDrawer();
     });
     // Click anywhere in main content area collapses the subbar
-    const contentEl = document.getElementById('content');
+    const contentEl = document.querySelector('.content');
     if (contentEl) {
       contentEl.addEventListener('click', e => {
         // Don't collapse if clicking inside the subbar itself
-        if (!e.target.closest('#subbar')) collapseSubbar();
+        if (e.target.closest('#subbar')) return;
+        collapseSubbar();
+        collapseSidebarMini();
       });
     }
     // Boot Auth — shows login screen or restores session

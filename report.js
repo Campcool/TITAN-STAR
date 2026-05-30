@@ -115,7 +115,7 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   @page { size: A4; margin: 14mm 12mm; }
-  html, body { font-family: 'Inter', 'Noto Sans TC', system-ui, sans-serif; color: #1e293b; line-height: 1.6; background: #f8fafc; font-size: ${d.fontScale === 'lg' ? '17px' : d.fontScale === 'sm' ? '13px' : '15px'}; }
+  html, body { font-family: 'Inter', 'Noto Sans TC', system-ui, sans-serif; color: #1e293b; line-height: 1.6; background: #f8fafc; font-size: ${d.fontScale === 'lg' ? '20px' : d.fontScale === 'sm' ? '14px' : '16px'}; }
   body { padding: 16px; }
   .doc { max-width: 100%; background: white; padding: 32px 40px; box-shadow: none; }
   @media (min-width: 1100px) { .doc { padding: 40px 60px; } }
@@ -136,7 +136,7 @@
     position: fixed; top: 20px; right: 20px;
     background: #0ea5e9; color: white;
     padding: 12px 24px; border-radius: 8px; border: none;
-    font-size: 14px; font-weight: 700; cursor: pointer;
+    font-size: 0.93em; font-weight: 700; cursor: pointer;
     font-family: inherit;
     box-shadow: 0 4px 12px rgba(14,165,233,.3);
     z-index: 100;
@@ -249,7 +249,7 @@
   .anom.critical .anom-metric { color: #dc2626; }
   .anom.warn .anom-metric { color: #d97706; }
   .anom.info .anom-metric { color: #4f46e5; }
-  .anom-mlabel { font-size: 10px; color: #64748b; margin-top: 3px; }
+  .anom-mlabel { font-size: 0.67em; color: #64748b; margin-top: 3px; }
 
   /* Tables */
   table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
@@ -267,13 +267,13 @@
 
   .bar { display: inline-block; height: 4px; background: #0ea5e9; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
   .tag {
-    display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 0.67em;
     padding: 1px 6px; border-radius: 8px; background: #f1f5f9; color: #475569;
     border: 1px solid #e2e8f0;
   }
   .pill {
     display: inline-flex; align-items: center; gap: 4px;
-    font-size: 10px; padding: 1px 6px; border-radius: 8px;
+    font-size: 0.67em; padding: 1px 6px; border-radius: 8px;
     font-weight: 600;
   }
   .pill.crit { background: #fee2e2; color: #991b1b; }
@@ -287,7 +287,7 @@
     border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;
   }
   .trend-card h3 {
-    font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+    font-size: 0.73em; letter-spacing: .1em; text-transform: uppercase;
     color: #64748b; font-weight: 700; margin-bottom: 12px;
   }
   .trend-svg { width: 100%; height: 120px; }
@@ -300,15 +300,15 @@
   }
   .cm-row.warn { border-left-color: #f59e0b; background: #fffbeb; }
   .cm-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
-  .cm-id { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; color: #0f172a; }
+  .cm-id { font-family: 'JetBrains Mono', monospace; font-size: 0.87em; font-weight: 700; color: #0f172a; }
   .cm-id .ser { color: #64748b; font-weight: 500; }
   .cm-months { display: flex; gap: 4px; }
   .cm-month {
-    font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 2px 7px; border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.67em; padding: 2px 7px; border-radius: 8px;
     background: #fecaca; color: #991b1b; font-weight: 700;
   }
   .cm-row.warn .cm-month { background: #fde68a; color: #92400e; }
-  .cm-visits { font-size: 11.5px; color: #475569; font-family: 'JetBrains Mono', monospace; line-height: 1.7; }
+  .cm-visits { font-size: 0.77em; color: #475569; font-family: 'JetBrains Mono', monospace; line-height: 1.7; }
 
   /* Role action cards */
   .role-section { margin: 20px 0; }
@@ -332,14 +332,14 @@
   /* Footer */
   .footer {
     margin-top: 40px; padding-top: 16px; border-top: 1px solid #e2e8f0;
-    font-size: 10.5px; color: #94a3b8; display: flex; justify-content: space-between;
+    font-size: 0.7em; color: #94a3b8; display: flex; justify-content: space-between;
   }
 
   /* Helpers */
   .strip {
     display: flex; gap: 16px; align-items: center;
     padding: 12px 16px; background: #f1f5f9; border-radius: 8px; margin-bottom: 12px;
-    font-size: 12.5px; color: #475569;
+    font-size: 0.83em; color: #475569;
   }
   .strip strong { color: #0f172a; }
 </style>
@@ -407,7 +407,7 @@
     <strong>${d.crossMonth.length}</strong> 台機台在 ≥ 2 個月份出現維修紀錄。可能為治標未治本、設計缺陷或客戶使用問題。建議列入下月重點檢討。
   </div>
   ${d.crossMonth.slice(0, 10).map(crossMonthCard).join('')}
-  ${d.crossMonth.length > 10 ? `<div style="text-align:center;font-size:11px;color:#94a3b8;margin-top:8px">…另有 ${d.crossMonth.length - 10} 台未顯示</div>` : ''}
+  ${d.crossMonth.length > 10 ? `<div style="text-align:center;font-size:0.73em;color:#94a3b8;margin-top:8px">…另有 ${d.crossMonth.length - 10} 台未顯示</div>` : ''}
   ` : ''}
 
   <div class="pagebreak"></div>
@@ -450,7 +450,7 @@
           <td class="right num muted">${r.denom || '—'}</td>
           <td class="right">${r.faultRate != null ? `<span class="pill ${r.faultRate >= 0.1 ? 'crit' : r.faultRate >= 0.05 ? 'warn' : 'ok'}">${(r.faultRate * 100).toFixed(1)}%</span>` : '<span class="muted">—</span>'}</td>
           <td class="right num">${r.scrap || '<span class="muted">0</span>'}</td>
-          <td style="font-size:11px;color:#475569">${r.topContents.slice(0, 2).map(c => `${escapeHtml(c.name)} <span class="muted">×${c.count}</span>`).join('・') || '<span class="muted">—</span>'}</td>
+          <td style="font-size:0.73em;color:#475569">${r.topContents.slice(0, 2).map(c => `${escapeHtml(c.name)} <span class="muted">×${c.count}</span>`).join('・') || '<span class="muted">—</span>'}</td>
         </tr>
       `).join('')}
     </tbody>
@@ -473,13 +473,13 @@
           <td><strong>${escapeHtml(p.name)}</strong></td>
           <td>
             <span class="tag">${p.models.length} 機種</span>
-            <span style="font-size:10px;color:#94a3b8;font-family:'JetBrains Mono',monospace;margin-left:4px">${p.models.slice(0, 3).join(', ')}${p.models.length > 3 ? '…' : ''}</span>
+            <span style="font-size:0.67em;color:#94a3b8;font-family:'JetBrains Mono',monospace;margin-left:4px">${p.models.slice(0, 3).join(', ')}${p.models.length > 3 ? '…' : ''}</span>
           </td>
           <td class="right num"><strong>${p.count}</strong></td>
           <td>
             <span class="bar" style="width:${Math.max(8, p.pct * 100 * 2)}px;background:${i < 3 ? '#ef4444' : i < 7 ? '#f59e0b' : '#0ea5e9'}"></span>
-            <span class="num" style="font-size:11px;color:#475569">${(p.pct * 100).toFixed(1)}%</span>
-            <span class="muted" style="font-size:10px;margin-left:6px">累計 ${(p.cumPct * 100).toFixed(0)}%</span>
+            <span class="num" style="font-size:0.73em;color:#475569">${(p.pct * 100).toFixed(1)}%</span>
+            <span class="muted" style="font-size:0.67em;margin-left:6px">累計 ${(p.cumPct * 100).toFixed(0)}%</span>
           </td>
         </tr>
       `).join('')}
@@ -546,7 +546,7 @@
           </div>
           <div class="cm-months">
             ${r.monthsSpan.map(m => `<span class="cm-month">${fmtMonth(m)}</span>`).join('')}
-            <span style="margin-left:8px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:${r.monthCount >= 3 ? '#dc2626' : '#d97706'}">${r.visitCount} 次</span>
+            <span style="margin-left:8px;font-family:'JetBrains Mono',monospace;font-size:0.87em;font-weight:700;color:${r.monthCount >= 3 ? '#dc2626' : '#d97706'}">${r.visitCount} 次</span>
           </div>
         </div>
         <div class="cm-visits">
