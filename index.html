@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TITAN-STAR · 維修分析 & RMA 管理</title>
+<script>
+/* 顯示大小（無障礙）— 在繪製前套用，避免閃爍。預設「大」適合長輩使用者 */
+(function(){
+  var s; try { s = localStorage.getItem('titan_display_size'); } catch(e){}
+  document.documentElement.setAttribute('data-fontscale', s || 'md');
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
@@ -148,12 +155,19 @@
   <!-- Header -->
   <div class="hdr">
     <div class="hdr-l">
+      <button class="nav-toggle" id="navToggle" onclick="App.toggleNav()" aria-label="開啟選單">☰</button>
       <div class="hdr-mark">TS</div>
       <div class="hdr-t">TITAN-STAR <span class="sub" id="hdrSub"></span></div>
     </div>
     <div class="hdr-r">
-      <button class="btn" onclick="RepairReport.generate(RepairDB.load())">⤓ 生成報告</button>
-      <button class="btn" onclick="switchMode('rma')">◎ RMA管理</button>
+      <div class="fontsize-ctl" role="group" aria-label="顯示大小">
+        <span class="fsc-label">字級</span>
+        <button class="fsc-btn" data-size="sm" onclick="App.setDisplaySize('sm')" title="標準">標準</button>
+        <button class="fsc-btn" data-size="md" onclick="App.setDisplaySize('md')" title="大">大</button>
+        <button class="fsc-btn" data-size="lg" onclick="App.setDisplaySize('lg')" title="特大">特大</button>
+      </div>
+      <button class="btn hide-sm" onclick="RepairReport.generate(RepairDB.load())">⤓ 生成報告</button>
+      <button class="btn hide-sm" onclick="switchMode('rma')">◎ RMA管理</button>
       <button class="btn danger" onclick="App.openUpload()">上傳 / 管理</button>
     </div>
   </div>
@@ -167,8 +181,10 @@
 
   <!-- Layout: sidebar + content -->
   <div class="layout">
+    <!-- Mobile nav overlay -->
+    <div class="nav-overlay" id="navOverlay" onclick="App.closeNav()"></div>
     <!-- Sidebar -->
-    <nav class="sidebar">
+    <nav class="sidebar" id="sidebar">
       <div class="snav">
         <div class="snav-h">分析</div>
         <button class="snav-item" data-page="summary" onclick="App.switchPage('summary')">

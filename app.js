@@ -394,6 +394,7 @@ window.App = (function () {
     state.selectedModel = '全部';
     renderAnalysisRoleBar();
     renderAll();
+    syncDisplaySizeButtons();
     // Always start at top
     window.scrollTo(0, 0);
   }
@@ -416,10 +417,45 @@ window.App = (function () {
     // Dismiss badges when viewing related pages
     if (name === 'alerts') dismissAlertPulse();
     if (name === 'scrap') dismissCrossMonthPulse();
+    closeNav();
     renderPage();
     window.scrollTo(0, 0);
     const rankWrap = document.getElementById('rankWrap');
     if (rankWrap) rankWrap.scrollTop = 0;
+  }
+
+  // ─────────────── Mobile nav drawer ───────────────
+  function toggleNav() {
+    const sb = $('sidebar');
+    if (!sb) return;
+    if (sb.classList.contains('open')) closeNav(); else openNav();
+  }
+  function openNav() {
+    const sb = $('sidebar'), ov = $('navOverlay');
+    if (sb) sb.classList.add('open');
+    if (ov) ov.classList.add('show');
+  }
+  function closeNav() {
+    const sb = $('sidebar'), ov = $('navOverlay');
+    if (sb) sb.classList.remove('open');
+    if (ov) ov.classList.remove('show');
+  }
+
+  // ─────────────── Display size (accessibility) ───────────────
+  function setDisplaySize(size) {
+    const valid = ['sm', 'md', 'lg'];
+    if (!valid.includes(size)) size = 'md';
+    document.documentElement.setAttribute('data-fontscale', size);
+    try { localStorage.setItem('titan_display_size', size); } catch (e) { /* ignore */ }
+    syncDisplaySizeButtons();
+    // 重繪圖表以套用新尺寸
+    if (typeof renderPage === 'function' && state.currentPage) {
+      try { renderPage(); } catch (e) { /* best effort */ }
+    }
+  }
+  function syncDisplaySizeButtons() {
+    const cur = document.documentElement.getAttribute('data-fontscale') || 'md';
+    document.querySelectorAll('.fsc-btn').forEach(b => b.classList.toggle('active', b.dataset.size === cur));
   }
 
   // ─────────────── Filter chips ───────────────
@@ -3471,6 +3507,7 @@ window.App = (function () {
     handleFiles, removeMonth, clearAll, confirmClear, exportData, importData,
     publishData,
     openDashboard, openUpload, switchPage,
+    toggleNav, closeNav, setDisplaySize,
     setMonth, setCategory, setModel,
     setAnalysisRole,
     openCapaForm, setCapaStatus, deleteCapa,
