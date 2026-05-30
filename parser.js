@@ -27,7 +27,14 @@
     fw_version: ['韌體版本', '軟體版本', 'firmware', 'FW版本'],
     technician: ['維修技師', '技師', '維修人員', '負責人'],
     labor_hours:['維修工時(h)', '維修工時', '工時'],
-    note:       ['備註', '說明', '附註'],
+    note:        ['備註', '說明', '附註'],
+    // v2 factory management fields
+    recv_date:   ['接收日期', '收件日期'],
+    source_type: ['來源類型', '來源', '送修類型'],
+    cosmetic_dmg:['外觀損傷', '外觀狀況', '外觀'],
+    reproducible:['故障再現性', '再現性', '可否再現'],
+    repair_method:['維修方式', '處理方式', '維修類別'],
+    test_result: ['測試結果', '測試'],
   };
 
   // Sheets to skip (not per-model repair data)
@@ -349,8 +356,14 @@
           warranty:    (get(r, cols.warranty) || '').trim(),
           fw_version:  (get(r, cols.fw_version) || '').trim(),
           technician:  (get(r, cols.technician) || '').trim(),
-          labor_hours: parseFloat(get(r, cols.labor_hours)) || null,
-          note:        (get(r, cols.note) || '').trim(),
+          labor_hours:  parseFloat(get(r, cols.labor_hours)) || null,
+          note:         (get(r, cols.note) || '').trim(),
+          recv_date:    (get(r, cols.recv_date) || '').trim(),
+          source_type:  (get(r, cols.source_type) || '').trim(),
+          cosmetic_dmg: (get(r, cols.cosmetic_dmg) || '').trim(),
+          reproducible: (get(r, cols.reproducible) || '').trim(),
+          repair_method:(get(r, cols.repair_method) || '').trim(),
+          test_result:  (get(r, cols.test_result) || '').trim(),
         });
         sheetRowCount++;
       }
