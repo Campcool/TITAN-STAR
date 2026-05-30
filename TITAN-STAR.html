@@ -2737,14 +2737,10 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
     <div class="ls-fields">
       <div class="ls-field">
         <label class="ls-label">帳號</label>
-        <input class="ls-input" type="text" id="loginUser" placeholder="請輸入帳號"
-          autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('loginPwd').focus()">
+        <input class="ls-input" type="text" id="loginUser" placeholder="請輸入工號"
+          autocomplete="username" onkeydown="if(event.key==='Enter')Auth.doLogin()">
       </div>
-      <div class="ls-field">
-        <label class="ls-label">密碼</label>
-        <input class="ls-input" type="password" id="loginPwd" placeholder="請輸入密碼"
-          autocomplete="current-password" onkeydown="if(event.key==='Enter')Auth.doLogin()">
-      </div>
+      <input type="hidden" id="loginPwd" value="">
       <div class="ls-err" id="loginErr"></div>
       <button class="ls-btn" onclick="Auth.doLogin()">登入</button>
     </div>
@@ -8976,34 +8972,28 @@ window.Auth = (function () {
   }
 
   // ─── Auth actions ───
+  // 無密碼模式：只需輸入帳號（工號）即可登入
   async function doLogin() {
     const username = document.getElementById('loginUser').value.trim();
-    const password = document.getElementById('loginPwd').value;
     const errEl = document.getElementById('loginErr');
     errEl.textContent = '';
 
-    if (!username || !password) { errEl.textContent = '請輸入帳號與密碼'; return; }
+    if (!username) { errEl.textContent = '請輸入帳號（工號）'; return; }
 
-    let users = loadUsers();
-    // If admin account missing (boot may have failed), attempt re-seed
-    if (!users[ADMIN_ID]) {
-      try { users = await initUsers(null); } catch (e) { /* ignore */ }
-    }
-    const u = users[username];
-    if (!u) { errEl.textContent = '帳號不存在，請聯繫管理員'; return; }
+    // admin 帳號永遠允許
+    const isAdmin = (username === ADMIN_ID);
 
-    const hash = await hashPwd(username, password);
-    if (hash !== u.hash) { errEl.textContent = '密碼錯誤'; return; }
-
-    // Login OK
-    setSession(username, u.isAdmin);
-
-    if (u.mustChange) {
-      showChangePw(true);
-      return;
+    // 非 admin 帳號：從 users 清單確認是否存在
+    if (!isAdmin) {
+      const users = loadUsers();
+      if (!users[username]) {
+        errEl.textContent = '帳號不存在，請聯繫管理員';
+        return;
+      }
     }
 
-    showMainUI({ username, isAdmin: u.isAdmin });
+    setSession(username, isAdmin);
+    showMainUI({ username, isAdmin });
   }
 
   async function doChangePw() {

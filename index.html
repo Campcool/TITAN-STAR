@@ -29,14 +29,10 @@
     <div class="ls-fields">
       <div class="ls-field">
         <label class="ls-label">帳號</label>
-        <input class="ls-input" type="text" id="loginUser" placeholder="請輸入帳號"
-          autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('loginPwd').focus()">
+        <input class="ls-input" type="text" id="loginUser" placeholder="請輸入工號"
+          autocomplete="username" onkeydown="if(event.key==='Enter')Auth.doLogin()">
       </div>
-      <div class="ls-field">
-        <label class="ls-label">密碼</label>
-        <input class="ls-input" type="password" id="loginPwd" placeholder="請輸入密碼"
-          autocomplete="current-password" onkeydown="if(event.key==='Enter')Auth.doLogin()">
-      </div>
+      <input type="hidden" id="loginPwd" value="">
       <div class="ls-err" id="loginErr"></div>
       <button class="ls-btn" onclick="Auth.doLogin()">登入</button>
     </div>

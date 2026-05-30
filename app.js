@@ -4075,34 +4075,28 @@ window.Auth = (function () {
   }
 
   // ─── Auth actions ───
+  // 無密碼模式：只需輸入帳號（工號）即可登入
   async function doLogin() {
     const username = document.getElementById('loginUser').value.trim();
-    const password = document.getElementById('loginPwd').value;
     const errEl = document.getElementById('loginErr');
     errEl.textContent = '';
 
-    if (!username || !password) { errEl.textContent = '請輸入帳號與密碼'; return; }
+    if (!username) { errEl.textContent = '請輸入帳號（工號）'; return; }
 
-    let users = loadUsers();
-    // If admin account missing (boot may have failed), attempt re-seed
-    if (!users[ADMIN_ID]) {
-      try { users = await initUsers(null); } catch (e) { /* ignore */ }
-    }
-    const u = users[username];
-    if (!u) { errEl.textContent = '帳號不存在，請聯繫管理員'; return; }
+    // admin 帳號永遠允許
+    const isAdmin = (username === ADMIN_ID);
 
-    const hash = await hashPwd(username, password);
-    if (hash !== u.hash) { errEl.textContent = '密碼錯誤'; return; }
-
-    // Login OK
-    setSession(username, u.isAdmin);
-
-    if (u.mustChange) {
-      showChangePw(true);
-      return;
+    // 非 admin 帳號：從 users 清單確認是否存在
+    if (!isAdmin) {
+      const users = loadUsers();
+      if (!users[username]) {
+        errEl.textContent = '帳號不存在，請聯繫管理員';
+        return;
+      }
     }
 
-    showMainUI({ username, isAdmin: u.isAdmin });
+    setSession(username, isAdmin);
+    showMainUI({ username, isAdmin });
   }
 
   async function doChangePw() {
