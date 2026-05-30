@@ -3033,6 +3033,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
                   <th>影響機種</th>
                   <th class="right" style="width:80px">件數</th>
                   <th style="width:220px">佔比 / 累計</th>
+                  <th class="right" style="width:90px" title="建議安全庫存量（月均用量×2）">建議備料</th>
                   <th style="width:80px">詳情</th>
                 </tr>
               </thead>
@@ -5647,7 +5648,7 @@ window.App = (function () {
           addCard('$','var(--critical)','品質成本 COPQ',`本期總損失 <strong>${money(cost.totalCost)}</strong>（報廢 ${money(cost.scrapCost)} + 工時 ${money(cost.laborCost)}）`,'成本');
           if (cost.byCategory.length) addCard('▤','var(--warn)','損失最高類別',`<strong>${cost.byCategory[0].cat}</strong>：${money(cost.byCategory[0].total)}，是成本改善的第一優先`,'ROI');
         } else {
-          addCard('$','var(--info)','尚未設定單價','請至「成本量化」頁面點「⚙ 單價設定」輸入機種單價與工時成本，才能換算金額損失','設定');
+          addCard('$','var(--info)','尚未設定單價',`只需填入「每台維修成本」與「每台報廢損失」兩個數字，系統即自動計算本期 COPQ。目前本期 ${fmt.int(kpis.scrap)} 件報廢尚未量化損失。`,'設定');
         }
         if (kpis.scrap > 0) addCard('✕','var(--critical)','報廢件數',`本期報廢 <strong>${kpis.scrap}</strong> 件，每一件都是直接物料損失，高單價機種尤須關注`,'損失');
         const fc = RepairAnalyzer.forecastNextMonth(state.db, {});
@@ -5688,6 +5689,11 @@ window.App = (function () {
         if (improvedModels.length) addCard('↗','var(--accent)','近期改善機種',`${improvedModels.slice(0,3).join('、')} 從高故障轉為穩定，是業務說故事的好素材`,'改善');
         if (crossSerial.length > 0) addCard('⇄','var(--critical)','客戶信心風險',`<strong>${crossSerial.length}</strong> 台跨月重複故障，這是客戶實際感受到的「不可靠」，恐影響續單`,'客戶');
         if (topModel) addCard('⚙','var(--warn)','主訴機種',`${topModel[0]} 維修量最高（${topModel[1]}件），業務應準備對應客戶說明`,'溝通');
+        const monthCount = Object.keys(state.db.months).length;
+        const sampleNote = monthCount < 6
+          ? `目前僅 ${monthCount} 個月資料，口碑判定為「估算性質」，建議 6 個月後作為正式依據。紅/綠燈可用於內部參考，對外溝通請保守。`
+          : `資料已達 ${monthCount} 個月，口碑判定信度提升，可作為業務說明依據。`;
+        addCard('ℹ','var(--info)','口碑資料信度', sampleNote, '注意');
         break;
       }
     }
@@ -5843,7 +5849,7 @@ window.App = (function () {
       // 成本參數未設定 → 給財務一個「立即上線」的行動卡，而非空白
       add({ sev: 'warn', area: '品質成本', icon: '$', title: '品質成本(COPQ)尚未啟用',
         detail: `本期報廢 ${kpis.scrap} 件、跨月重複 ${cross.length} 台，財務影響尚未量化——僅需填入「每台維修成本/每台報廢損失/單次物流成本」即可即時估算`,
-        action: '至「成本量化」用快速估算模式 5 分鐘上線', page: 'cost', roles: ['finance', 'ceo'] });
+        action: '點「成本量化」頁面 → 填入三個概略數字 → 5分鐘後即可看到本期品質損失金額（NT$）', page: 'cost', roles: ['finance', 'ceo'] });
     }
 
     // (8) Component-category dominance
@@ -6895,8 +6901,12 @@ window.App = (function () {
     });
 
     // Table
+    const allMonthCount = Object.keys(state.db.months).length || 1;
     const tbody = $('paretoBody');
-    tbody.innerHTML = pareto.slice(0, 200).map((p, i) => `
+    tbody.innerHTML = pareto.slice(0, 200).map((p, i) => {
+      const monthlyAvg = p.count / allMonthCount;
+      const suggestQty = Math.max(1, Math.ceil(monthlyAvg * 2));
+      return `
       <tr>
         <td class="num muted">${i + 1}</td>
         <td>${escapeHtml(p.name)}</td>
@@ -6911,9 +6921,13 @@ window.App = (function () {
             <div class="pnum">${(p.pct * 100).toFixed(1)}% / ${(p.cumPct * 100).toFixed(0)}%</div>
           </div>
         </td>
+        <td class="num" style="text-align:right">
+          <span style="color:var(--warn);font-weight:700">${suggestQty}</span>
+          <div class="muted" style="font-size:10px">月均 ${monthlyAvg.toFixed(1)}</div>
+        </td>
         <td><button class="btn sm" onclick="App.openPartFaultDrawer('${escapeAttr(p.name)}')">詳情</button></td>
-      </tr>
-    `).join('');
+      </tr>`;
+    }).join('');
   }
 
   // ─────────────── Cross-model matrix ───────────────
@@ -7356,7 +7370,7 @@ window.App = (function () {
         <td class="num muted">${fmt.monthLabel(r._monthKey)}</td>
         <td class="num muted">${r.date || '—'}</td>
         <td><span style="font-family:var(--mono);font-weight:600">${r.model}</span></td>
-        <td class="num">${r.serial || '—'}</td>
+        <td class="num">${r.serial ? `<span style="cursor:pointer;color:var(--accent)" onclick="App.openSerialTimelineDrawer('${escapeAttr(r.serial)}')">${r.serial}</span>` : '—'}</td>
         <td>${r.isScrap ? `<span style="color:var(--critical);font-weight:600">${escapeHtml(r.reason || '報廢')}</span>` : escapeHtml(r.reason || '—')}</td>
         <td>${escapeHtml(r.content || '—')}</td>
         <td>
@@ -7367,6 +7381,49 @@ window.App = (function () {
     if (records.length > 500) {
       $('detailBody').innerHTML += `<tr><td colspan="7" style="text-align:center;color:var(--text3);font-size:12px;padding:14px">顯示前 500 筆 · 共 ${records.length.toLocaleString()} 筆 · 請使用篩選器縮小範圍</td></tr>`;
     }
+  }
+
+  function openSerialTimelineDrawer(serial) {
+    if (!serial) return;
+    const allMonthKeys = Object.keys(state.db.months).sort();
+    const visits = [];
+    for (const mk of allMonthKeys) {
+      const recs = state.db.months[mk]?.records || [];
+      for (const r of recs) {
+        if ((r.serial || '') === serial) {
+          visits.push({ ...r, _monthKey: mk });
+        }
+      }
+    }
+    visits.sort((a, b) => (a.date || '') < (b.date || '') ? -1 : 1);
+    const severity = visits.length >= 3 ? 'warn' : 'info';
+    const scrapVisits = visits.filter(v => v.isScrap);
+    const months = [...new Set(visits.map(v => v._monthKey))];
+    const firstDate = visits[0]?.date || visits[0]?._monthKey || '—';
+    const lastDate = visits[visits.length - 1]?.date || visits[visits.length - 1]?._monthKey || '—';
+    const timelineHtml = visits.map(v => {
+      const parts = [[v.part1, v.qty1],[v.part2, v.qty2],[v.part3, v.qty3]].filter(([p])=>p);
+      const partsHtml = parts.length ? parts.map(([p, q]) => `<span class="tag">${escapeHtml(p)}${q ? ` ×${q}` : ''}</span>`).join(' ') : '';
+      const scrapBadge = v.isScrap ? `<span style="font-size:10px;color:var(--critical);padding:1px 6px;border:1px solid var(--critical);border-radius:6px;margin-left:4px;font-weight:700">報廢</span>` : '';
+      return `<div class="dd-row" style="border-left:3px solid ${v.isScrap ? 'var(--critical)' : 'var(--accent)'};">
+        <div>
+          <div style="font-size:12px;color:var(--text3)">${fmt.monthLabel(v._monthKey)} · ${v.date || '—'}</div>
+          <div><span style="font-weight:600">${escapeHtml(v.model || '—')}</span>${scrapBadge}</div>
+          <div style="font-size:12px;color:var(--text2)">${escapeHtml(v.reason || '—')} ${v.content ? '· ' + escapeHtml(v.content) : ''}</div>
+          ${partsHtml ? `<div style="margin-top:4px">${partsHtml}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+    const summaryHtml = `<div style="margin-top:14px;padding:10px 12px;background:var(--bg2);border-radius:8px;font-size:12px;color:var(--text2)">
+      首次：${escapeHtml(firstDate)} · 最後：${escapeHtml(lastDate)} · 跨月：${months.length} 個月
+    </div>`;
+    openDrawer({
+      severity,
+      icon: '⇄',
+      overline: '序號追蹤',
+      title: `#${escapeHtml(serial)} 維修歷程（${visits.length} 次）`,
+      bodyHtml: visits.length ? timelineHtml + summaryHtml : `<div class="empty">無此序號記錄</div>`,
+    });
   }
 
   // ─────────────── Utils ───────────────
@@ -8335,6 +8392,11 @@ window.App = (function () {
     if (!cost.configured) {
       const scrapN = records.filter(r => r.isScrap).length;
       $('costContent').innerHTML = `
+        <div class="onboard-steps">
+          <div class="ob-step ob-active"><span class="ob-num">1</span><span>填入概略單價</span></div>
+          <div class="ob-step"><span class="ob-num">2</span><span>點「立即估算」</span></div>
+          <div class="ob-step"><span class="ob-num">3</span><span>看到本期 COPQ 金額</span></div>
+        </div>
         <div class="card sec">
           <div class="card-h"><div class="card-t">⚡ 快速估算模式（5 分鐘上線）</div></div>
           <div class="card-sub" style="margin:4px 0 14px">先填三個概略單價即可立刻看到本期品質成本(COPQ)估算，不需逐類別細設。日後可再用右上角「⚙ 單價設定」精算。</div>
@@ -8600,7 +8662,7 @@ window.App = (function () {
     generateReport: () => RepairReport.generate(state.db),
     exportCrossMatrix,
     // Drawer
-    openKpiDrawer, openAnomalyDrawer, openPartDrawer, openModelDrawer, openSerialDrawer,
+    openKpiDrawer, openAnomalyDrawer, openPartDrawer, openModelDrawer, openSerialDrawer, openSerialTimelineDrawer,
     closeDrawer,
     // New functions
     searchDetail,
