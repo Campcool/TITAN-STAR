@@ -2290,6 +2290,37 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
   .nav-toggle { width: 42px; height: 42px; }
 }
 
+/* ════════════ Top-bar unified controls (overrides) ════════════ */
+.mode-bar-r { display: flex; align-items: center; gap: 8px; }
+.topbar-btn {
+  height: 34px; display: inline-flex; align-items: center;
+  padding: 0 12px; font-size: 13px; font-weight: 600;
+  border-radius: 9px; background: var(--surface2);
+  border: 1px solid var(--border2); color: var(--text2);
+  white-space: nowrap;
+}
+.topbar-btn:hover { background: var(--hover); color: var(--text); }
+/* role selector aligned to same height */
+.role-sel-btn { height: 34px; border-radius: 9px; }
+.role-sel-focus {
+  font-size: 12px; color: var(--text3); font-weight: 500;
+  max-width: 280px; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; border-left: 1px solid var(--border2);
+  padding-left: 8px; margin-left: 2px;
+}
+.role-sel-item { gap: 6px; }
+.role-sel-item.active { background: var(--accent-soft); color: var(--accent); }
+/* unify font-size group + theme toggle to same height */
+.sys-ctl-group { height: 34px; box-sizing: border-box; }
+.theme-toggle {
+  height: 28px; min-width: 34px; display: inline-flex;
+  align-items: center; justify-content: center; font-size: 16px;
+  padding: 0 6px;
+}
+@media (max-width: 900px) {
+  .role-sel-focus { display: none; }
+}
+
 </style>
 <style>
 /* ════════════════════════════════════════════════════════════════════
@@ -2915,9 +2946,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
       <button class="nav-toggle" id="navToggle" onclick="App.toggleNav()" aria-label="開啟選單">☰</button>
       <div class="hdr-t"><span class="sub" id="hdrSub"></span></div>
     </div>
-    <div class="hdr-r">
-      <button class="btn hide-sm" onclick="App.generateRoleReport()">⤓ 生成報告</button>
-    </div>
+    <div class="hdr-r"></div>
   </div>
 
   <!-- Sub-bar: month + category chips -->
@@ -5338,6 +5367,7 @@ window.App = (function () {
     if ($('modeBar')) $('modeBar').style.display = 'flex';
     if ($('rmaDash')) $('rmaDash').style.display = 'none';
     const mub = $('modeUploadBtn'); if (mub) mub.style.display = '';
+    const mrb = $('modeReportBtn'); if (mrb) mrb.style.display = '';
     const rsw = $('roleSelWrap'); if (rsw) rsw.style.display = '';
     // Restore subbar collapsed state
     try {
@@ -5551,21 +5581,25 @@ window.App = (function () {
     const curR = ANALYSIS_ROLES[cur] || ANALYSIS_ROLES.all;
     const ico = $('roleSelIco');
     const lbl = $('roleSelLabel');
-    if (ico) ico.textContent = curR.icon;
+    const foc = $('roleSelFocus');
+    if (ico) { ico.textContent = curR.icon; ico.style.color = curR.color; }
     if (lbl) lbl.textContent = curR.short;
+    if (foc) foc.textContent = '重點：' + (ROLE_FOCUS[cur] || curR.desc);
 
     // Rebuild dropdown items
     const drop = $('roleSelDrop');
     if (drop) {
       drop.innerHTML = Object.entries(ANALYSIS_ROLES).map(([k, r]) =>
-        `<button class="role-sel-item ${k === cur ? 'active' : ''}"
+        `<button class="role-sel-item ${k === cur ? 'active' : ''}" style="--rc:${r.color}"
           onclick="App.setAnalysisRole('${k}');App.closeRoleDropdown()" title="${r.desc}">
-          <span>${r.icon}</span><span>${r.short}</span>
+          <span style="color:${r.color}">${r.icon}</span><span>${r.short}</span>
         </button>`
       ).join('');
     }
 
-    renderGlobalRoleBanner();
+    // In-content banner hidden: focus now shown beside the top-bar selector
+    const gb = $('globalRoleBanner');
+    if (gb) gb.style.display = 'none';
   }
 
   function toggleRoleDropdown() {
@@ -9320,8 +9354,6 @@ window.Auth = (function () {
 
   function generate(db, roleCtx) {
     roleCtx = roleCtx || null;
-    const roleTitle = roleCtx ? roleCtx.roleInfo.label + '視角' : '綜合分析';
-    const roleItems = roleCtx ? roleCtx.items : null;
     const months = Object.keys(db.months).sort();
     if (!months.length) return alert('沒有資料可生成報告');
 
@@ -9377,7 +9409,6 @@ window.Auth = (function () {
       anomalies, critical, warn,
       modelRank, topParts, crossMonth, trend,
       reportDate: new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' }),
-      roleTitle, roleItems,
     });
 
     // Open in new tab
@@ -9616,7 +9647,7 @@ window.Auth = (function () {
   <!-- COVER -->
   <div class="cover">
     <div class="cover-overline">維修月度總結報告</div>
-    <div class="cover-title">${monthLabel} 維修分析摘要（${d.roleTitle || '綜合分析'}）</div>
+    <div class="cover-title">${monthLabel} 維修分析摘要</div>
     <div class="cover-sub">電子工廠 · 報廢與維修狀態總覽</div>
     <div class="cover-meta">
       <span>生成日期：${d.reportDate}</span>
@@ -9624,18 +9655,6 @@ window.Auth = (function () {
       <span>總紀錄：${d.allKpis.totalRepairs.toLocaleString()} 筆</span>
     </div>
   </div>
-
-  ${d.roleItems && d.roleItems.length ? `
-  <!-- Role-specific section -->
-  <div class="exec" style="border-left:3px solid #0ea5e9;background:#f0f9ff;">
-    <div class="exec-h">${escapeHtml(d.roleTitle || '視角')} — 行動項目</div>
-    <div class="exec-body">
-      ${d.roleItems.map(item => `<div style="margin-bottom:8px">
-        <span style="font-weight:600;color:${item.severity==='critical'?'#dc2626':item.severity==='warn'?'#d97706':'#0369a1'}">[${item.severity==='critical'?'嚴重':item.severity==='warn'?'注意':'資訊'}]</span>
-        ${escapeHtml(item.title || '')}${item.body ? ' — ' + escapeHtml(item.body) : ''}
-      </div>`).join('')}
-    </div>
-  </div>` : ''}
 
   <!-- Executive summary -->
   <div class="exec">

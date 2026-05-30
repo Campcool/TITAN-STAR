@@ -2273,3 +2273,34 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
   .hdr-mark { display: none; }
   .nav-toggle { width: 42px; height: 42px; }
 }
+
+/* ════════════ Top-bar unified controls (overrides) ════════════ */
+.mode-bar-r { display: flex; align-items: center; gap: 8px; }
+.topbar-btn {
+  height: 34px; display: inline-flex; align-items: center;
+  padding: 0 12px; font-size: 13px; font-weight: 600;
+  border-radius: 9px; background: var(--surface2);
+  border: 1px solid var(--border2); color: var(--text2);
+  white-space: nowrap;
+}
+.topbar-btn:hover { background: var(--hover); color: var(--text); }
+/* role selector aligned to same height */
+.role-sel-btn { height: 34px; border-radius: 9px; }
+.role-sel-focus {
+  font-size: 12px; color: var(--text3); font-weight: 500;
+  max-width: 280px; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; border-left: 1px solid var(--border2);
+  padding-left: 8px; margin-left: 2px;
+}
+.role-sel-item { gap: 6px; }
+.role-sel-item.active { background: var(--accent-soft); color: var(--accent); }
+/* unify font-size group + theme toggle to same height */
+.sys-ctl-group { height: 34px; box-sizing: border-box; }
+.theme-toggle {
+  height: 28px; min-width: 34px; display: inline-flex;
+  align-items: center; justify-content: center; font-size: 16px;
+  padding: 0 6px;
+}
+@media (max-width: 900px) {
+  .role-sel-focus { display: none; }
+}

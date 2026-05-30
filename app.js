@@ -392,6 +392,7 @@ window.App = (function () {
     if ($('modeBar')) $('modeBar').style.display = 'flex';
     if ($('rmaDash')) $('rmaDash').style.display = 'none';
     const mub = $('modeUploadBtn'); if (mub) mub.style.display = '';
+    const mrb = $('modeReportBtn'); if (mrb) mrb.style.display = '';
     const rsw = $('roleSelWrap'); if (rsw) rsw.style.display = '';
     // Restore subbar collapsed state
     try {
@@ -605,21 +606,25 @@ window.App = (function () {
     const curR = ANALYSIS_ROLES[cur] || ANALYSIS_ROLES.all;
     const ico = $('roleSelIco');
     const lbl = $('roleSelLabel');
-    if (ico) ico.textContent = curR.icon;
+    const foc = $('roleSelFocus');
+    if (ico) { ico.textContent = curR.icon; ico.style.color = curR.color; }
     if (lbl) lbl.textContent = curR.short;
+    if (foc) foc.textContent = '重點：' + (ROLE_FOCUS[cur] || curR.desc);
 
     // Rebuild dropdown items
     const drop = $('roleSelDrop');
     if (drop) {
       drop.innerHTML = Object.entries(ANALYSIS_ROLES).map(([k, r]) =>
-        `<button class="role-sel-item ${k === cur ? 'active' : ''}"
+        `<button class="role-sel-item ${k === cur ? 'active' : ''}" style="--rc:${r.color}"
           onclick="App.setAnalysisRole('${k}');App.closeRoleDropdown()" title="${r.desc}">
-          <span>${r.icon}</span><span>${r.short}</span>
+          <span style="color:${r.color}">${r.icon}</span><span>${r.short}</span>
         </button>`
       ).join('');
     }
 
-    renderGlobalRoleBanner();
+    // In-content banner hidden: focus now shown beside the top-bar selector
+    const gb = $('globalRoleBanner');
+    if (gb) gb.style.display = 'none';
   }
 
   function toggleRoleDropdown() {
