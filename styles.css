@@ -249,6 +249,7 @@ button, input, select { font-family: inherit; }
   display: flex; align-items: center; justify-content: space-between;
 }
 .hdr-l { display: flex; align-items: center; gap: 16px; }
+.site-logo { height: 36px; width: auto; object-fit: contain; display: block; }
 .hdr-mark {
   width: 28px; height: 28px; border-radius: 7px;
   background: linear-gradient(135deg, var(--accent), #6366f1);
