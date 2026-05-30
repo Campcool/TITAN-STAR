@@ -1,0 +1,201 @@
+/* ════════════════════════════════════════════════════════════════════
+   TITAN-STAR — 莫蘭迪/大地色系主題
+   疊加在 styles.css 之後；只覆蓋 :root 色彩變數，其餘 UI 結構不變
+   ════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── 底色系：溫潤米白，護眼不刺眼 ── */
+  --bg:       #EDECEA;   /* 大地米白底 */
+  --surface:  #F8F7F5;   /* 卡片近白 */
+  --surface2: #EEECEA;   /* 次表面淺米 */
+  --surface3: #E2E0DC;   /* 三級灰 */
+  --hover:    rgba(0,0,0,0.04);
+
+  /* ── 邊框：柔和陰影邊 ── */
+  --border:  rgba(0,0,0,0.09);
+  --border2: rgba(0,0,0,0.16);
+
+  /* ── 文字：暖灰黑層次 ── */
+  --text:      #28241F;  /* 深暖黑，主要文字 */
+  --text2:     #514D47;  /* 中暖灰，次要文字 */
+  --text3:     #857F77;  /* 輕灰棕，標籤/輔助 */
+  --text-mute: #ADA89F;  /* 最淡，placeholder */
+
+  /* ── 強調色：霧霾藍（主要互動/連結/高亮） ── */
+  --accent:        #5B82A6;
+  --accent-soft:   rgba(91,130,166,0.10);
+  --accent-strong: rgba(91,130,166,0.22);
+
+  /* ── 嚴重警示：柔和磚紅 ── */
+  --critical:        #C26360;
+  --critical-soft:   rgba(194,99,96,0.10);
+  --critical-strong: rgba(194,99,96,0.20);
+
+  /* ── 警告：暖琥珀褐 ── */
+  --warn:        #B8833A;
+  --warn-soft:   rgba(184,131,58,0.10);
+  --warn-strong: rgba(184,131,58,0.20);
+
+  /* ── 達標/正常：鼠尾草綠 ── */
+  --ok:      #6E9C68;
+  --ok-soft: rgba(110,156,104,0.12);
+
+  /* ── 資訊/中性：暖灰褐 ── */
+  --info:      #8C8275;
+  --info-soft: rgba(140,130,117,0.12);
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   深色主題中寫死的白色系元素，在淺色主題需要反轉
+   ────────────────────────────────────────────────────────────────── */
+
+/* 整體底色已由 :root --bg 控制，body 跟著走 */
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ── 頂部 Logo 漸層 → 改為品牌藍方向 ── */
+.uz-logo, .logo-badge {
+  background: linear-gradient(135deg, var(--accent), #7A9EBF) !important;
+  color: #fff !important;
+}
+
+/* ── 主 nav sidebar ── */
+#sidebar {
+  background: var(--surface) !important;
+  border-right: 1px solid var(--border) !important;
+}
+.nav-item { color: var(--text2) !important; }
+.nav-item:hover { background: var(--surface2) !important; color: var(--text) !important; }
+.nav-item.active {
+  background: var(--accent-soft) !important;
+  color: var(--accent) !important;
+  border-left-color: var(--accent) !important;
+}
+
+/* ── 頁面 header ── */
+#pageHeader {
+  background: var(--surface) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+.page-title { color: var(--text) !important; }
+
+/* ── 卡片 ── */
+.card, .sum-card, .kpi-card, .trend-card {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
+}
+
+/* ── KPI 數字：保留語意色，不改 ── */
+
+/* ── 表格 ── */
+table thead th {
+  background: var(--surface2) !important;
+  color: var(--text2) !important;
+  border-color: var(--border2) !important;
+}
+table tbody tr:nth-child(even) { background: rgba(0,0,0,0.025) !important; }
+table tbody tr:hover { background: var(--accent-soft) !important; }
+table td, table th { border-color: var(--border) !important; }
+
+/* ── 按鈕 ── */
+.btn-primary, .sum-card-go {
+  background: var(--accent) !important;
+  color: #fff !important;
+}
+.btn-primary:hover, .sum-card-go:hover {
+  background: #4A6F93 !important;
+}
+.btn-outline, .sum-card-capa {
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+  background: transparent !important;
+}
+.btn-outline:hover, .sum-card-capa:hover {
+  background: var(--accent-soft) !important;
+}
+
+/* ── 輸入框 ── */
+input, select, textarea {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-color: var(--border2) !important;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px var(--accent-soft) !important;
+}
+
+/* ── 抽屜/Modal ── */
+#drawer, .modal-panel {
+  background: var(--surface) !important;
+  border-left: 1px solid var(--border) !important;
+}
+
+/* ── 搜尋列 ── */
+.search-bar, #detailSearch {
+  background: var(--surface2) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+
+/* ── 標籤 Chip ── */
+.chip, .tag, .badge {
+  background: var(--surface2) !important;
+  color: var(--text2) !important;
+  border-color: var(--border) !important;
+}
+
+/* ── COPQ onboarding 步驟 ── */
+.ob-step { background: var(--surface2) !important; color: var(--text3) !important; }
+.ob-step.ob-active { background: var(--accent-soft) !important; color: var(--accent) !important; }
+.ob-num { background: var(--surface3) !important; color: var(--text2) !important; }
+.ob-step.ob-active .ob-num { background: var(--accent) !important; color: #fff !important; }
+
+/* ── CEO 摘要框 ── */
+.exec-brief {
+  background: var(--accent-soft) !important;
+  border-left: 4px solid var(--accent) !important;
+}
+.eb-label { color: var(--accent) !important; }
+.eb-text  { color: var(--text) !important; }
+
+/* ── CAPA 表單 ── */
+.capa-row { border-bottom-color: var(--border) !important; }
+.capa-id  { color: var(--text3) !important; }
+
+/* ── data quality panel ── */
+.dq-item { background: var(--surface2) !important; }
+.dq-ok   { color: var(--ok) !important; }
+.dq-warn { color: var(--warn) !important; }
+.dq-bad  { color: var(--critical) !important; }
+
+/* ── 上傳區 ── */
+.uz-card { background: var(--surface) !important; border-color: var(--border2) !important; }
+.uz-card.drag { border-color: var(--accent) !important; background: var(--accent-soft) !important; }
+
+/* ── 分頁/子選單列 ── */
+.sub-nav, .tab-bar {
+  background: var(--surface2) !important;
+  border-bottom-color: var(--border) !important;
+}
+.sub-nav-item.active, .tab-item.active {
+  color: var(--accent) !important;
+  border-bottom-color: var(--accent) !important;
+}
+
+/* ── 月份卡片 ── */
+.uz-month-card {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+.uz-month-card:hover { border-color: var(--border2) !important; }
+
+/* ── scroll bar（Webkit） ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--surface2); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-mute); }

@@ -550,12 +550,104 @@ function buildGuideSheet(wb) {
   XLSX.utils.book_append_sheet(wb, ws, '說明');
 }
 
+// ─── 本月彙總工作表（COUNTIFS 公式，即時顯示當月數據）────────────
+// 欄位對照（0-based index → Excel letter）：
+//   C=器材品號  J=故障原因  L=故障再現性  W=是否報廢
+// 維修記錄資料從第4列起（DATA_START=4），500列資料
+function buildMonthlySheet(wb) {
+  const ws = {};
+  const R = (r, c) => XLSX.utils.encode_cell({ r, c });
+
+  // 資料範圍（維修記錄工作表）
+  const DATA = {
+    model:  '維修記錄!$C$4:$C$503',
+    reason: '維修記錄!$J$4:$J$503',
+    repro:  '維修記錄!$L$4:$L$503',
+    scrap:  '維修記錄!$W$4:$W$503',
+    serial: '維修記錄!$D$4:$D$503',
+  };
+
+  let row = 0;
+
+  // ── 說明 ──
+  ws[R(row,0)] = { v:'【本月彙總】公式自動計算，填寫資料後立即顯示 — 無需手動更新', t:'s' };
+  row += 2;
+
+  // ── KPI 區 ──
+  ws[R(row,0)] = { v:'本月維修總筆數', t:'s' };
+  ws[R(row,1)] = { f:`COUNTA(${DATA.serial})`, t:'n' };
+  row++;
+  ws[R(row,0)] = { v:'本月報廢件數', t:'s' };
+  ws[R(row,1)] = { f:`COUNTIF(${DATA.scrap},"Y")`, t:'n' };
+  row++;
+  ws[R(row,0)] = { v:'報廢率', t:'s' };
+  ws[R(row,1)] = { f:`IFERROR(COUNTIF(${DATA.scrap},"Y")/COUNTA(${DATA.serial}),"—")`, t:'s' };
+  row++;
+  ws[R(row,0)] = { v:'NTF件數（無法重現）', t:'s' };
+  ws[R(row,1)] = { f:`COUNTIF(${DATA.repro},"NTF*")`, t:'n' };
+  row++;
+  ws[R(row,0)] = { v:'NTF比率', t:'s' };
+  ws[R(row,1)] = { f:`IFERROR(COUNTIF(${DATA.repro},"NTF*")/COUNTA(${DATA.serial}),"—")`, t:'s' };
+  row += 2;
+
+  // ── 各品號故障彙總 ──
+  ws[R(row,0)] = { v:'▌ 各品號故障彙總', t:'s' };
+  row++;
+  const modelHdrRow = row;
+  ['器材品號','大類','故障件數','報廢件數','報廢率'].forEach((h,i) => {
+    ws[R(row,i)] = { v:h, t:'s' };
+  });
+  row++;
+
+  const modelDataStart = row + 1; // 1-based for formulas
+  let modelRowRef = modelDataStart;
+
+  for (const [cat, models] of Object.entries(MODEL_LIST)) {
+    for (const m of models) {
+      ws[R(row,0)] = { v:m,   t:'s' };
+      ws[R(row,1)] = { v:cat, t:'s' };
+      const mCell = `A${modelRowRef}`;
+      ws[R(row,2)] = { f:`COUNTIF(${DATA.model},${mCell})`, t:'n' };
+      ws[R(row,3)] = { f:`COUNTIFS(${DATA.model},${mCell},${DATA.scrap},"Y")`, t:'n' };
+      ws[R(row,4)] = { f:`IFERROR(D${modelRowRef}/C${modelRowRef},"")`, t:'s' };
+      row++;
+      modelRowRef++;
+    }
+  }
+  row += 2;
+
+  // ── 故障原因分布 ──
+  ws[R(row,0)] = { v:'▌ 故障原因大類分布', t:'s' };
+  row++;
+  ['故障原因','件數','佔比'].forEach((h,i) => {
+    ws[R(row,i)] = { v:h, t:'s' };
+  });
+  row++;
+
+  const faultDataStart = row + 1;
+  let faultRowRef = faultDataStart;
+
+  for (const ft of FAULT_TYPES) {
+    ws[R(row,0)] = { v:ft, t:'s' };
+    ws[R(row,1)] = { f:`COUNTIF(${DATA.reason},A${faultRowRef})`, t:'n' };
+    ws[R(row,2)] = { f:`IFERROR(B${faultRowRef}/COUNTA(${DATA.serial}),"")`, t:'s' };
+    row++;
+    faultRowRef++;
+  }
+
+  ws['!ref'] = XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:row+2,c:5} });
+  ws['!cols'] = [{ wch:16 }, { wch:14 }, { wch:12 }, { wch:12 }, { wch:10 }, { wch:10 }];
+
+  XLSX.utils.book_append_sheet(wb, ws, '本月彙總');
+}
+
 // ─── 主程式 ──────────────────────────────────────────────────────
 const wb = XLSX.utils.book_new();
 
 // 注意順序：機種清冊要先建，才能取得 modelRange 給維修記錄用
 const modelRange = buildModelSheet(wb);
 buildRepairSheet(wb, modelRange);
+buildMonthlySheet(wb);
 buildPartLookupSheet(wb);
 buildSummarySheet(wb);
 buildGuideSheet(wb);
@@ -576,4 +668,4 @@ console.log(`  欄位：${totalCols} 欄（★必填 ${required} / ☆重要 ${i
 console.log(`  放呆：${dv} 欄設有下拉或格式驗證`);
 console.log(`  機種：${totalModels} 個已知品號，每大類保留10列空白供新增`);
 console.log(`  料號：${Object.keys(PART_CATEGORY).length} 大類自動帶出`);
-console.log(`  工作表：機種清冊、維修記錄、料號對照、系品彙總、說明`);
+console.log(`  工作表：機種清冊、維修記錄、本月彙總、料號對照、系品彙總、說明`);
