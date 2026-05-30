@@ -20,54 +20,11 @@
 </head>
 <body>
 
-<!-- ═══════════════ Login Screen ═══════════════ -->
-<div id="loginScreen" class="ls-wrap">
-  <div class="ls-box">
-    <div class="ls-logo">TS</div>
-    <div class="ls-title">TITAN-STAR</div>
-    <div class="ls-sub">維修分析 &amp; RMA 管理系統</div>
-    <div class="ls-fields">
-      <div class="ls-field">
-        <label class="ls-label">帳號</label>
-        <input class="ls-input" type="text" id="loginUser" placeholder="請輸入帳號"
-          autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('loginPwd').focus()">
-      </div>
-      <div class="ls-field">
-        <label class="ls-label">密碼</label>
-        <input class="ls-input" type="password" id="loginPwd" placeholder="請輸入密碼"
-          autocomplete="current-password" onkeydown="if(event.key==='Enter')Auth.doLogin()">
-      </div>
-      <div class="ls-err" id="loginErr"></div>
-      <button class="ls-btn" onclick="Auth.doLogin()">登入</button>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════════ Change Password Screen ═══════════════ -->
-<div id="changePwScreen" class="ls-wrap" style="display:none">
-  <div class="ls-box">
-    <div class="ls-logo">TS</div>
-    <div class="ls-title">設定新密碼</div>
-    <div class="ls-sub" id="changePwSub">首次登入，請設定您的專屬密碼</div>
-    <div class="ls-fields">
-      <div class="ls-field">
-        <label class="ls-label">舊密碼</label>
-        <input class="ls-input" type="password" id="cpOld" placeholder="請輸入舊密碼" autocomplete="current-password">
-      </div>
-      <div class="ls-field">
-        <label class="ls-label">新密碼</label>
-        <input class="ls-input" type="password" id="cpNew" placeholder="請輸入新密碼（至少 6 碼）" autocomplete="new-password">
-      </div>
-      <div class="ls-field">
-        <label class="ls-label">確認新密碼</label>
-        <input class="ls-input" type="password" id="cpConfirm" placeholder="再次輸入新密碼" autocomplete="new-password"
-          onkeydown="if(event.key==='Enter')Auth.doChangePw()">
-      </div>
-      <div class="ls-err" id="changePwErr"></div>
-      <button class="ls-btn" onclick="Auth.doChangePw()">確認修改</button>
-    </div>
-  </div>
-</div>
+<!-- 登入頁面已停用（選色期間直接進入） -->
+<div id="loginScreen" style="display:none"></div>
+<div id="changePwScreen" style="display:none"></div>
+<input type="hidden" id="loginUser" value="031780">
+<input type="hidden" id="loginPwd" value="">
 
 <!-- ═══════════════ Loading Overlay ═══════════════ -->
 <div class="load-ov" id="loadOv" style="display:none">
@@ -93,8 +50,8 @@
   </div>
   <div class="mode-bar-r" id="modeBtns">
     <span class="mode-bar-user" id="modeBarUser"></span>
+    <button class="btn theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="切換色系">🌙 深色</button>
     <button class="btn" id="adminPanelBtn" style="display:none" onclick="Auth.openAdminPanel()">⚙ 帳號管理</button>
-    <button class="btn danger" onclick="Auth.logout()">登出</button>
   </div>
 </div>
 
@@ -339,6 +296,7 @@
                   <th>影響機種</th>
                   <th class="right" style="width:80px">件數</th>
                   <th style="width:220px">佔比 / 累計</th>
+                  <th class="right" style="width:90px" title="建議安全庫存量（月均用量×2）">建議備料</th>
                   <th style="width:80px">詳情</th>
                 </tr>
               </thead>
@@ -385,6 +343,7 @@
             <div class="card-h"><div class="card-t">主要零件月份趨勢 (前 6)</div></div>
             <div class="chart-wrap tall"><canvas id="partTrendChart"></canvas></div>
           </div>
+          <div class="sec" id="trendMomTable"></div>
         </div>
 
         <!-- Reason -->
@@ -518,6 +477,10 @@
             <div class="sec-h"><span class="sec-t"><span class="strong">故障根因樹</span> 部位 → 模式</span></div>
             <div id="rootCauseTree"></div>
           </div>
+          <div class="sec" id="hwPartPareto"></div>
+          <div class="sec">
+            <div id="dataQualityPanel"></div>
+          </div>
         </div>
 
         <!-- CAPA -->
@@ -559,7 +522,8 @@
               <div class="page-d">原始記錄瀏覽（前 500 筆）</div>
             </div>
             <div style="display:flex;gap:8px;align-items:center">
-              <input class="detail-search-inp" type="text" id="detailSearch" placeholder="🔍 序號搜尋…" oninput="App.searchDetail(this.value)">
+              <input class="detail-search-inp" type="text" id="detailSearch" placeholder="🔍 序號 / 機種 / 故障原因…" oninput="App.searchDetail(this.value)">
+              <button class="btn sm" onclick="App.exportDetailCsv()" title="匯出當前篩選結果為 CSV">⤓ 匯出 CSV</button>
               <div class="page-meta" id="detailMeta"></div>
             </div>
           </div>
@@ -625,6 +589,40 @@
 <script src="report.js"></script>
 <script src="rma.js"></script>
 <script>
+// ─── Theme toggle（深色 ↔ 莫蘭迪淺色）───
+const THEME_KEY = 'titan_theme';
+const MORANDI_ID = 'morandiTheme';
+
+function applyTheme(theme) {
+  const existing = document.getElementById(MORANDI_ID);
+  const btn = document.getElementById('themeToggleBtn');
+  if (theme === 'morandi') {
+    if (!existing) {
+      const style = document.createElement('style');
+      style.id = MORANDI_ID;
+      style.textContent = window.__morandiCSS__ || '';
+      document.head.appendChild(style);
+    }
+    if (btn) btn.textContent = '☀ 莫蘭迪';
+  } else {
+    if (existing) existing.remove();
+    if (btn) btn.textContent = '🌙 深色';
+  }
+}
+
+function toggleTheme() {
+  const current = localStorage.getItem(THEME_KEY) || 'dark';
+  const next = current === 'dark' ? 'morandi' : 'dark';
+  localStorage.setItem(THEME_KEY, next);
+  applyTheme(next);
+}
+
+// 初始化：讀取儲存的主題
+(function() {
+  const saved = localStorage.getItem(THEME_KEY) || 'morandi'; // 預設莫蘭迪
+  applyTheme(saved);
+})();
+
 // ─── Mode switching ───
 let currentMode = 'analysis';
 let uzMode = 'analysis';
@@ -699,22 +697,34 @@ function updateRmaBadge() {
 
 // On load, restore last mode — called by Auth after successful login
 function onAuthSuccess() {
-  const db = RepairDB.load();
-  const hasAnalysisData = Object.keys(db.months).length > 0;
-  const rmaDb = RMA.stats();
+  try {
+    App.renderUploadList();
+  } catch(e) {}
 
-  if (rmaDb.total > 0 || hasAnalysisData) {
-    document.getElementById('modeBar').style.display = 'flex';
-    if (hasAnalysisData) {
-      switchMode('analysis');
+  try {
+    const db = RepairDB.load();
+    const hasAnalysisData = Object.keys(db.months).length > 0;
+    let rmaTotal = 0;
+    try { rmaTotal = RMA.stats().total; } catch(e) {}
+
+    if (rmaTotal > 0 || hasAnalysisData) {
+      document.getElementById('modeBar').style.display = 'flex';
+      if (hasAnalysisData) {
+        switchMode('analysis');
+      } else {
+        switchMode('rma');
+      }
     } else {
-      switchMode('rma');
+      document.getElementById('modeBar').style.display = 'none';
+      document.getElementById('uploadZone').style.display = 'flex';
     }
-  } else {
+
+    try { updateRmaBadge(); } catch(e) {}
+  } catch(e) {
+    // 萬一出錯，直接顯示上傳區
+    document.getElementById('modeBar').style.display = 'none';
     document.getElementById('uploadZone').style.display = 'flex';
   }
-
-  updateRmaBadge();
 }
 </script>
 

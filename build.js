@@ -1,35 +1,41 @@
 // ════════════════════════════════════════════════════════════════════
-// build.js — 將多檔專案打包成單一 TITAN-STAR.html（可離線本機使用）
+// build.js — 打包成單一 TITAN-STAR.html，內含深色/莫蘭迪雙主題切換
 // 用法： node build.js
 // ════════════════════════════════════════════════════════════════════
 const fs = require('fs');
 
-// 把 JS 內容中的 </script 轉義，避免提前關閉外層 <script> 標籤。
-// 注意：</script  後可接 >、空白、/ 等字元，HTML 解析器都視為結束，
-// 故用部分比對 </script（不含 >）做轉義；JS 字串中 <\/ 等同 </，輸出不變。
 function safeInline(code) {
   return code.replace(/<\/script/gi, '<\\/script');
 }
 
-const indexHTML   = fs.readFileSync('index.html', 'utf8');
-const stylesCss   = fs.readFileSync('styles.css', 'utf8');
-const rmaStylesCss= fs.readFileSync('rma-styles.css', 'utf8');
-const parserJs    = safeInline(fs.readFileSync('parser.js', 'utf8'));
-const analyzerJs  = safeInline(fs.readFileSync('analyzer.js', 'utf8'));
-const appJs       = safeInline(fs.readFileSync('app.js', 'utf8'));
-const reportJs    = safeInline(fs.readFileSync('report.js', 'utf8'));
-const rmaJs       = safeInline(fs.readFileSync('rma.js', 'utf8'));
+const indexHTML    = fs.readFileSync('index.html', 'utf8');
+const stylesCss    = fs.readFileSync('styles.css', 'utf8');
+const morandiCss   = fs.readFileSync('styles-morandi.css', 'utf8');
+const rmaStylesCss = fs.readFileSync('rma-styles.css', 'utf8');
+const parserJs     = safeInline(fs.readFileSync('parser.js', 'utf8'));
+const analyzerJs   = safeInline(fs.readFileSync('analyzer.js', 'utf8'));
+const appJs        = safeInline(fs.readFileSync('app.js', 'utf8'));
+const reportJs     = safeInline(fs.readFileSync('report.js', 'utf8'));
+const rmaJs        = safeInline(fs.readFileSync('rma.js', 'utf8'));
 
-let html = indexHTML;
-// 使用「函式型 replacement」避免 String.replace 把內容中的 $`、$'、$& 當成特殊樣式而重複插入。
 const inlineStyle  = (css)  => () => '<style>\n'  + css  + '\n</style>';
 const inlineScript = (code) => () => '<script>\n' + code + '\n</script>';
+
+// 莫蘭迪 CSS 以 JS 字串形式注入，供動態切換使用
+const morandiCssEscaped = JSON.stringify(morandiCss);
+const themeLoaderJs = `window.__morandiCSS__ = ${morandiCssEscaped};`;
+
+let html = indexHTML;
 html = html.replace('<link rel="stylesheet" href="styles.css">',     inlineStyle(stylesCss));
 html = html.replace('<link rel="stylesheet" href="rma-styles.css">', inlineStyle(rmaStylesCss));
 html = html.replace('<script src="parser.js"></script>',   inlineScript(parserJs));
 html = html.replace('<script src="analyzer.js"></script>', inlineScript(analyzerJs));
 html = html.replace('<script src="report.js"></script>',   inlineScript(reportJs));
-html = html.replace('<script src="rma.js"></script>',      inlineScript(rmaJs));
+// 在 rma.js 前注入莫蘭迪 CSS 字串（rma.js 之後 index.html inline script 才初始化主題）
+html = html.replace('<script src="rma.js"></script>',
+  `<script>\n${themeLoaderJs}\n<\/script>\n` +
+  inlineScript(rmaJs)()
+);
 html = html.replace('<script src="app.js"></script>',      inlineScript(appJs));
 
 fs.writeFileSync('TITAN-STAR.html', html, 'utf8');
@@ -42,7 +48,6 @@ if (leftoverCss.length || leftoverJs.length) {
   process.exit(1);
 }
 
-// 模擬 HTML 解析器：確認沒有 script 區塊被內容中的 </script 提前截斷
 const openRe = /<script\b[^>]*>/gi;
 let m, block = 0, ok = true;
 while ((m = openRe.exec(html))) {
@@ -55,5 +60,6 @@ while ((m = openRe.exec(html))) {
   openRe.lastIndex = cm.index + cm[0].length;
 }
 
-const sizeKB = Math.round(fs.statSync('TITAN-STAR.html').size / 1024);
-console.log((ok ? '✓' : '✗') + ' 打包完成：TITAN-STAR.html (' + sizeKB + ' KB, ' + block + ' 個 script 區塊)');
+const sizeKB = Math.round(Buffer.byteLength(html, 'utf8') / 1024);
+console.log(`${ok?'✓':'✗'} 打包完成：TITAN-STAR.html (${sizeKB} KB, ${block} 個 script 區塊)`);
+console.log('  包含：深色主題 + 莫蘭迪主題（右上角按鈕切換，預設莫蘭迪）');

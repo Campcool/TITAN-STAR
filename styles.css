@@ -783,6 +783,9 @@ button, input, select { font-family: inherit; }
 .divider { height: 1px; background: var(--border); margin: 24px 0; }
 .muted { color: var(--text3); }
 .no-wrap { white-space: nowrap; }
+.mom-up { color: var(--critical); font-weight: 600; }
+.mom-dn { color: var(--ok); font-weight: 600; }
+.section-title { font-size: 14px; font-weight: 700; color: var(--text2); margin-bottom: 10px; letter-spacing: .03em; text-transform: uppercase; }
 .txt-mono { font-family: var(--mono); }
 
 /* Responsive */
@@ -2012,6 +2015,13 @@ button, input, select { font-family: inherit; }
 .sum-banner-d { font-size: 12.5px; color: var(--text2); margin-top: 3px; }
 .sum-banner-meta { margin-left: auto; font-size: 12.5px; color: var(--text3); align-self: flex-start; }
 
+.exec-brief {
+  background: linear-gradient(135deg, var(--bg2) 0%, var(--surface) 100%);
+  border: 1px solid var(--accent); border-radius: 12px;
+  padding: 16px 20px; margin-bottom: 22px;
+}
+.eb-label { font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 7px; }
+.eb-text { font-size: 15px; line-height: 1.7; color: var(--text); }
 .sum-sec { margin-top: 26px; }
 .sum-sec-h {
   display: flex; align-items: center; gap: 9px;
@@ -2054,6 +2064,29 @@ button, input, select { font-family: inherit; }
   font-size: 12.5px; font-weight: 600; padding: 5px 12px; border-radius: 8px; transition: all .15s;
 }
 .sum-card-go:hover { border-color: var(--accent); color: var(--accent); }
+.sum-card-btns { display: flex; gap: 6px; margin-top: 11px; flex-wrap: wrap; }
+.sum-card-btns .sum-card-go { margin-top: 0; }
+.sum-card-capa {
+  cursor: pointer; background: transparent; border: 1px solid var(--ok); color: var(--ok);
+  font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 8px; transition: all .15s;
+}
+.sum-card-capa:hover { background: var(--ok); color: #fff; }
+.dq-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-top: 12px;
+}
+.dq-item {
+  background: var(--bg2); border: 1px solid var(--border2); border-radius: 10px;
+  padding: 12px 14px; display: flex; flex-direction: column; gap: 4px;
+}
+.dq-item.dq-ok { border-color: var(--ok); }
+.dq-item.dq-warn { border-color: var(--warn); }
+.dq-item.dq-bad { border-color: var(--critical); }
+.dq-label { font-size: 11.5px; color: var(--text2); font-weight: 600; }
+.dq-val { font-size: 22px; font-weight: 700; color: var(--text); }
+.dq-item.dq-ok .dq-val { color: var(--ok); }
+.dq-item.dq-warn .dq-val { color: var(--warn); }
+.dq-item.dq-bad .dq-val { color: var(--critical); }
+.dq-sub { font-size: 11px; color: var(--text2); }
 @media (max-width: 560px) {
   .grole-sum { margin-left: 0; }
   .sum-banner-meta { display: none; }
@@ -2150,6 +2183,13 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
   .btn { padding: 9px 14px; font-size: 15px; }
   .chip { padding: 8px 14px; }
 }
+
+/* ── Onboarding steps (COPQ setup guide) ── */
+.onboard-steps { display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+.ob-step { display:flex; align-items:center; gap:8px; padding:10px 16px; background:var(--bg2); border:1px solid var(--border2); border-radius:10px; font-size:13px; color:var(--text2); }
+.ob-step.ob-active { border-color:var(--accent); color:var(--text); font-weight:600; }
+.ob-num { width:24px; height:24px; background:var(--border2); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; }
+.ob-step.ob-active .ob-num { background:var(--accent); color:#fff; }
 
 /* ── 小手機：KPI 改單欄，避免數字擠壓 ── */
 @media (max-width: 430px) {

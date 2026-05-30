@@ -711,6 +711,26 @@ window.App = (function () {
         if (anoms.length > 0) addCard('!','var(--warn)','待協調事項',`本期偵測 <strong>${anoms.length}</strong> 項異常，涉及多部門需跨部門協調`,'調度');
         if (repeatedList.length > 5) addCard('♺','var(--warn)','積壓風險',`<strong>${repeatedList.length}</strong> 台機器重複進廠，佔用維修產能，建議與品檢確認根本原因`,'資源');
         if (momText) addCard('↗','var(--accent)','產量比較',momText,'趨勢');
+        {
+          const capaList = loadCapa();
+          const capaOpen = capaList.filter(c => c.status !== 'closed');
+          const today = new Date().toISOString().slice(0,10);
+          const capaOverdue = capaOpen.filter(c => c.due && c.due < today);
+          const criticalAnoms = anoms.filter(a => a.severity === 'critical');
+          const todoItems = [];
+          if (capaOverdue.length) {
+            const names = capaOverdue.slice(0,2).map(c=>`#${c.id} ${(c.problem||'').slice(0,15)}`).join('、');
+            todoItems.push(`⚠ CAPA 逾期 ${capaOverdue.length} 項（${names}${capaOverdue.length>2?'…':''}）`);
+          }
+          if (criticalAnoms.length) {
+            const anames = criticalAnoms.slice(0,2).map(a=>a.title).join('、');
+            todoItems.push(`🔴 嚴重異常 ${criticalAnoms.length} 項（${anames}${criticalAnoms.length>2?'…':''}）`);
+          }
+          if (capaOpen.length > 0 && !capaOverdue.length) todoItems.push(`📌 進行中 CAPA ${capaOpen.length} 項`);
+          if (todoItems.length) {
+            addCard('📋','var(--critical)','今日跨部門待辦', todoItems.join(' · '), '協調');
+          }
+        }
         break;
 
       case 'procure':
@@ -721,7 +741,7 @@ window.App = (function () {
         if (momText) addCard('↗','var(--accent)','用量趨勢',momText,'趨勢');
         break;
 
-      case 'prod':
+      case 'prod': {
         if (topModel) addCard('⚙','var(--warn)','故障最多機種',`<strong>${topModel[0]}</strong> 維修量最高（${topModel[1]} 件），佔整體 ${fmt.pct(topModel[1]/Math.max(kpis.totalRepairs,1)*100)}`,'良率');
         addCard('◈','var(--info)','機種數量',`本期涉及 <strong>${kpis.models}</strong> 個機種，${Object.entries(catCount).map(([c,n])=>`${c} ${n}件`).join('、')}`,'生產');
         if (scrapRecs.length > 0) {
@@ -730,7 +750,29 @@ window.App = (function () {
           const topScrapModel = Object.entries(scrapByModel).sort((a,b)=>b[1]-a[1])[0];
           addCard('✕','var(--critical)','報廢集中',`報廢最高機種：<strong>${topScrapModel[0]}</strong> ×${topScrapModel[1]}，建議確認製程 SOP`,'品質');
         }
+        // 本月 vs 上月機種品質快照
+        if (curMonthKey && prevMonthKey) {
+          const curByModel = {}, prevByModel = {};
+          for (const r of (state.db.months[curMonthKey]?.records||[])) curByModel[r.model] = (curByModel[r.model]||0)+1;
+          for (const r of (state.db.months[prevMonthKey]?.records||[])) prevByModel[r.model] = (prevByModel[r.model]||0)+1;
+          const allM = [...new Set([...Object.keys(curByModel),...Object.keys(prevByModel)])];
+          const changed = allM
+            .map(m => ({ m, cur: curByModel[m]||0, prv: prevByModel[m]||0 }))
+            .filter(x => x.cur > 0)
+            .sort((a,b) => b.cur - a.cur)
+            .slice(0, 5);
+          if (changed.length) {
+            const rows = changed.map(x => {
+              const d = x.cur - x.prv;
+              const arrow = d > 0 ? `▲${d}` : d < 0 ? `▼${Math.abs(d)}` : '—';
+              const color = d > 0 ? 'var(--critical)' : d < 0 ? 'var(--ok)' : 'var(--text3)';
+              return `${x.m} ${x.cur}件 <span style="color:${color}">${arrow}</span>`;
+            }).join('　');
+            addCard('📊','var(--info)','機種品質快照（本月 vs 上月）', rows, '生產');
+          }
+        }
         break;
+      }
 
       case 'qa':
         addCard('◇','var(--warn)','重複維修率',`同期重複進廠 <strong>${repeatedList.length}</strong> 台（${fmt.pct(repeatedList.length/Math.max(kpis.totalRepairs,1)*100)}），是品質未閉環的指標`,'CAPA');
@@ -775,12 +817,30 @@ window.App = (function () {
         if (topModel) addCard('⚙','var(--info)','高關注機種',`${topModel[0]} 維修量最高，若屬硬體問題需優先安排設計審查`,'審查');
         break;
 
-      case 'fw':
-        if (fwRecs.length > 0) addCard('▷','var(--warn)','韌體相關故障',`含韌體關鍵字 <strong>${fwRecs.length}</strong> 件（${fmt.pct(fwRecs.length/Math.max(kpis.totalRepairs,1)*100)}），建議確認版本分布`,'OTA');
-        else addCard('▷','var(--ok)','韌體狀況','本期未偵測到明顯韌體相關故障關鍵字，韌體穩定度良好','OTA');
+      case 'fw': {
+        if (fwRecs.length > 0) {
+          // 機種分布
+          const fwByModel = {};
+          for (const r of fwRecs) fwByModel[r.model] = (fwByModel[r.model]||0)+1;
+          const fwTop = Object.entries(fwByModel).sort((a,b)=>b[1]-a[1]).slice(0,4);
+          const fwModelDetail = fwTop.map(([m,n])=>`${m}（${n}件）`).join('、');
+          addCard('▷','var(--warn)','韌體相關故障機種分布',`共 ${fwRecs.length} 件（${fmt.pct(fwRecs.length/Math.max(kpis.totalRepairs,1)*100)}）。依機種：${fwModelDetail}。建議逐機種確認在役韌體版本是否一致`,'OTA');
+          // 常見故障描述摘要
+          const fwContentMap = {};
+          for (const r of fwRecs) {
+            const key = (r.content || r.reason || '').trim().slice(0,30);
+            if (key) fwContentMap[key] = (fwContentMap[key]||0)+1;
+          }
+          const fwTopContent = Object.entries(fwContentMap).sort((a,b)=>b[1]-a[1]).slice(0,3);
+          if (fwTopContent.length) {
+            addCard('📝','var(--info)','韌體故障描述 TOP3',fwTopContent.map(([k,n])=>`「${k}」×${n}`).join('；'),'分析');
+          }
+        } else {
+          addCard('▷','var(--ok)','韌體狀況','本期未偵測到明顯韌體相關故障關鍵字，韌體穩定度良好','OTA');
+        }
         if (crossSerial.length > 0) addCard('⇄','var(--info)','潛在韌體根因',`${crossSerial.length} 台跨月重複，若排除硬體因素，需確認韌體 OTA 是否成功落版`,'追蹤');
-        addCard('♺','var(--info)','重複維修洞察',`重複進廠 ${repeatedList.length} 台，建議比對維修紀錄中的韌體版本欄位，排查特定版本集中問題`,'分析');
         break;
+      }
 
       case 'finance': {
         const cfg = (function(){ try { return JSON.parse(localStorage.getItem('titan_cost_cfg_v1')||'null'); } catch { return null; } })();
@@ -790,7 +850,7 @@ window.App = (function () {
           addCard('$','var(--critical)','品質成本 COPQ',`本期總損失 <strong>${money(cost.totalCost)}</strong>（報廢 ${money(cost.scrapCost)} + 工時 ${money(cost.laborCost)}）`,'成本');
           if (cost.byCategory.length) addCard('▤','var(--warn)','損失最高類別',`<strong>${cost.byCategory[0].cat}</strong>：${money(cost.byCategory[0].total)}，是成本改善的第一優先`,'ROI');
         } else {
-          addCard('$','var(--info)','尚未設定單價','請至「成本量化」頁面點「⚙ 單價設定」輸入機種單價與工時成本，才能換算金額損失','設定');
+          addCard('$','var(--info)','尚未設定單價',`只需填入「每台維修成本」與「每台報廢損失」兩個數字，系統即自動計算本期 COPQ。目前本期 ${fmt.int(kpis.scrap)} 件報廢尚未量化損失。`,'設定');
         }
         if (kpis.scrap > 0) addCard('✕','var(--critical)','報廢件數',`本期報廢 <strong>${kpis.scrap}</strong> 件，每一件都是直接物料損失，高單價機種尤須關注`,'損失');
         const fc = RepairAnalyzer.forecastNextMonth(state.db, {});
@@ -825,12 +885,24 @@ window.App = (function () {
 
         const risky = ranks.filter(r => (r.faultRate||0) >= 0.1 || r.scrap > 0).slice(0,3);
         const stable = ranks.filter(r => (r.faultRate!=null) && r.faultRate < 0.05).slice(0,3);
-        if (risky.length) addCard('●','var(--critical)','需謹慎銷售（紅燈）',`${risky.map(r=>r.model).join('、')} 故障率偏高或有報廢，對外溝通宜保守`,'口碑');
-        if (stableModels.length) addCard('●','var(--ok)','可安心主推（穩定 ≥2月）',`${stableModels.slice(0,4).map(m=>`${m.model}(${m.months}月)`).join('、')} 持續低故障，適合主力推廣`,'推廣');
-        else if (stable.length) addCard('●','var(--ok)','可安心主推（綠燈）',`${stable.map(r=>r.model).join('、')} 故障率低且穩定，適合作為主力推廣機種`,'推廣');
-        if (improvedModels.length) addCard('↗','var(--accent)','近期改善機種',`${improvedModels.slice(0,3).join('、')} 從高故障轉為穩定，是業務說故事的好素材`,'改善');
+        if (risky.length) {
+          const riskyDetail = risky.map(r=>`${r.model}（故障率${r.faultRate!=null?(r.faultRate*100).toFixed(1)+'%':'—'}${r.scrap>0?'、有報廢':''}）`).join('；');
+          addCard('●','var(--critical)','需謹慎銷售（紅燈）',`${riskyDetail}，對外溝通宜保守，可說「持續改善中」`,'口碑');
+        }
+        if (stableModels.length) {
+          const stableDetail = stableModels.slice(0,4).map(m=>`${m.model}（連續${m.months}月低故障）`).join('；');
+          addCard('●','var(--ok)','可安心主推（穩定 ≥2月）',`${stableDetail}。推薦說法：「品質穩定、通過連續多月考驗」`,'推廣');
+        } else if (stable.length) {
+          addCard('●','var(--ok)','可安心主推（綠燈）',`${stable.map(r=>`${r.model}（故障率${r.faultRate!=null?(r.faultRate*100).toFixed(1)+'%':'—'}）`).join('；')}，適合作為主力推廣機種`,'推廣');
+        }
+        if (improvedModels.length) addCard('↗','var(--accent)','近期改善機種',`${improvedModels.slice(0,3).join('、')} 從高故障轉為穩定，推薦說法：「已完成品質改善，近期表現顯著提升」`,'改善');
         if (crossSerial.length > 0) addCard('⇄','var(--critical)','客戶信心風險',`<strong>${crossSerial.length}</strong> 台跨月重複故障，這是客戶實際感受到的「不可靠」，恐影響續單`,'客戶');
-        if (topModel) addCard('⚙','var(--warn)','主訴機種',`${topModel[0]} 維修量最高（${topModel[1]}件），業務應準備對應客戶說明`,'溝通');
+        if (topModel) addCard('⚙','var(--warn)','主訴機種',`${topModel[0]} 維修量最高（${topModel[1]}件），備好說法：「已列入重點追蹤，改善方案進行中」`,'溝通');
+        const monthCount = Object.keys(state.db.months).length;
+        const sampleNote = monthCount < 6
+          ? `目前僅 ${monthCount} 個月資料，口碑判定為「估算性質」，建議 6 個月後作為正式依據。紅/綠燈可用於內部參考，對外溝通請保守。`
+          : `資料已達 ${monthCount} 個月，口碑判定信度提升，可作為業務說明依據。`;
+        addCard('ℹ','var(--info)','口碑資料信度', sampleNote, '注意');
         break;
       }
     }
@@ -986,7 +1058,7 @@ window.App = (function () {
       // 成本參數未設定 → 給財務一個「立即上線」的行動卡，而非空白
       add({ sev: 'warn', area: '品質成本', icon: '$', title: '品質成本(COPQ)尚未啟用',
         detail: `本期報廢 ${kpis.scrap} 件、跨月重複 ${cross.length} 台，財務影響尚未量化——僅需填入「每台維修成本/每台報廢損失/單次物流成本」即可即時估算`,
-        action: '至「成本量化」用快速估算模式 5 分鐘上線', page: 'cost', roles: ['finance', 'ceo'] });
+        action: '點「成本量化」頁面 → 填入三個概略數字 → 5分鐘後即可看到本期品質損失金額（NT$）', page: 'cost', roles: ['finance', 'ceo'] });
     }
 
     // (8) Component-category dominance
@@ -1108,7 +1180,10 @@ window.App = (function () {
                 <div class="sum-card-title">${escapeHtml(x.title)}</div>
                 <div class="sum-card-detail">${escapeHtml(x.detail)}</div>
                 ${x.action ? `<div class="sum-card-action">💡 ${escapeHtml(x.action)}</div>` : ''}
-                <button class="sum-card-go" onclick="App.switchPage('${x.page}')">前往 ${PAGE_NAME[x.page] || x.page} →</button>
+                <div class="sum-card-btns">
+                  <button class="sum-card-go" onclick="App.switchPage('${x.page}')">前往 ${PAGE_NAME[x.page] || x.page} →</button>
+                  <button class="sum-card-capa" onclick="App.openCapaForm({problem:${JSON.stringify(x.title)},action:${JSON.stringify(x.action||'')},severity:'${x.sev}'})">＋CAPA</button>
+                </div>
               </div>`).join('')}
           </div>
         </div>`;
@@ -1119,7 +1194,25 @@ window.App = (function () {
       body.innerHTML = `<div class="card"><div class="empty"><div class="empty-ico">✓</div><div class="empty-t">本期此視角未偵測到須追蹤事項</div><div class="empty-d">可切換其他角色，或檢視「總覽」掌握全貌</div></div></div>`;
       return;
     }
-    body.innerHTML = section('應立即追蹤', crit, 'critical') + section('本期應關注', warn, 'warn') + section('持續監控', info, 'info');
+
+    // CEO 本月一句話摘要
+    let execBriefHtml = '';
+    if (role === 'ceo' && mine.length) {
+      const allMonthsSorted = Object.keys(state.db.months).sort();
+      const n = allMonthsSorted.length;
+      let trendWord = '';
+      if (n >= 2) {
+        const cur = (state.db.months[allMonthsSorted[n-1]]?.records || []).length;
+        const prv = (state.db.months[allMonthsSorted[n-2]]?.records || []).length;
+        const d = cur - prv;
+        trendWord = d > 0 ? `較上月 ▲${d} 件` : d < 0 ? `較上月 ▼${Math.abs(d)} 件` : '與上月持平';
+      }
+      const topCrit = crit[0];
+      const execText = `本期共維修 ${fmt.int(kpis.totalRepairs)} 件${trendWord ? '（' + trendWord + '）' : ''}，報廢率 ${fmt.pct(kpis.scrapPct)}${kpis.scrapPct >= 5 ? '（⚠ 超過警戒線）' : '（正常範圍）'}。${topCrit ? `最高優先行動：${topCrit.title}——${topCrit.action || '請至對應頁面確認'}。` : '本期無緊急事項。'}`;
+      execBriefHtml = `<div class="exec-brief"><div class="eb-label">本月重點摘要</div><div class="eb-text">${escapeHtml(execText)}</div></div>`;
+    }
+
+    body.innerHTML = execBriefHtml + section('應立即追蹤', crit, 'critical') + section('本期應關注', warn, 'warn') + section('持續監控', info, 'info');
   }
 
   function updateAlertBadge() {
@@ -1883,7 +1976,7 @@ window.App = (function () {
     const noticeEl = $('batchNotice');
     if (noticeEl) {
       if (cond.known === 0 && orderPct < 0.5) {
-        noticeEl.innerHTML = `<div class="data-notice warn"><span class="dn-ico">⚠</span><div><strong>製令資料不完整，全新/整新分析暫停。</strong>目前僅 ${withOrder}/${total}（${Math.round(orderPct * 100)}%）筆有製令，且無單筆同時具備「製令＋製造日期」。<br>請工廠在 Excel 每張工作表加上「製令」欄位（出廠身分證，格式 YYMMDD+3碼序號），並保留「製造日期」，系統即可自動研判全新/整新與責任落點。</div></div>`;
+        noticeEl.innerHTML = `<div class="data-notice warn"><span class="dn-ico">📋</span><div><strong>全新/整新分析功能待解鎖</strong>——這是資料尚未齊備的預期狀態，系統邏輯已備好。<br><strong>解鎖步驟：</strong>① 請工廠在 Excel 每工作表加「製令品號」欄位（格式 YYMMDD+3碼，如 250410057）→ ② 保留「製造日期」欄位 → ③ 重新上傳，系統自動研判全新/整新與責任落點。<br><span class="muted">目前 ${withOrder}/${total}（${Math.round(orderPct*100)}%）筆有製令，同時具備「製令＋製造日期」：0 筆。</span></div></div>`;
         noticeEl.style.display = '';
       } else { noticeEl.style.display = 'none'; }
     }
@@ -2035,8 +2128,12 @@ window.App = (function () {
     });
 
     // Table
+    const allMonthCount = Object.keys(state.db.months).length || 1;
     const tbody = $('paretoBody');
-    tbody.innerHTML = pareto.slice(0, 200).map((p, i) => `
+    tbody.innerHTML = pareto.slice(0, 200).map((p, i) => {
+      const monthlyAvg = p.count / allMonthCount;
+      const suggestQty = Math.max(1, Math.ceil(monthlyAvg * 2));
+      return `
       <tr>
         <td class="num muted">${i + 1}</td>
         <td>${escapeHtml(p.name)}</td>
@@ -2051,9 +2148,13 @@ window.App = (function () {
             <div class="pnum">${(p.pct * 100).toFixed(1)}% / ${(p.cumPct * 100).toFixed(0)}%</div>
           </div>
         </td>
+        <td class="num" style="text-align:right">
+          <span style="color:var(--warn);font-weight:700">${suggestQty}</span>
+          <div class="muted" style="font-size:10px">月均 ${monthlyAvg.toFixed(1)}</div>
+        </td>
         <td><button class="btn sm" onclick="App.openPartFaultDrawer('${escapeAttr(p.name)}')">詳情</button></td>
-      </tr>
-    `).join('');
+      </tr>`;
+    }).join('');
   }
 
   // ─────────────── Cross-model matrix ───────────────
@@ -2235,6 +2336,43 @@ window.App = (function () {
         },
       },
     });
+
+    // MoM (Month-over-Month) summary table
+    const momEl = $('trendMomTable');
+    if (momEl && trend.length >= 2) {
+      const rows = trend.map((t, i) => {
+        if (i === 0) return null;
+        const prev = trend[i - 1];
+        const cntDelta = t.count - prev.count;
+        const rateDelta = (t.faultPct - prev.faultPct).toFixed(2);
+        const scrapDelta = t.scrap - prev.scrap;
+        const cntCls = cntDelta > 0 ? 'mom-up' : cntDelta < 0 ? 'mom-dn' : '';
+        const rateCls = parseFloat(rateDelta) > 0 ? 'mom-up' : parseFloat(rateDelta) < 0 ? 'mom-dn' : '';
+        const scrapCls = scrapDelta > 0 ? 'mom-up' : scrapDelta < 0 ? 'mom-dn' : '';
+        const fmt_delta = (n, unit='') => n === 0 ? `<span class="muted">—</span>` : `<span class="${n > 0 ? 'mom-up' : 'mom-dn'}">${n > 0 ? '▲' : '▼'}${Math.abs(n)}${unit}</span>`;
+        return `<tr>
+          <td>${fmt.monthLabel(t.month)}</td>
+          <td class="right">${t.count}</td>
+          <td class="right">${fmt_delta(cntDelta)}</td>
+          <td class="right">${t.faultPct.toFixed(2)}%</td>
+          <td class="right">${fmt_delta(parseFloat(rateDelta), '%')}</td>
+          <td class="right">${t.scrap}</td>
+          <td class="right">${fmt_delta(scrapDelta)}</td>
+        </tr>`;
+      }).filter(Boolean).reverse().join('');
+      momEl.innerHTML = `
+        <div class="section-title">月環比變化（最新月份在前）</div>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr>
+            <th>月份</th><th class="right">維修件數</th><th class="right">環比</th>
+            <th class="right">故障率</th><th class="right">環比</th>
+            <th class="right">報廢件數</th><th class="right">環比</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>`;
+    } else if (momEl) {
+      momEl.innerHTML = '';
+    }
   }
 
   // ─────────────── Reason ───────────────
@@ -2438,10 +2576,17 @@ window.App = (function () {
   function renderDetail() {
     const f = currentFilter();
     const allRecords = RepairAnalyzer.getRecords(state.db, f);
-    const sq = state.detailSearch || '';
+    const sq = (state.detailSearch || '').toLowerCase();
     const records = sq
-      ? allRecords.filter(r => (r.serial || '').toLowerCase().includes(sq.toLowerCase()) ||
-          (r.model || '').toLowerCase().includes(sq.toLowerCase()))
+      ? allRecords.filter(r =>
+          (r.serial || '').toLowerCase().includes(sq) ||
+          (r.model || '').toLowerCase().includes(sq) ||
+          (r.modelDisplay || '').toLowerCase().includes(sq) ||
+          (r.reason || '').toLowerCase().includes(sq) ||
+          (r.content || '').toLowerCase().includes(sq) ||
+          (r.part1 || '').toLowerCase().includes(sq) ||
+          (r.part2 || '').toLowerCase().includes(sq) ||
+          (r.part3 || '').toLowerCase().includes(sq))
       : allRecords;
     $('detailMeta').textContent = sq
       ? `搜尋「${sq}」：${records.length} 筆 / 共 ${allRecords.length.toLocaleString()} 筆`
@@ -2452,7 +2597,7 @@ window.App = (function () {
         <td class="num muted">${fmt.monthLabel(r._monthKey)}</td>
         <td class="num muted">${r.date || '—'}</td>
         <td><span style="font-family:var(--mono);font-weight:600">${r.model}</span></td>
-        <td class="num">${r.serial || '—'}</td>
+        <td class="num">${r.serial ? `<span style="cursor:pointer;color:var(--accent)" onclick="App.openSerialTimelineDrawer('${escapeAttr(r.serial)}')">${r.serial}</span>` : '—'}</td>
         <td>${r.isScrap ? `<span style="color:var(--critical);font-weight:600">${escapeHtml(r.reason || '報廢')}</span>` : escapeHtml(r.reason || '—')}</td>
         <td>${escapeHtml(r.content || '—')}</td>
         <td>
@@ -2463,6 +2608,49 @@ window.App = (function () {
     if (records.length > 500) {
       $('detailBody').innerHTML += `<tr><td colspan="7" style="text-align:center;color:var(--text3);font-size:12px;padding:14px">顯示前 500 筆 · 共 ${records.length.toLocaleString()} 筆 · 請使用篩選器縮小範圍</td></tr>`;
     }
+  }
+
+  function openSerialTimelineDrawer(serial) {
+    if (!serial) return;
+    const allMonthKeys = Object.keys(state.db.months).sort();
+    const visits = [];
+    for (const mk of allMonthKeys) {
+      const recs = state.db.months[mk]?.records || [];
+      for (const r of recs) {
+        if ((r.serial || '') === serial) {
+          visits.push({ ...r, _monthKey: mk });
+        }
+      }
+    }
+    visits.sort((a, b) => (a.date || '') < (b.date || '') ? -1 : 1);
+    const severity = visits.length >= 3 ? 'warn' : 'info';
+    const scrapVisits = visits.filter(v => v.isScrap);
+    const months = [...new Set(visits.map(v => v._monthKey))];
+    const firstDate = visits[0]?.date || visits[0]?._monthKey || '—';
+    const lastDate = visits[visits.length - 1]?.date || visits[visits.length - 1]?._monthKey || '—';
+    const timelineHtml = visits.map(v => {
+      const parts = [[v.part1, v.qty1],[v.part2, v.qty2],[v.part3, v.qty3]].filter(([p])=>p);
+      const partsHtml = parts.length ? parts.map(([p, q]) => `<span class="tag">${escapeHtml(p)}${q ? ` ×${q}` : ''}</span>`).join(' ') : '';
+      const scrapBadge = v.isScrap ? `<span style="font-size:10px;color:var(--critical);padding:1px 6px;border:1px solid var(--critical);border-radius:6px;margin-left:4px;font-weight:700">報廢</span>` : '';
+      return `<div class="dd-row" style="border-left:3px solid ${v.isScrap ? 'var(--critical)' : 'var(--accent)'};">
+        <div>
+          <div style="font-size:12px;color:var(--text3)">${fmt.monthLabel(v._monthKey)} · ${v.date || '—'}</div>
+          <div><span style="font-weight:600">${escapeHtml(v.model || '—')}</span>${scrapBadge}</div>
+          <div style="font-size:12px;color:var(--text2)">${escapeHtml(v.reason || '—')} ${v.content ? '· ' + escapeHtml(v.content) : ''}</div>
+          ${partsHtml ? `<div style="margin-top:4px">${partsHtml}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+    const summaryHtml = `<div style="margin-top:14px;padding:10px 12px;background:var(--bg2);border-radius:8px;font-size:12px;color:var(--text2)">
+      首次：${escapeHtml(firstDate)} · 最後：${escapeHtml(lastDate)} · 跨月：${months.length} 個月
+    </div>`;
+    openDrawer({
+      severity,
+      icon: '⇄',
+      overline: '序號追蹤',
+      title: `#${escapeHtml(serial)} 維修歷程（${visits.length} 次）`,
+      bodyHtml: visits.length ? timelineHtml + summaryHtml : `<div class="empty">無此序號記錄</div>`,
+    });
   }
 
   // ─────────────── Utils ───────────────
@@ -3161,7 +3349,49 @@ window.App = (function () {
             </tr>`;
           }).join('')}
           </tbody></table></div>
-          <div class="fmea-legend">S 嚴重度 × O 發生度 × D 偵測度 = RPN 風險優先數 · RPN≥200 極高 · ≥100 高 · ≥50 中 · <button class="btn sm" onclick="App.resetFmeaOverrides()" style="margin-left:8px">重置手動調整</button></div>`;
+          <div class="fmea-legend">S 嚴重度 × O 發生度 × D 偵測度 = RPN 風險優先數 · RPN≥200 極高 · ≥100 高 · ≥50 中 · <button class="btn sm" onclick="App.resetFmeaOverrides()" style="margin-left:8px">重置手動調整</button> <button class="btn sm" onclick="App.exportFmeaUnclassified()" style="margin-left:8px">⤓ 匯出未分類零件</button></div>`;
+
+    // HW: 元件料號頻次 Pareto（硬體研發視角 — 直接統計換件料號）
+    const hwPartEl = $('hwPartPareto');
+    if (hwPartEl) {
+      const pnoMap = {};
+      for (const r of records) {
+        for (const p of [r.part1, r.part2, r.part3].filter(Boolean)) {
+          const key = p.trim().toUpperCase();
+          if (!pnoMap[key]) pnoMap[key] = { count:0, scrap:0, models: new Set() };
+          pnoMap[key].count++;
+          if (r.isScrap) pnoMap[key].scrap++;
+          if (r.model) pnoMap[key].models.add(r.model);
+        }
+      }
+      const sorted = Object.entries(pnoMap).sort((a,b)=>b[1].count-a[1].count).slice(0,20);
+      if (sorted.length) {
+        const maxC = sorted[0][1].count;
+        hwPartEl.innerHTML = `
+          <div class="section-title">元件料號頻次分析（硬體研發視角）</div>
+          <div class="tbl-wrap"><table class="tbl">
+            <thead><tr><th>#</th><th>料號</th><th class="right">使用次數</th><th class="right">報廢次數</th><th class="right">報廢率</th><th>涉及機種</th></tr></thead>
+            <tbody>
+            ${sorted.map(([pno,d],i)=>{
+              const scrapPct = d.count ? (d.scrap/d.count*100).toFixed(0) : 0;
+              const scrapCls = d.scrap/Math.max(d.count,1) >= 0.3 ? 'color:var(--critical);font-weight:700' : '';
+              return `<tr>
+                <td class="num muted">${i+1}</td>
+                <td style="font-family:var(--mono);font-weight:600">${escapeHtml(pno)}</td>
+                <td class="right">${d.count}
+                  <div style="height:4px;background:var(--accent);border-radius:2px;margin-top:3px;width:${(d.count/maxC*100).toFixed(0)}%"></div>
+                </td>
+                <td class="right" style="${scrapCls}">${d.scrap}</td>
+                <td class="right" style="${scrapCls}">${scrapPct}%</td>
+                <td style="font-size:11px;color:var(--text2)">${[...d.models].slice(0,3).join(', ')}${d.models.size>3?'…':''}</td>
+              </tr>`;
+            }).join('')}
+            </tbody>
+          </table></div>`;
+      } else {
+        hwPartEl.innerHTML = '';
+      }
+    }
 
     // Root cause tree
     const tree = RepairAnalyzer.rootCauseTree(records);
@@ -3181,6 +3411,78 @@ window.App = (function () {
             ${t.topModes.map(m => `<span class="rct-mode">${escapeHtml(m.mode)} <em>${m.count}</em></span>`).join('')}
           </div>
         </div>`).join('');
+
+    // Data quality coverage panel
+    renderDataQualityPanel(records);
+  }
+
+  function renderDataQualityPanel(records) {
+    const dqEl = $('dataQualityPanel');
+    if (!dqEl) return;
+    const total = records.length;
+    if (total === 0) { dqEl.innerHTML = ''; return; }
+
+    const hasOrder = records.filter(r => r.orderMonth).length;
+    const hasMfgDate = records.filter(r => r.mfg).length;
+    const hasBoth = records.filter(r => r.orderMonth && r.mfg).length;
+    const invalidOrder = records.filter(r => r.batch && !r.orderMonth).length;
+    const hasPart = records.filter(r => r.part1 || r.part2 || r.part3).length;
+    const unclassifiedParts = records.filter(r => {
+      const parts = [r.part1, r.part2, r.part3].filter(Boolean);
+      return parts.length > 0 && parts.every(p => RepairAnalyzer.classifyFault(p) === '其他/未分類');
+    }).length;
+    const allMonths = Object.keys(state.db.months).sort();
+    const costCfg = loadCostCfg();
+    const capaList = loadCapa();
+    const copqEnabled = costCfg && (costCfg.scrapDefault > 0 || Object.keys(costCfg.models || {}).length > 0);
+
+    const pct = n => total > 0 ? (n / total * 100).toFixed(1) + '%' : '—';
+    const statusCls = (n, warn, bad) => n >= bad ? 'dq-bad' : n >= warn ? 'dq-warn' : 'dq-ok';
+
+    dqEl.innerHTML = `
+      <div class="section-title">資料品質覆蓋率</div>
+      <div class="dq-grid">
+        <div class="dq-item">
+          <div class="dq-label">總記錄筆數</div>
+          <div class="dq-val">${total.toLocaleString()}</div>
+          <div class="dq-sub">${allMonths.length} 個月</div>
+        </div>
+        <div class="dq-item ${statusCls(100 - hasOrder/total*100, 30, 70)}">
+          <div class="dq-label">製令覆蓋率</div>
+          <div class="dq-val">${pct(hasOrder)}</div>
+          <div class="dq-sub">${hasOrder} / ${total} 筆具備製令</div>
+        </div>
+        <div class="dq-item ${statusCls(100 - hasMfgDate/total*100, 30, 70)}">
+          <div class="dq-label">製造日期覆蓋率</div>
+          <div class="dq-val">${pct(hasMfgDate)}</div>
+          <div class="dq-sub">${hasMfgDate} / ${total} 筆具備製造日期（整新日期）</div>
+        </div>
+        <div class="dq-item ${hasBoth === 0 ? 'dq-bad' : 'dq-ok'}">
+          <div class="dq-label">全新/整新判定率</div>
+          <div class="dq-val">${pct(hasBoth)}</div>
+          <div class="dq-sub">${hasBoth > 0 ? `${hasBoth} 筆可判定` : '⚠ 補齊後自動啟用'}</div>
+        </div>
+        <div class="dq-item ${invalidOrder > 0 ? 'dq-warn' : 'dq-ok'}">
+          <div class="dq-label">無效製令筆數</div>
+          <div class="dq-val">${invalidOrder}</div>
+          <div class="dq-sub">${invalidOrder > 0 ? '格式不符，無法解析' : '無異常'}</div>
+        </div>
+        <div class="dq-item ${statusCls(hasPart < total * 0.7 ? 50 : unclassifiedParts/Math.max(hasPart,1)*100, 20, 40)}">
+          <div class="dq-label">故障部位未分類率</div>
+          <div class="dq-val">${hasPart > 0 ? pct(unclassifiedParts) : '—'}</div>
+          <div class="dq-sub">${unclassifiedParts} 筆落入「其他/未分類」</div>
+        </div>
+        <div class="dq-item ${copqEnabled ? 'dq-ok' : 'dq-bad'}">
+          <div class="dq-label">COPQ 成本設定</div>
+          <div class="dq-val">${copqEnabled ? '已啟用' : '未設定'}</div>
+          <div class="dq-sub">${copqEnabled ? '品質成本計算中' : '點右上角⚙設定單價'}</div>
+        </div>
+        <div class="dq-item ${capaList.length > 0 ? 'dq-ok' : 'dq-warn'}">
+          <div class="dq-label">CAPA 使用狀態</div>
+          <div class="dq-val">${capaList.length > 0 ? capaList.length + ' 項' : '尚未建立'}</div>
+          <div class="dq-sub">${capaList.filter(c=>c.status!=='closed').length} 項進行中</div>
+        </div>
+      </div>`;
   }
 
   // ═══════════════ CAPA store + render ═══════════════
@@ -3245,18 +3547,57 @@ window.App = (function () {
     }).join('')}</div>`;
   }
 
-  function openCapaForm() {
+  function openCapaForm(prefill) {
+    // prefill: { problem, action, severity } — 來自 findings 一鍵建立
+    const p = prefill || {};
+    const defaultDue = new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10);
+    openDrawer({
+      severity: p.severity === 'critical' ? 'critical' : 'warn',
+      icon: '✓', overline: 'CAPA', title: '新增矯正預防措施',
+      bodyHtml: `
+        <div class="cc-grid">
+          <div class="cc-row" style="grid-column:1/-1"><label>問題描述 <span style="color:var(--critical)">*</span></label>
+            <textarea id="capa_problem" class="ls-input" rows="3" style="resize:vertical">${escapeHtml(p.problem || '')}</textarea></div>
+          <div class="cc-row" style="grid-column:1/-1"><label>矯正措施 / 行動計畫</label>
+            <textarea id="capa_action" class="ls-input" rows="3" style="resize:vertical">${escapeHtml(p.action || '')}</textarea></div>
+          <div class="cc-row"><label>負責人</label><input id="capa_owner" class="ls-input" placeholder="姓名或部門"></div>
+          <div class="cc-row"><label>截止日</label><input id="capa_due" type="date" class="ls-input" value="${defaultDue}"></div>
+          <div class="cc-row" style="grid-column:1/-1"><label>嚴重度</label>
+            <select id="capa_sev" class="ls-input">
+              <option value="critical" ${(p.severity==='critical')?'selected':''}>嚴重 — 立即處理</option>
+              <option value="warn" ${(!p.severity||p.severity==='warn')?'selected':''}>警示 — 本期內處理</option>
+              <option value="info">追蹤 — 持續監控</option>
+            </select></div>
+          <div class="cc-row" style="grid-column:1/-1"><label>關聯 RMA 單號（選填）</label>
+            <input id="capa_rma" class="ls-input" placeholder="例 RMA-20260401-001"></div>
+        </div>
+        <div style="margin-top:20px;display:flex;gap:10px">
+          <button class="btn primary" onclick="App.saveCapaForm()">建立 CAPA</button>
+          <button class="btn" onclick="App.closeDrawer()">取消</button>
+        </div>`,
+    });
+  }
+
+  function saveCapaForm() {
+    const problem = document.getElementById('capa_problem')?.value?.trim();
+    if (!problem) { alert('問題描述為必填'); return; }
     const id = 'C' + Date.now().toString().slice(-6);
-    const problem = prompt('問題描述（必填）：');
-    if (!problem) return;
-    const owner = prompt('負責人：') || '';
-    const due = prompt('截止日 (YYYY-MM-DD)：') || '';
-    const action = prompt('矯正措施：') || '';
-    const linkRma = prompt('關聯 RMA 單號（可空白）：') || '';
     const list = loadCapa();
-    list.unshift({ id, problem, owner, due, action, linkRma, status: 'open', created: new Date().toISOString() });
+    list.unshift({
+      id,
+      problem,
+      action: document.getElementById('capa_action')?.value?.trim() || '',
+      owner: document.getElementById('capa_owner')?.value?.trim() || '',
+      due: document.getElementById('capa_due')?.value || '',
+      severity: document.getElementById('capa_sev')?.value || 'warn',
+      linkRma: document.getElementById('capa_rma')?.value?.trim() || '',
+      status: 'open',
+      created: new Date().toISOString(),
+    });
     saveCapa(list);
-    renderCapa();
+    closeDrawer();
+    switchPage('capa');
+    updateSummaryBadge();
   }
   function setCapaStatus(id, status) {
     const list = loadCapa();
@@ -3320,6 +3661,11 @@ window.App = (function () {
     if (!cost.configured) {
       const scrapN = records.filter(r => r.isScrap).length;
       $('costContent').innerHTML = `
+        <div class="onboard-steps">
+          <div class="ob-step ob-active"><span class="ob-num">1</span><span>填入概略單價</span></div>
+          <div class="ob-step"><span class="ob-num">2</span><span>點「立即估算」</span></div>
+          <div class="ob-step"><span class="ob-num">3</span><span>看到本期 COPQ 金額</span></div>
+        </div>
         <div class="card sec">
           <div class="card-h"><div class="card-t">⚡ 快速估算模式（5 分鐘上線）</div></div>
           <div class="card-sub" style="margin:4px 0 14px">先填三個概略單價即可立刻看到本期品質成本(COPQ)估算，不需逐類別細設。日後可再用右上角「⚙ 單價設定」精算。</div>
@@ -3496,16 +3842,71 @@ window.App = (function () {
     URL.revokeObjectURL(url);
   }
 
+  function exportDetailCsv() {
+    const f = currentFilter();
+    const allRecords = RepairAnalyzer.getRecords(state.db, f);
+    const sq = (state.detailSearch || '').toLowerCase();
+    const records = sq
+      ? allRecords.filter(r =>
+          (r.serial || '').toLowerCase().includes(sq) ||
+          (r.model || '').toLowerCase().includes(sq) ||
+          (r.reason || '').toLowerCase().includes(sq) ||
+          (r.content || '').toLowerCase().includes(sq) ||
+          (r.part1 || '').toLowerCase().includes(sq) ||
+          (r.part2 || '').toLowerCase().includes(sq) ||
+          (r.part3 || '').toLowerCase().includes(sq))
+      : allRecords;
+    const rows = [['月份','日期','機種','序號','故障原因','故障內容','是否報廢','製令','製造日期','零件一','數量一','零件二','數量二','零件三','數量三']];
+    for (const r of records) {
+      rows.push([
+        r._monthKey || '', r.date || '', r.modelDisplay || r.model || '', r.serial || '',
+        r.reason || '', r.content || '', r.isScrap ? '是' : '否',
+        r.batch || '', r.mfg || '',
+        r.part1 || '', r.qty1 || '', r.part2 || '', r.qty2 || '', r.part3 || '', r.qty3 || '',
+      ]);
+    }
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `維修明細${sq ? '_' + sq : ''}_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportFmeaUnclassified() {
+    const f = currentFilter();
+    const records = RepairAnalyzer.getRecords(state.db, f);
+    const unclassified = records.filter(r => {
+      const parts = [r.part1, r.part2, r.part3].filter(Boolean);
+      return parts.length === 0 || parts.some(p => RepairAnalyzer.classifyFault(p) === '其他/未分類');
+    });
+    if (unclassified.length === 0) { alert('目前篩選範圍內無「其他/未分類」零件記錄'); return; }
+    const rows = [['序號','月份','機種','故障描述1','故障描述2','故障描述3','維修說明']];
+    for (const r of unclassified) {
+      rows.push([r.serial || '', r._monthKey || '', r.modelDisplay || r.model || '', r.part1 || '', r.part2 || '', r.part3 || '', r.note || '']);
+    }
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `FMEA未分類零件_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   // ─────────────── Init ───────────────
   async function init() {
-    // 1. Fetch cloud data first (needed to seed users before login screen)
-    const cloud = await syncCloud();
-    // 2. Boot auth — merges cloud users and shows login screen (or restores session)
-    const loggedIn = await Auth.boot(cloud ? cloud.users : null);
-    // 3. Set up rest of app
+    // Auth 停用：直接進入主畫面
+    await syncCloud();
     setupUpload();
     state.db = RepairDB.load();
-    if (loggedIn) renderUploadList();
+    renderUploadList();
+    try { onAuthSuccess(); } catch(e) {
+      document.getElementById('uploadZone').style.display = 'flex';
+    }
     // Escape key closes drawer
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape' && $('drawer').classList.contains('open')) closeDrawer();
@@ -3523,14 +3924,14 @@ window.App = (function () {
     toggleNav, closeNav, setDisplaySize,
     setMonth, setCategory, setModel,
     setAnalysisRole,
-    openCapaForm, setCapaStatus, deleteCapa,
+    openCapaForm, saveCapaForm, setCapaStatus, deleteCapa,
     openCostConfig, saveCostConfig, quickEstimateCost,
     toggleRank, toggleRankRow,
     dismissAlertPulse, dismissCrossMonthPulse,
     generateReport: () => RepairReport.generate(state.db),
     exportCrossMatrix,
     // Drawer
-    openKpiDrawer, openAnomalyDrawer, openPartDrawer, openModelDrawer, openSerialDrawer,
+    openKpiDrawer, openAnomalyDrawer, openPartDrawer, openModelDrawer, openSerialDrawer, openSerialTimelineDrawer,
     closeDrawer,
     // New functions
     searchDetail,
@@ -3538,6 +3939,8 @@ window.App = (function () {
     saveFmeaOverride,
     resetFmeaOverrides,
     exportCostCsv,
+    exportDetailCsv,
+    exportFmeaUnclassified,
   };
 })();
 
@@ -3552,8 +3955,15 @@ window.Auth = (function () {
   // ─── Crypto ───
   async function hashPwd(username, password) {
     const raw = username + ':' + password;
-    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
-    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    // crypto.subtle requires secure context (HTTPS/localhost); fallback for file:// or older mobile
+    if (crypto && crypto.subtle) {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+    // Fallback: deterministic hash for non-secure contexts (file://)
+    let h = 5381;
+    for (let i = 0; i < raw.length; i++) h = ((h << 5) + h) ^ raw.charCodeAt(i);
+    return 'fb_' + (h >>> 0).toString(16).padStart(8, '0');
   }
 
   // ─── Users storage ───
@@ -3654,34 +4064,38 @@ window.Auth = (function () {
     const adminBtn = document.getElementById('adminPanelBtn');
     if (adminBtn) adminBtn.style.display = session.isAdmin ? '' : 'none';
     // Trigger app restore (defined in index.html inline script)
-    if (typeof onAuthSuccess === 'function') onAuthSuccess();
+    try {
+      if (typeof onAuthSuccess === 'function') onAuthSuccess();
+    } catch(e) {
+      // Fallback: show upload zone if onAuthSuccess fails
+      const uz = document.getElementById('uploadZone');
+      if (uz) uz.style.display = 'flex';
+    }
   }
 
   // ─── Auth actions ───
+  // 無密碼模式：只需輸入帳號（工號）即可登入
   async function doLogin() {
     const username = document.getElementById('loginUser').value.trim();
-    const password = document.getElementById('loginPwd').value;
     const errEl = document.getElementById('loginErr');
     errEl.textContent = '';
 
-    if (!username || !password) { errEl.textContent = '請輸入帳號與密碼'; return; }
+    if (!username) { errEl.textContent = '請輸入帳號（工號）'; return; }
 
-    const users = loadUsers();
-    const u = users[username];
-    if (!u) { errEl.textContent = '帳號不存在，請聯繫管理員'; return; }
+    // admin 帳號永遠允許
+    const isAdmin = (username === ADMIN_ID);
 
-    const hash = await hashPwd(username, password);
-    if (hash !== u.hash) { errEl.textContent = '密碼錯誤'; return; }
-
-    // Login OK
-    setSession(username, u.isAdmin);
-
-    if (u.mustChange) {
-      showChangePw(true);
-      return;
+    // 非 admin 帳號：從 users 清單確認是否存在
+    if (!isAdmin) {
+      const users = loadUsers();
+      if (!users[username]) {
+        errEl.textContent = '帳號不存在，請聯繫管理員';
+        return;
+      }
     }
 
-    showMainUI({ username, isAdmin: u.isAdmin });
+    setSession(username, isAdmin);
+    showMainUI({ username, isAdmin });
   }
 
   async function doChangePw() {
