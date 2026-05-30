@@ -2102,6 +2102,26 @@ html[data-fontscale="sm"] body { zoom: 1; }
 html[data-fontscale="md"] body { zoom: 1.12; }   /* 預設：適合長輩 */
 html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
 
+/* 系統控制群組（字級 + 深淺色，放同一組） */
+.sys-ctl-group {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 3px 8px 3px 4px;
+}
+.sys-ctl-group .fontsize-ctl {
+  background: none; border: none; border-radius: 0; padding: 0;
+}
+.sys-ctl-group .theme-toggle {
+  background: none; border: none; box-shadow: none;
+  padding: 4px 6px; font-size: 13px; font-weight: 600;
+  color: var(--text2); border-radius: 6px;
+}
+.sys-ctl-group .theme-toggle:hover { background: var(--hover); color: var(--text); }
+/* 字級與主題之間的細分隔線 */
+.sys-ctl-group::after {
+  display: none; /* 已整合，不需要分隔線 */
+}
+
 /* 顯示大小切換控制 */
 .fontsize-ctl {
   display: inline-flex; align-items: center; gap: 2px;

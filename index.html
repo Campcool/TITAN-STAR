@@ -62,7 +62,15 @@ document.addEventListener('DOMContentLoaded', function(){
   </div>
   <div class="mode-bar-r" id="modeBtns">
     <span class="mode-bar-user" id="modeBarUser"></span>
-    <button class="btn theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="切換色系">🌙 深色</button>
+    <div class="sys-ctl-group">
+      <div class="fontsize-ctl" role="group" aria-label="顯示大小">
+        <span class="fsc-label">字級</span>
+        <button class="fsc-btn" data-size="sm" onclick="App.setDisplaySize('sm')" title="標準">標準</button>
+        <button class="fsc-btn" data-size="md" onclick="App.setDisplaySize('md')" title="大">大</button>
+        <button class="fsc-btn" data-size="lg" onclick="App.setDisplaySize('lg')" title="特大">特大</button>
+      </div>
+      <button class="btn theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="切換色系">🌙 深色</button>
+    </div>
     <button class="btn" id="adminPanelBtn" style="display:none" onclick="Auth.openAdminPanel()">⚙ 帳號管理</button>
   </div>
 </div>
@@ -128,12 +136,6 @@ document.addEventListener('DOMContentLoaded', function(){
       <div class="hdr-t"><span class="sub" id="hdrSub"></span></div>
     </div>
     <div class="hdr-r">
-      <div class="fontsize-ctl" role="group" aria-label="顯示大小">
-        <span class="fsc-label">字級</span>
-        <button class="fsc-btn" data-size="sm" onclick="App.setDisplaySize('sm')" title="標準">標準</button>
-        <button class="fsc-btn" data-size="md" onclick="App.setDisplaySize('md')" title="大">大</button>
-        <button class="fsc-btn" data-size="lg" onclick="App.setDisplaySize('lg')" title="特大">特大</button>
-      </div>
       <button class="btn hide-sm" onclick="RepairReport.generate(RepairDB.load())">⤓ 生成報告</button>
       <button class="btn hide-sm" onclick="switchMode('rma')">◎ RMA管理</button>
       <button class="btn danger" onclick="App.openUpload()">上傳 / 管理</button>
