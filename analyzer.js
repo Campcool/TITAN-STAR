@@ -15,9 +15,9 @@
       if (!m) continue;
       for (const r of m.records) {
         // 正規化 model key（向下相容舊版 data.json，去除連字號/底線/空格）
-        const modelKey = r.model ? r.model.replace(/[-_\s]/g, '') : r.model;
+        const modelKey = normalizeModel(r.model);
         if (category && category !== '全部' && r.category !== category) continue;
-        if (model && model !== '全部' && modelKey !== model.replace(/[-_\s]/g, '')) continue;
+        if (model && model !== '全部' && modelKey !== normalizeModel(model)) continue;
         if (dateFrom && r.date && r.date < dateFrom) continue;
         if (dateTo && r.date && r.date > dateTo) continue;
         if (scrapOnly && !r.isScrap) continue;
@@ -41,7 +41,7 @@
       byMonthModel[mk] = m.denominators || {};
       for (const [model, n] of Object.entries(m.denominators || {})) {
         // 正規化 key，與 record.model 對齊（去除連字號/底線/空格）
-        const key = model.replace(/[-_\s]/g, '');
+        const key = normalizeModel(model);
         byModel[key] = (byModel[key] || 0) + n;
       }
     }
@@ -162,8 +162,13 @@
         result.history = monthKeys.map(mk => {
           const m = db.months[mk];
           if (!m) return { month: mk, count: 0, denom: 0, faultRate: null };
-          const recs = m.records.filter(r => (r.model ? r.model.replace(/[-_\s]/g, '') : r.model) === e.model);
-          const den = m.denominators[e.model] || m.denominators[e.model.replace(/[-_\s]/g, '')] || 0;
+          const recs = m.records.filter(r => normalizeModel(r.model) === e.model);
+          let den = m.denominators[e.model] || 0;
+          if (!den) {
+            for (const [dk, dv] of Object.entries(m.denominators || {})) {
+              if (normalizeModel(dk) === e.model) { den = dv; break; }
+            }
+          }
           return {
             month: mk,
             count: recs.length,
@@ -1024,9 +1029,152 @@
     return { list, total };
   }
 
+  // ════════════════════════════════════════════════════════════════════
+  // 型號名稱稽核（資料品質）
+  //   合併規則分兩級：
+  //   (1) 可判斷 → 自動合併：大小寫、連字號/底線/空格差異（語意上必為同型號）
+  //   (2) 無法判斷 → 警示請填寫人員修正：易混淆字元（O↔0、I↔1…）或僅差一兩個
+  //       字元的相似名稱（可能是輸入錯誤，也可能真的是不同型號，系統不擅自合併）
+  // ════════════════════════════════════════════════════════════════════
+
+  // 唯一真實來源：型號正規化（自動合併「可判斷」差異）
+  const MODEL_STRIP_RE = /[-_\s]/g;
+  function normalizeModel(raw) {
+    if (raw == null) return '';
+    return String(raw).toUpperCase().replace(MODEL_STRIP_RE, '');
+  }
+
+  // 易混淆字元折疊 — 僅供「相似度比對」，不改變實際儲存 key
+  const CONFUSE_MAP = { O:'0', Q:'0', D:'0', I:'1', L:'1', S:'5', B:'8', Z:'2', G:'6' };
+  function confusableFold(key) {
+    let out = '';
+    for (const ch of key) out += (CONFUSE_MAP[ch] || ch);
+    return out;
+  }
+
+  function levenshtein(a, b) {
+    const m = a.length, n = b.length;
+    if (!m) return n;
+    if (!n) return m;
+    let prev = Array.from({ length: n + 1 }, (_, i) => i);
+    for (let i = 1; i <= m; i++) {
+      const cur = [i];
+      for (let j = 1; j <= n; j++) {
+        cur[j] = Math.min(
+          prev[j] + 1,
+          cur[j - 1] + 1,
+          prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+        );
+      }
+      prev = cur;
+    }
+    return prev[n];
+  }
+
+  function auditModels(db) {
+    const info = new Map(); // canonicalKey → 聚合資訊
+    const ensure = (key) => {
+      if (!info.has(key)) {
+        info.set(key, {
+          key,
+          variants: new Map(), // 原始顯示寫法 → 件數
+          count: 0,
+          months: new Set(),
+          sheets: new Set(),
+          inRecords: false,
+          inDenom: false,
+        });
+      }
+      return info.get(key);
+    };
+
+    for (const [mk, m] of Object.entries((db && db.months) || {})) {
+      for (const r of (m.records || [])) {
+        const key = normalizeModel(r.model);
+        if (!key) continue;
+        const e = ensure(key);
+        e.inRecords = true;
+        e.count++;
+        e.months.add(mk);
+        if (r.sheet) e.sheets.add(r.sheet);
+        const raw = String(r.modelDisplay || r.modelRaw || r.model || '').trim();
+        if (raw) e.variants.set(raw, (e.variants.get(raw) || 0) + 1);
+      }
+      for (const dk of Object.keys(m.denominators || {})) {
+        const key = normalizeModel(dk);
+        if (!key) continue;
+        const e = ensure(key);
+        e.inDenom = true;
+        e.months.add(mk);
+        const raw = String(dk).trim();
+        if (raw && !e.variants.has(raw)) e.variants.set(raw, 0);
+      }
+    }
+
+    const keys = [...info.keys()];
+
+    // (1) 已自動合併：同一 key 下有多種原始寫法（僅資訊，不需動作）
+    const merged = [];
+    for (const e of info.values()) {
+      const distinct = [...e.variants.keys()].filter(Boolean);
+      if (distinct.length > 1) {
+        merged.push({
+          key: e.key,
+          count: e.count,
+          months: [...e.months].sort(),
+          variants: [...e.variants.entries()]
+            .map(([raw, c]) => ({ raw, count: c }))
+            .sort((a, b) => b.count - a.count),
+        });
+      }
+    }
+    merged.sort((a, b) => b.count - a.count);
+
+    // (2) 疑似同型號但系統無法確定 → 請填寫人員確認
+    const suspicious = [];
+    for (let i = 0; i < keys.length; i++) {
+      for (let j = i + 1; j < keys.length; j++) {
+        const a = keys[i], b = keys[j];
+        const fa = confusableFold(a), fb = confusableFold(b);
+        let reason = null, confidence = null;
+        if (fa === fb) {
+          reason = '只差易混淆字元（如 O↔0、I↔1、S↔5、B↔8），可能是同一型號被打成兩種寫法';
+          confidence = 'high';
+        } else if (Math.abs(a.length - b.length) <= 1) {
+          const maxLen = Math.max(a.length, b.length);
+          const dist = levenshtein(a, b);
+          if (maxLen >= 4 && dist === 1) {
+            reason = '名稱僅差一個字元，疑似輸入錯誤';
+            confidence = 'medium';
+          } else if (maxLen >= 6 && dist === 2) {
+            reason = '名稱差兩個字元，可能為同型號的不同寫法';
+            confidence = 'low';
+          }
+        }
+        if (!reason) continue;
+        const ea = info.get(a), eb = info.get(b);
+        suspicious.push({
+          a: { key: a, count: ea.count, months: [...ea.months].sort(), sheets: [...ea.sheets] },
+          b: { key: b, count: eb.count, months: [...eb.months].sort(), sheets: [...eb.sheets] },
+          reason,
+          confidence,
+        });
+      }
+    }
+    const cw = { high: 0, medium: 1, low: 2 };
+    suspicious.sort((x, y) =>
+      (cw[x.confidence] - cw[y.confidence]) ||
+      ((y.a.count + y.b.count) - (x.a.count + x.b.count))
+    );
+
+    return { merged, suspicious, totalModels: keys.length };
+  }
+
   // Expose
   window.RepairAnalyzer = {
     getRecords,
+    normalizeModel,
+    auditModels,
     getDenominators,
     computeKPIs,
     partPareto,

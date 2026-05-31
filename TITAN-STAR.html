@@ -2719,6 +2719,67 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
   .dmn-tab { padding: 6px 10px !important; font-size: 13px !important; }
 }
 
+/* ───────── 型號名稱稽核 ───────── */
+.mq-block {
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 10px 0 16px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+}
+.mq-block-warn {
+  border-color: rgba(245, 158, 11, .45);
+  background: rgba(245, 158, 11, .08);
+}
+.mq-block-ok {
+  border-color: var(--border);
+  background: var(--surface2);
+}
+.mq-h { font-weight: 700; font-size: 15px; margin-bottom: 6px; }
+.mq-block-warn .mq-h { color: var(--warn, #f59e0b); }
+.mq-note { font-size: 12.5px; color: var(--text2); line-height: 1.6; margin-bottom: 12px; }
+.mq-list { display: flex; flex-direction: column; gap: 10px; }
+.mq-pair {
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border-left: 4px solid var(--border2);
+}
+.mq-pair.mq-bad  { border-left-color: var(--critical, #ef4444); }
+.mq-pair.mq-warn { border-left-color: var(--warn, #f59e0b); }
+.mq-pair.mq-info { border-left-color: var(--info, #38bdf8); }
+.mq-pair-keys { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mq-key {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 700; font-size: 15px;
+  background: var(--surface2);
+  padding: 3px 10px; border-radius: 7px;
+}
+.mq-vs { color: var(--text2); font-weight: 700; }
+.mq-conf {
+  margin-left: auto; font-size: 11px; font-weight: 700;
+  padding: 2px 9px; border-radius: 999px;
+  background: var(--surface2); color: var(--text2);
+}
+.mq-pair.mq-bad  .mq-conf { background: rgba(239,68,68,.15);  color: var(--critical, #ef4444); }
+.mq-pair.mq-warn .mq-conf { background: rgba(245,158,11,.15); color: var(--warn, #f59e0b); }
+.mq-reason { font-size: 12.5px; color: var(--text); margin: 7px 0 5px; }
+.mq-meta { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 11.5px; color: var(--text2); }
+.mq-merged { display: flex; flex-direction: column; gap: 7px; }
+.mq-merged-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+.mq-arrow { color: var(--text2); }
+.mq-variants code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px; background: var(--surface); padding: 2px 7px;
+  border-radius: 6px; margin-right: 4px;
+}
+@media (max-width: 820px) {
+  .mq-block { padding: 12px 13px !important; }
+  .mq-key { font-size: 13px !important; }
+  .mq-conf { margin-left: 0 !important; }
+  .mq-meta { flex-direction: column !important; gap: 3px !important; }
+}
+
 </style>
 <style>
 /* ════════════════════════════════════════════════════════════════════
@@ -3492,6 +3553,8 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
             <div class="page-meta" id="overviewMeta"></div>
           </div>
           <div class="page-usage"><span class="pu-ico">💡</span><span><b>使用時機：</b>每次匯入新資料後的第一站，先看當期維修 KPI、機種故障率排名與最常更換零件，建立整體概況再深入各分頁。</span></div>
+          <!-- 型號名稱稽核警示 -->
+          <div id="modelAuditBanner"></div>
           <!-- Role Insight Panel -->
           <div class="ri-panel" id="roleInsightPanel"></div>
           <div class="kpi-grid" id="kpiGrid"></div>
@@ -4374,9 +4437,9 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
       if (!m) continue;
       for (const r of m.records) {
         // 正規化 model key（向下相容舊版 data.json，去除連字號/底線/空格）
-        const modelKey = r.model ? r.model.replace(/[-_\s]/g, '') : r.model;
+        const modelKey = normalizeModel(r.model);
         if (category && category !== '全部' && r.category !== category) continue;
-        if (model && model !== '全部' && modelKey !== model.replace(/[-_\s]/g, '')) continue;
+        if (model && model !== '全部' && modelKey !== normalizeModel(model)) continue;
         if (dateFrom && r.date && r.date < dateFrom) continue;
         if (dateTo && r.date && r.date > dateTo) continue;
         if (scrapOnly && !r.isScrap) continue;
@@ -4400,7 +4463,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
       byMonthModel[mk] = m.denominators || {};
       for (const [model, n] of Object.entries(m.denominators || {})) {
         // 正規化 key，與 record.model 對齊（去除連字號/底線/空格）
-        const key = model.replace(/[-_\s]/g, '');
+        const key = normalizeModel(model);
         byModel[key] = (byModel[key] || 0) + n;
       }
     }
@@ -4521,8 +4584,13 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
         result.history = monthKeys.map(mk => {
           const m = db.months[mk];
           if (!m) return { month: mk, count: 0, denom: 0, faultRate: null };
-          const recs = m.records.filter(r => (r.model ? r.model.replace(/[-_\s]/g, '') : r.model) === e.model);
-          const den = m.denominators[e.model] || m.denominators[e.model.replace(/[-_\s]/g, '')] || 0;
+          const recs = m.records.filter(r => normalizeModel(r.model) === e.model);
+          let den = m.denominators[e.model] || 0;
+          if (!den) {
+            for (const [dk, dv] of Object.entries(m.denominators || {})) {
+              if (normalizeModel(dk) === e.model) { den = dv; break; }
+            }
+          }
           return {
             month: mk,
             count: recs.length,
@@ -5383,9 +5451,152 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
     return { list, total };
   }
 
+  // ════════════════════════════════════════════════════════════════════
+  // 型號名稱稽核（資料品質）
+  //   合併規則分兩級：
+  //   (1) 可判斷 → 自動合併：大小寫、連字號/底線/空格差異（語意上必為同型號）
+  //   (2) 無法判斷 → 警示請填寫人員修正：易混淆字元（O↔0、I↔1…）或僅差一兩個
+  //       字元的相似名稱（可能是輸入錯誤，也可能真的是不同型號，系統不擅自合併）
+  // ════════════════════════════════════════════════════════════════════
+
+  // 唯一真實來源：型號正規化（自動合併「可判斷」差異）
+  const MODEL_STRIP_RE = /[-_\s]/g;
+  function normalizeModel(raw) {
+    if (raw == null) return '';
+    return String(raw).toUpperCase().replace(MODEL_STRIP_RE, '');
+  }
+
+  // 易混淆字元折疊 — 僅供「相似度比對」，不改變實際儲存 key
+  const CONFUSE_MAP = { O:'0', Q:'0', D:'0', I:'1', L:'1', S:'5', B:'8', Z:'2', G:'6' };
+  function confusableFold(key) {
+    let out = '';
+    for (const ch of key) out += (CONFUSE_MAP[ch] || ch);
+    return out;
+  }
+
+  function levenshtein(a, b) {
+    const m = a.length, n = b.length;
+    if (!m) return n;
+    if (!n) return m;
+    let prev = Array.from({ length: n + 1 }, (_, i) => i);
+    for (let i = 1; i <= m; i++) {
+      const cur = [i];
+      for (let j = 1; j <= n; j++) {
+        cur[j] = Math.min(
+          prev[j] + 1,
+          cur[j - 1] + 1,
+          prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+        );
+      }
+      prev = cur;
+    }
+    return prev[n];
+  }
+
+  function auditModels(db) {
+    const info = new Map(); // canonicalKey → 聚合資訊
+    const ensure = (key) => {
+      if (!info.has(key)) {
+        info.set(key, {
+          key,
+          variants: new Map(), // 原始顯示寫法 → 件數
+          count: 0,
+          months: new Set(),
+          sheets: new Set(),
+          inRecords: false,
+          inDenom: false,
+        });
+      }
+      return info.get(key);
+    };
+
+    for (const [mk, m] of Object.entries((db && db.months) || {})) {
+      for (const r of (m.records || [])) {
+        const key = normalizeModel(r.model);
+        if (!key) continue;
+        const e = ensure(key);
+        e.inRecords = true;
+        e.count++;
+        e.months.add(mk);
+        if (r.sheet) e.sheets.add(r.sheet);
+        const raw = String(r.modelDisplay || r.modelRaw || r.model || '').trim();
+        if (raw) e.variants.set(raw, (e.variants.get(raw) || 0) + 1);
+      }
+      for (const dk of Object.keys(m.denominators || {})) {
+        const key = normalizeModel(dk);
+        if (!key) continue;
+        const e = ensure(key);
+        e.inDenom = true;
+        e.months.add(mk);
+        const raw = String(dk).trim();
+        if (raw && !e.variants.has(raw)) e.variants.set(raw, 0);
+      }
+    }
+
+    const keys = [...info.keys()];
+
+    // (1) 已自動合併：同一 key 下有多種原始寫法（僅資訊，不需動作）
+    const merged = [];
+    for (const e of info.values()) {
+      const distinct = [...e.variants.keys()].filter(Boolean);
+      if (distinct.length > 1) {
+        merged.push({
+          key: e.key,
+          count: e.count,
+          months: [...e.months].sort(),
+          variants: [...e.variants.entries()]
+            .map(([raw, c]) => ({ raw, count: c }))
+            .sort((a, b) => b.count - a.count),
+        });
+      }
+    }
+    merged.sort((a, b) => b.count - a.count);
+
+    // (2) 疑似同型號但系統無法確定 → 請填寫人員確認
+    const suspicious = [];
+    for (let i = 0; i < keys.length; i++) {
+      for (let j = i + 1; j < keys.length; j++) {
+        const a = keys[i], b = keys[j];
+        const fa = confusableFold(a), fb = confusableFold(b);
+        let reason = null, confidence = null;
+        if (fa === fb) {
+          reason = '只差易混淆字元（如 O↔0、I↔1、S↔5、B↔8），可能是同一型號被打成兩種寫法';
+          confidence = 'high';
+        } else if (Math.abs(a.length - b.length) <= 1) {
+          const maxLen = Math.max(a.length, b.length);
+          const dist = levenshtein(a, b);
+          if (maxLen >= 4 && dist === 1) {
+            reason = '名稱僅差一個字元，疑似輸入錯誤';
+            confidence = 'medium';
+          } else if (maxLen >= 6 && dist === 2) {
+            reason = '名稱差兩個字元，可能為同型號的不同寫法';
+            confidence = 'low';
+          }
+        }
+        if (!reason) continue;
+        const ea = info.get(a), eb = info.get(b);
+        suspicious.push({
+          a: { key: a, count: ea.count, months: [...ea.months].sort(), sheets: [...ea.sheets] },
+          b: { key: b, count: eb.count, months: [...eb.months].sort(), sheets: [...eb.sheets] },
+          reason,
+          confidence,
+        });
+      }
+    }
+    const cw = { high: 0, medium: 1, low: 2 };
+    suspicious.sort((x, y) =>
+      (cw[x.confidence] - cw[y.confidence]) ||
+      ((y.a.count + y.b.count) - (x.a.count + x.b.count))
+    );
+
+    return { merged, suspicious, totalModels: keys.length };
+  }
+
   // Expose
   window.RepairAnalyzer = {
     getRecords,
+    normalizeModel,
+    auditModels,
     getDenominators,
     computeKPIs,
     partPareto,
@@ -7242,6 +7453,8 @@ window.App = (function () {
       ? `全部 ${allMonths.length} 個月`
       : state.selectedMonths.sort().map(fmt.monthLabel).join(' · ');
     $('overviewMeta').textContent = monthLabel;
+
+    renderModelAuditBanner();
 
     // KPIs (all clickable)
     const scrapClass = kpis.scrapPct >= 10 ? 'bad' : kpis.scrapPct >= 5 ? 'warn' : 'good';
@@ -9156,11 +9369,74 @@ window.App = (function () {
     renderDataQualityPanel(records);
   }
 
+  // 把型號稽核結果渲染成 HTML（共用於總覽橫幅與資料品質頁）
+  function modelAuditHTML(audit, opts) {
+    opts = opts || {};
+    const { merged, suspicious } = audit;
+    if (!suspicious.length && !merged.length) return '';
+    const confLabel = { high: '高度疑似', medium: '可能', low: '低度可能' };
+    const confCls   = { high: 'mq-bad', medium: 'mq-warn', low: 'mq-info' };
+    let html = '';
+    if (suspicious.length) {
+      html += `
+        <div class="mq-block mq-block-warn">
+          <div class="mq-h">⚠ 型號名稱需人工確認（${suspicious.length} 組）</div>
+          <div class="mq-note">以下名稱高度相似，系統<b>無法自動判斷</b>是否為同一型號。請填寫人員回原始報表確認並統一寫法——若是同型號請改成一致名稱，若確為不同型號則無需處理。</div>
+          <div class="mq-list">
+            ${suspicious.map(s => `
+              <div class="mq-pair ${confCls[s.confidence]}">
+                <div class="mq-pair-keys">
+                  <span class="mq-key">${escapeHtml(s.a.key)}</span>
+                  <span class="mq-vs">↔</span>
+                  <span class="mq-key">${escapeHtml(s.b.key)}</span>
+                  <span class="mq-conf">${confLabel[s.confidence]}</span>
+                </div>
+                <div class="mq-reason">${escapeHtml(s.reason)}</div>
+                <div class="mq-meta">
+                  <span>${escapeHtml(s.a.key)}：${s.a.count} 件（${s.a.months.map(fmt.monthLabel).join('、') || '僅分母'}）</span>
+                  <span>${escapeHtml(s.b.key)}：${s.b.count} 件（${s.b.months.map(fmt.monthLabel).join('、') || '僅分母'}）</span>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>`;
+    }
+    if (merged.length && !opts.warnOnly) {
+      html += `
+        <div class="mq-block mq-block-ok">
+          <div class="mq-h">✓ 已自動合併的型號寫法（${merged.length} 個）</div>
+          <div class="mq-note">下列型號的大小寫、連字號/底線/空格差異已視為同一型號自動合併，無需處理。</div>
+          <div class="mq-merged">
+            ${merged.map(m => `
+              <div class="mq-merged-row">
+                <span class="mq-key">${escapeHtml(m.key)}</span>
+                <span class="mq-arrow">←</span>
+                <span class="mq-variants">${m.variants.map(v => `<code>${escapeHtml(v.raw)}</code>`).join(' ')}</span>
+              </div>`).join('')}
+          </div>
+        </div>`;
+    }
+    return html;
+  }
+
+  function renderModelAuditBanner() {
+    const el = $('modelAuditBanner');
+    if (!el) return;
+    if (!state.db || !Object.keys(state.db.months || {}).length) { el.innerHTML = ''; return; }
+    const audit = RepairAnalyzer.auditModels(state.db);
+    if (!audit.suspicious.length) { el.innerHTML = ''; return; }
+    // 總覽只顯示需要處理的警示（不顯示已自動合併的清單）
+    el.innerHTML = modelAuditHTML(audit, { warnOnly: true });
+  }
+
   function renderDataQualityPanel(records) {
     const dqEl = $('dataQualityPanel');
     if (!dqEl) return;
     const total = records.length;
     if (total === 0) { dqEl.innerHTML = ''; return; }
+
+    // 型號名稱稽核（完整：警示 + 已合併）
+    const audit = RepairAnalyzer.auditModels(state.db);
+    const auditHtml = modelAuditHTML(audit, { warnOnly: false });
 
     const hasOrder = records.filter(r => r.orderMonth).length;
     const hasMfgDate = records.filter(r => r.mfg).length;
@@ -9180,6 +9456,7 @@ window.App = (function () {
     const statusCls = (n, warn, bad) => n >= bad ? 'dq-bad' : n >= warn ? 'dq-warn' : 'dq-ok';
 
     dqEl.innerHTML = `
+      ${auditHtml ? `<div class="section-title">型號名稱稽核</div>${auditHtml}` : ''}
       <div class="section-title">資料品質覆蓋率</div>
       <div class="dq-grid">
         <div class="dq-item">

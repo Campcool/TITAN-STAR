@@ -1822,6 +1822,8 @@ window.App = (function () {
       : state.selectedMonths.sort().map(fmt.monthLabel).join(' · ');
     $('overviewMeta').textContent = monthLabel;
 
+    renderModelAuditBanner();
+
     // KPIs (all clickable)
     const scrapClass = kpis.scrapPct >= 10 ? 'bad' : kpis.scrapPct >= 5 ? 'warn' : 'good';
     const denomClass = kpis.denomPct >= 5 ? 'bad' : kpis.denomPct >= 2 ? 'warn' : 'good';
@@ -3735,11 +3737,74 @@ window.App = (function () {
     renderDataQualityPanel(records);
   }
 
+  // 把型號稽核結果渲染成 HTML（共用於總覽橫幅與資料品質頁）
+  function modelAuditHTML(audit, opts) {
+    opts = opts || {};
+    const { merged, suspicious } = audit;
+    if (!suspicious.length && !merged.length) return '';
+    const confLabel = { high: '高度疑似', medium: '可能', low: '低度可能' };
+    const confCls   = { high: 'mq-bad', medium: 'mq-warn', low: 'mq-info' };
+    let html = '';
+    if (suspicious.length) {
+      html += `
+        <div class="mq-block mq-block-warn">
+          <div class="mq-h">⚠ 型號名稱需人工確認（${suspicious.length} 組）</div>
+          <div class="mq-note">以下名稱高度相似，系統<b>無法自動判斷</b>是否為同一型號。請填寫人員回原始報表確認並統一寫法——若是同型號請改成一致名稱，若確為不同型號則無需處理。</div>
+          <div class="mq-list">
+            ${suspicious.map(s => `
+              <div class="mq-pair ${confCls[s.confidence]}">
+                <div class="mq-pair-keys">
+                  <span class="mq-key">${escapeHtml(s.a.key)}</span>
+                  <span class="mq-vs">↔</span>
+                  <span class="mq-key">${escapeHtml(s.b.key)}</span>
+                  <span class="mq-conf">${confLabel[s.confidence]}</span>
+                </div>
+                <div class="mq-reason">${escapeHtml(s.reason)}</div>
+                <div class="mq-meta">
+                  <span>${escapeHtml(s.a.key)}：${s.a.count} 件（${s.a.months.map(fmt.monthLabel).join('、') || '僅分母'}）</span>
+                  <span>${escapeHtml(s.b.key)}：${s.b.count} 件（${s.b.months.map(fmt.monthLabel).join('、') || '僅分母'}）</span>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>`;
+    }
+    if (merged.length && !opts.warnOnly) {
+      html += `
+        <div class="mq-block mq-block-ok">
+          <div class="mq-h">✓ 已自動合併的型號寫法（${merged.length} 個）</div>
+          <div class="mq-note">下列型號的大小寫、連字號/底線/空格差異已視為同一型號自動合併，無需處理。</div>
+          <div class="mq-merged">
+            ${merged.map(m => `
+              <div class="mq-merged-row">
+                <span class="mq-key">${escapeHtml(m.key)}</span>
+                <span class="mq-arrow">←</span>
+                <span class="mq-variants">${m.variants.map(v => `<code>${escapeHtml(v.raw)}</code>`).join(' ')}</span>
+              </div>`).join('')}
+          </div>
+        </div>`;
+    }
+    return html;
+  }
+
+  function renderModelAuditBanner() {
+    const el = $('modelAuditBanner');
+    if (!el) return;
+    if (!state.db || !Object.keys(state.db.months || {}).length) { el.innerHTML = ''; return; }
+    const audit = RepairAnalyzer.auditModels(state.db);
+    if (!audit.suspicious.length) { el.innerHTML = ''; return; }
+    // 總覽只顯示需要處理的警示（不顯示已自動合併的清單）
+    el.innerHTML = modelAuditHTML(audit, { warnOnly: true });
+  }
+
   function renderDataQualityPanel(records) {
     const dqEl = $('dataQualityPanel');
     if (!dqEl) return;
     const total = records.length;
     if (total === 0) { dqEl.innerHTML = ''; return; }
+
+    // 型號名稱稽核（完整：警示 + 已合併）
+    const audit = RepairAnalyzer.auditModels(state.db);
+    const auditHtml = modelAuditHTML(audit, { warnOnly: false });
 
     const hasOrder = records.filter(r => r.orderMonth).length;
     const hasMfgDate = records.filter(r => r.mfg).length;
@@ -3759,6 +3824,7 @@ window.App = (function () {
     const statusCls = (n, warn, bad) => n >= bad ? 'dq-bad' : n >= warn ? 'dq-warn' : 'dq-ok';
 
     dqEl.innerHTML = `
+      ${auditHtml ? `<div class="section-title">型號名稱稽核</div>${auditHtml}` : ''}
       <div class="section-title">資料品質覆蓋率</div>
       <div class="dq-grid">
         <div class="dq-item">
