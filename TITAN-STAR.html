@@ -346,6 +346,12 @@ button, input, select { font-family: inherit; }
 }
 .chip:hover { color: var(--text); border-color: var(--border2); }
 .chip .num { font-family: var(--mono); font-size: 14px; color: var(--text3); }
+.chip .num-den {
+  font-family: var(--mono); font-size: 11px; color: var(--text3);
+  margin-left: 5px; padding-left: 6px; border-left: 1px solid var(--border);
+  opacity: .85;
+}
+.chip.active .num-den { color: inherit; border-left-color: currentColor; opacity: .7; }
 .chip.active {
   background: var(--accent-soft); color: var(--accent); border-color: var(--accent-strong); font-weight: 600;
 }
@@ -6151,6 +6157,8 @@ window.App = (function () {
     renderAll();
     syncDisplaySizeButtons();
     window.scrollTo(0, 0);
+    // 設定瀏覽歷史基準頁，作為手機「上一頁」的返回終點
+    try { history.replaceState({ __page: state.currentPage }, ''); } catch (e) {}
   }
 
   function openDashboard() {
@@ -6206,7 +6214,8 @@ window.App = (function () {
     if (rmaDash) rmaDash.style.display = 'none';
   }
 
-  function switchPage(name) {
+  // 純切換頁面 DOM（不動瀏覽歷史）
+  function switchPageDom(name) {
     state.currentPage = name;
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.snav-item').forEach(b => b.classList.toggle('active', b.dataset.page === name));
@@ -6221,6 +6230,20 @@ window.App = (function () {
     window.scrollTo(0, 0);
     const rankWrap = document.getElementById('rankWrap');
     if (rankWrap) rankWrap.scrollTop = 0;
+  }
+
+  // 對外的頁面切換：納入瀏覽歷史，讓手機「上一頁」回到前一頁而非離開 App
+  function switchPage(name) {
+    if (name === state.currentPage && !isDrawerOpen()) return;
+    if (isDrawerOpen()) {
+      // 由抽屜內的「前往 XX」下鑽：關閉抽屜，並把抽屜的歷史項換成目標頁，
+      // 這樣按「上一頁」會回到開抽屜前所在的頁面。
+      domCloseDrawer();
+      history.replaceState({ __page: name }, '');
+    } else {
+      history.pushState({ __page: name }, '');
+    }
+    switchPageDom(name);
   }
 
   // ─────────────── Mobile nav drawer ───────────────
@@ -6274,21 +6297,31 @@ window.App = (function () {
     const all = state.selectedMonths.length === 0 || state.selectedMonths.length === months.length;
     const selMonth = all ? '__ALL__' : (state.selectedMonths[0] || '__ALL__');
 
-    // Month chips
+    // 各月整新數（分母）
+    const monthDenom = {};
+    let allDenom = 0;
+    for (const mk of months) {
+      const d = RepairAnalyzer.getDenominators(state.db, { months: [mk] }).total;
+      monthDenom[mk] = d;
+      allDenom += d;
+    }
+
+    // Month chips（維修件數 + 整新數）
     const mc = $('monthChips');
     mc.innerHTML = '<div class="sb-label">月份</div>'
-      + `<button class="chip ${all ? 'active' : ''}" onclick="App.setMonth('__ALL__')">全部 <span class="num">${months.length}</span></button>`
+      + `<button class="chip ${all ? 'active' : ''}" onclick="App.setMonth('__ALL__')">全部 <span class="num">${months.length}</span>${allDenom ? `<span class="num-den" title="整新數">整新 ${fmt.int(allDenom)}</span>` : ''}</button>`
       + months.map(mk => {
         const sel = !all && state.selectedMonths.includes(mk);
         const m = state.db.months[mk];
-        return `<button class="chip ${sel ? 'active' : ''}" onclick="App.setMonth('${mk}')">${fmt.monthLabel(mk)} <span class="num">${m.records.length}</span></button>`;
+        const den = monthDenom[mk];
+        return `<button class="chip ${sel ? 'active' : ''}" onclick="App.setMonth('${mk}')">${fmt.monthLabel(mk)} <span class="num">${m.records.length}</span>${den ? `<span class="num-den" title="整新數">整新 ${fmt.int(den)}</span>` : ''}</button>`;
       }).join('');
 
-    // Mobile month select
+    // Mobile month select（含整新數）
     const ms = $('monthSelect');
     if (ms) {
-      ms.innerHTML = `<option value="__ALL__">月份：全部(${months.length})</option>`
-        + months.map(mk => `<option value="${mk}">${fmt.monthLabel(mk)} (${state.db.months[mk].records.length})</option>`).join('');
+      ms.innerHTML = `<option value="__ALL__">月份：全部 ${months.length}個月${allDenom ? ` · 整新${fmt.int(allDenom)}` : ''}</option>`
+        + months.map(mk => `<option value="${mk}">${fmt.monthLabel(mk)} · 維修${state.db.months[mk].records.length}${monthDenom[mk] ? ` · 整新${fmt.int(monthDenom[mk])}` : ''}</option>`).join('');
       ms.value = selMonth;
     }
 
@@ -6297,21 +6330,34 @@ window.App = (function () {
     const catCounts = {};
     for (const r of records) catCounts[r.category] = (catCounts[r.category] || 0) + 1;
     const cats = ['全部', ...Object.keys(RepairParser.CATEGORY_MAP), '其他'].filter(c => c === '全部' || catCounts[c]);
+
+    // 各大類整新數（依機種分母彙總到大類）
+    const denomAll = RepairAnalyzer.getDenominators(state.db, { months: state.selectedMonths });
+    const catDenom = {};
+    for (const [model, n] of Object.entries(denomAll.byModel || {})) {
+      const c = RepairParser.getCategory(model);
+      catDenom[c] = (catDenom[c] || 0) + n;
+    }
+    const catDen = (c) => c === '全部' ? denomAll.total : (catDenom[c] || 0);
+
     const cc = $('catChips');
     cc.innerHTML = '<div class="sb-label">大類</div>'
       + cats.map(c => {
         const sel = state.selectedCategory === c;
         const count = c === '全部' ? records.length : (catCounts[c] || 0);
+        const den = catDen(c);
         const color = c === '全部' ? COLORS.text3 : (CAT_COLOR[c] || COLORS.text3);
-        return `<button class="chip cat-chip ${sel ? 'active' : ''}" style="--c:${color}" onclick="App.setCategory('${c}')">${c} <span class="num">${count}</span></button>`;
+        return `<button class="chip cat-chip ${sel ? 'active' : ''}" style="--c:${color}" onclick="App.setCategory('${c}')">${c} <span class="num">${count}</span>${den ? `<span class="num-den" title="整新數">整新 ${fmt.int(den)}</span>` : ''}</button>`;
       }).join('');
 
-    // Mobile category select
+    // Mobile category select（含整新數）
     const cs = $('catSelect');
     if (cs) {
       cs.innerHTML = cats.map(c => {
         const count = c === '全部' ? records.length : (catCounts[c] || 0);
-        return `<option value="${c}">${c === '全部' ? `大類：全部(${count})` : `${c}(${count})`}</option>`;
+        const den = catDen(c);
+        const label = c === '全部' ? '大類：全部' : c;
+        return `<option value="${c}">${label} · 維修${count}${den ? ` · 整新${fmt.int(den)}` : ''}</option>`;
       }).join('');
       cs.value = state.selectedCategory;
     }
@@ -8409,15 +8455,17 @@ window.App = (function () {
         </tr>`;
       }).filter(Boolean).reverse().join('');
       momEl.innerHTML = `
-        <div class="section-title">月環比變化（最新月份在前）</div>
-        <div class="tbl-wrap"><table class="tbl">
-          <thead><tr>
-            <th>月份</th><th class="right">維修件數</th><th class="right">環比</th>
-            <th class="right">故障率</th><th class="right">環比</th>
-            <th class="right">報廢件數</th><th class="right">環比</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table></div>`;
+        <div class="card">
+          <div class="card-h"><div class="card-t">月環比變化（最新月份在前）</div></div>
+          <div class="tbl-wrap"><table class="tbl">
+            <thead><tr>
+              <th>月份</th><th class="right">維修件數</th><th class="right">環比</th>
+              <th class="right">故障率</th><th class="right">環比</th>
+              <th class="right">報廢件數</th><th class="right">環比</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table></div>
+        </div>`;
     } else if (momEl) {
       momEl.innerHTML = '';
     }
@@ -8751,9 +8799,15 @@ window.App = (function () {
       domCloseDrawer();
     }
   }
-  // 手機/瀏覽器返回鍵：若抽屜開著，攔下來只關抽屜，不離開頁面
-  window.addEventListener('popstate', () => {
-    if (isDrawerOpen()) domCloseDrawer();
+  // 手機/瀏覽器返回鍵：
+  //  1) 抽屜開著 → 只關抽屜，停在原頁
+  //  2) 否則依歷史狀態回到前一個頁面，而不是離開 App
+  window.addEventListener('popstate', (e) => {
+    if (isDrawerOpen()) { domCloseDrawer(); return; }
+    const st = e.state;
+    if (st && st.__page && st.__page !== state.currentPage) {
+      switchPageDom(st.__page);
+    }
   });
 
   // ── Drawer: KPI ──
