@@ -1730,9 +1730,21 @@ button, input, select { font-family: inherit; }
   padding: 14px 16px;
   transition: border-color .2s;
 }
+.ri-card-clickable { cursor: pointer; }
+.ri-card-clickable:hover {
+  border-color: var(--rc, var(--accent));
+  background: var(--surface3, var(--hover));
+}
+.ri-card-go {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--rc, var(--accent));
+  white-space: nowrap;
+}
 .ri-card-top {
   display: flex;
   align-items: center;
+  gap: 8px;
   justify-content: space-between;
   margin-bottom: 6px;
 }
@@ -6804,16 +6816,22 @@ window.App = (function () {
         <span class="ri-banner-desc">${roleInfo.desc}</span>
       </div>
       <div class="ri-cards">
-        ${insights.map(ins => `
-          <div class="ri-card" style="--rc:${ins.color}">
+        ${insights.map(ins => {
+          const page = ins.nav || TAG_PAGE[ins.tag] || null;
+          const clickable = page && page !== state.currentPage;
+          const navLabel = clickable ? (PAGE_NAME[page] || page) : '';
+          return `
+          <div class="ri-card${clickable ? ' ri-card-clickable' : ''}" style="--rc:${ins.color}"
+               ${clickable ? `role="button" tabindex="0" onclick="App.switchPage('${page}')"` : ''}>
             <div class="ri-card-top">
               <span class="ri-card-ico">${ins.icon}</span>
               <span class="ri-card-tag">${ins.tag}</span>
+              ${clickable ? `<span class="ri-card-go">前往 ${navLabel} →</span>` : ''}
             </div>
             <div class="ri-card-title">${ins.title}</div>
             <div class="ri-card-body">${ins.body}</div>
-          </div>
-        `).join('')}
+          </div>`;
+        }).join('')}
       </div>
       ${roleAnoms.length > 0 ? `
         <div class="ri-anoms-label">本視角相關異常警示</div>
@@ -6847,6 +6865,22 @@ window.App = (function () {
   // by severity — so each manager sees a clean, prioritised "to-track" list.
   const SEV_RANK = { critical: 0, warn: 1, info: 2 };
   const PAGE_NAME = { summary:'主管摘要', overview:'總覽', alerts:'異常偵測', parts:'零件 Pareto', cross:'跨機種矩陣', trend:'月份趨勢', reason:'故障原因', quality:'品質/SPC', batch:'製造批次', risk:'風險/根因', capa:'CAPA', cost:'成本量化', scrap:'報廢/重修', detail:'明細' };
+  // 角色洞察摘要卡的標籤 → 最相關分頁，點卡片即下鑽到該頁看完整資料
+  const TAG_PAGE = {
+    趨勢:'trend', 預測:'trend', 月度:'trend',
+    品質:'quality', 良率:'quality', 可靠度:'quality',
+    風險:'risk', 決策:'risk', ECO:'risk', 根因:'risk',
+    報廢:'scrap', 損失:'scrap', 流量:'scrap',
+    CAPA:'capa', 改善:'capa', ROI:'capa', 審查:'capa',
+    成本:'cost', 設定:'cost',
+    庫存:'parts', 備料:'parts', 零件:'parts',
+    OTA:'reason', 韌體:'reason', 原因:'reason',
+    批次:'batch', 製程:'batch',
+    追蹤:'cross',
+    客戶:'detail', 客訴:'detail', 保固:'detail', 服務:'detail', 溝通:'detail', 口碑:'detail', 推廣:'detail', 技術:'detail',
+    調度:'alerts', 資源:'alerts',
+    績效:'overview', 總覽:'overview', 生產:'overview', 分析:'overview',
+  };
 
   function gatherFindings(records, kpis, anoms) {
     const f = currentFilter();
