@@ -8282,7 +8282,7 @@ window.App = (function () {
         if (!v) return `<td class="empty">·</td>`;
         const intensity = Math.min(0.9, 0.15 + (v / maxCount) * 0.6);
         const color = v >= 10 ? COLORS.critical : v >= 5 ? COLORS.warn : COLORS.accent;
-        return `<td onclick="App.openPartModelDrawer('${escapeAttr(p.name)}','${escapeAttr(m)}')"><span class="matrix-cell" style="background:${color}${Math.round(intensity * 255).toString(16).padStart(2,'0')};color:${COLORS.text}">${v}</span></td>`;
+        return `<td onclick="App.openMatrixPartDrawer('${escapeAttr(p.name)}')"><span class="matrix-cell" style="background:${color}${Math.round(intensity * 255).toString(16).padStart(2,'0')};color:${COLORS.text}">${v}</span></td>`;
       }).join('');
       return `<tr>
         <th scope="row" title="${escapeAttr(p.name)}" onclick="App.openMatrixPartDrawer('${escapeAttr(p.name)}')">${escapeHtml(p.name)}<span class="spec">${p.models.length} 機種</span></th>
