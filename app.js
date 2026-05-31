@@ -950,8 +950,8 @@ window.App = (function () {
 
     const insights = [];
 
-    const addCard = (icon, color, title, body, tag) => {
-      insights.push({ icon, color, title, body, tag });
+    const addCard = (icon, color, title, body, tag, nav) => {
+      insights.push({ icon, color, title, body, tag, nav });
     };
 
     switch (role) {
@@ -959,13 +959,13 @@ window.App = (function () {
         if (momText) addCard('↗','var(--accent)','月度比較',momText,'趨勢');
         if (kpis.scrapPct >= 5) addCard('✕','var(--critical)','報廢警示',`報廢率 <strong>${fmt.pct(kpis.scrapPct)}</strong>，已達警戒線（5%），建議立即調查主因機種`,'品質');
         if (repeatedList.length > 0) addCard('♺','var(--warn)','重複維修',`共 <strong>${repeatedList.length}</strong> 台機器在篩選期間維修 ≥2 次；最高：${repeatedList[0][0].split('|')[1]} ×${repeatedList[0][1]}`,'品質');
-        if (crossSerial.length > 0) addCard('⇄','var(--info)','跨月重複',`<strong>${crossSerial.length}</strong> 台序號跨月出現，疑似長期未解決問題`,'追蹤');
+        if (crossSerial.length > 0) addCard('⇄','var(--info)','跨月重複',`<strong>${crossSerial.length}</strong> 台序號跨月出現，疑似長期未解決問題`,'追蹤','scrap');
         break;
 
       case 'ceo':
         addCard('◈','var(--info)','經營摘要',`累積維修 <strong>${fmt.int(kpis.totalRepairs)}</strong> 件 / 整新數 <strong>${fmt.int(kpis.denomTotal)}</strong>，整體故障率 <strong>${fmt.pct(kpis.denomPct)}</strong>`,'績效');
         if (kpis.scrapPct >= 3) addCard('✕','var(--critical)','財務風險',`報廢 <strong>${fmt.int(kpis.scrap)}</strong> 件（${fmt.pct(kpis.scrapPct)}），每件報廢代表直接物料損失，需主管評估報廢原因集中度`,'風險');
-        if (crossSerial.length >= 5) addCard('⇄','var(--warn)','品牌曝險',`<strong>${crossSerial.length}</strong> 台機器跨月重複故障，若涉及保固條款，可能引發客訴升級`,'風險');
+        if (crossSerial.length >= 5) addCard('⇄','var(--warn)','品牌曝險',`<strong>${crossSerial.length}</strong> 台機器跨月重複故障，若涉及保固條款，可能引發客訴升級`,'風險','scrap');
         if (anoms.filter(a=>a.severity==='critical').length > 0) addCard('!','var(--critical)','緊急異常',`本期偵測到 <strong>${anoms.filter(a=>a.severity==='critical').length}</strong> 項嚴重異常，需優先關注`,'決策');
         if (momText) addCard('↗','var(--accent)','月度動向',momText,'趨勢');
         break;
@@ -1040,7 +1040,7 @@ window.App = (function () {
 
       case 'qa':
         addCard('◇','var(--warn)','重複維修率',`同期重複進廠 <strong>${repeatedList.length}</strong> 台（${fmt.pct(repeatedList.length/Math.max(kpis.totalRepairs,1)*100)}），是品質未閉環的指標`,'CAPA');
-        if (crossSerial.length > 0) addCard('⇄','var(--critical)','跨月重複',`<strong>${crossSerial.length}</strong> 台跨月重複，強烈建議開立 CAPA 追蹤`,'CAPA');
+        if (crossSerial.length > 0) addCard('⇄','var(--critical)','跨月重複',`<strong>${crossSerial.length}</strong> 台跨月重複，強烈建議開立 CAPA 追蹤`,'CAPA','scrap');
         if (warrantyIn.length > 0) addCard('◉','var(--info)','保固退回',`保固期內 <strong>${warrantyIn.length}</strong> 件（${fmt.pct(warrantyIn.length/Math.max(kpis.totalRepairs,1)*100)}），需評估設計或製程責任`,'品質');
         addCard('✕','var(--critical)','報廢率',`${fmt.pct(kpis.scrapPct)}（${kpis.scrap} 件），${kpis.scrapPct>=10?'已達高風險':'建議持續監控'}`,'品質');
         break;
@@ -1053,7 +1053,7 @@ window.App = (function () {
         break;
 
       case 'cs':
-        if (crossSerial.length > 0) addCard('⇄','var(--critical)','高風險客戶',`<strong>${crossSerial.length}</strong> 台跨月重複故障，若持續未修好將導致客戶投訴升級`,'客訴');
+        if (crossSerial.length > 0) addCard('⇄','var(--critical)','高風險客戶',`<strong>${crossSerial.length}</strong> 台跨月重複故障，若持續未修好將導致客戶投訴升級`,'客訴','scrap');
         if (warrantyIn.length > 0) addCard('◉','var(--warn)','保固曝險',`保固期內 <strong>${warrantyIn.length}</strong> 件（${fmt.pct(warrantyIn.length/Math.max(kpis.totalRepairs,1)*100)}），建議主動聯繫客戶說明修復進度`,'保固');
         addCard('♺','var(--info)','回修滿意度風險',`重複進廠 ${repeatedList.length} 台，重複報修是客戶不滿最直接的信號`,'服務');
         if (topModel) addCard('⚙','var(--warn)','主訴機種',`${topModel[0]} 維修量最高（${topModel[1]}件），客服話術應準備對應說明`,'溝通');
@@ -1076,7 +1076,7 @@ window.App = (function () {
 
       case 'hw':
         if (hwRecs.length > 0) addCard('◁','var(--warn)','疑似設計缺陷',`含硬體關鍵字記錄 <strong>${hwRecs.length}</strong> 件（${fmt.pct(hwRecs.length/Math.max(kpis.totalRepairs,1)*100)}），建議歸類 ECO 候選`,'ECO');
-        if (crossSerial.length > 0) addCard('⇄','var(--critical)','設計根因',`${crossSerial.length} 台跨月重複故障，若硬體設計問題未改版，將持續復發`,'ECO');
+        if (crossSerial.length > 0) addCard('⇄','var(--critical)','設計根因',`${crossSerial.length} 台跨月重複故障，若硬體設計問題未改版，將持續復發`,'ECO','scrap');
         if (scrapRecs.length > 0) addCard('✕','var(--warn)','元件可靠性',`報廢 ${scrapRecs.length} 件，建議確認主要報廢原因是否與特定元件批次相關`,'可靠度');
         if (topModel) addCard('⚙','var(--info)','高關注機種',`${topModel[0]} 維修量最高，若屬硬體問題需優先安排設計審查`,'審查');
         break;
@@ -1102,7 +1102,7 @@ window.App = (function () {
         } else {
           addCard('▷','var(--ok)','韌體狀況','本期未偵測到明顯韌體相關故障關鍵字，韌體穩定度良好','OTA');
         }
-        if (crossSerial.length > 0) addCard('⇄','var(--info)','潛在韌體根因',`${crossSerial.length} 台跨月重複，若排除硬體因素，需確認韌體 OTA 是否成功落版`,'追蹤');
+        if (crossSerial.length > 0) addCard('⇄','var(--info)','潛在韌體根因',`${crossSerial.length} 台跨月重複，若排除硬體因素，需確認韌體 OTA 是否成功落版`,'追蹤','scrap');
         break;
       }
 
@@ -1160,7 +1160,7 @@ window.App = (function () {
           addCard('●','var(--ok)','可安心主推（綠燈）',`${stable.map(r=>`${r.model}（故障率${r.faultRate!=null?(r.faultRate*100).toFixed(1)+'%':'—'}）`).join('；')}，適合作為主力推廣機種`,'推廣');
         }
         if (improvedModels.length) addCard('↗','var(--accent)','近期改善機種',`${improvedModels.slice(0,3).join('、')} 從高故障轉為穩定，推薦說法：「已完成品質改善，近期表現顯著提升」`,'改善');
-        if (crossSerial.length > 0) addCard('⇄','var(--critical)','客戶信心風險',`<strong>${crossSerial.length}</strong> 台跨月重複故障，這是客戶實際感受到的「不可靠」，恐影響續單`,'客戶');
+        if (crossSerial.length > 0) addCard('⇄','var(--critical)','客戶信心風險',`<strong>${crossSerial.length}</strong> 台跨月重複故障，這是客戶實際感受到的「不可靠」，恐影響續單`,'客戶','scrap');
         if (topModel) addCard('⚙','var(--warn)','主訴機種',`${topModel[0]} 維修量最高（${topModel[1]}件），備好說法：「已列入重點追蹤，改善方案進行中」`,'溝通');
         const monthCount = Object.keys(state.db.months).length;
         const sampleNote = monthCount < 6
@@ -2553,19 +2553,20 @@ window.App = (function () {
     // Color scale based on max count in matrix
     const maxCount = Math.max(...cross.flatMap(p => Object.values(p.perModel)));
 
-    const head = `<tr><th></th>${models.map(m => `<th>${m}</th>`).join('')}<th style="color:var(--text)">合計</th></tr>`;
+    const head = `<tr><th style="min-width:100px"></th>${models.map(m => `<th title="${escapeAttr(m)}">${m}</th>`).join('')}<th style="color:var(--text)">合計</th></tr>`;
     const body = cross.slice(0, 50).map(p => {
+      const pNorm = RepairAnalyzer.normalizeModel(p.name);
       const cells = models.map(m => {
         const v = p.perModel[m];
         if (!v) return `<td class="empty">·</td>`;
         const intensity = Math.min(0.9, 0.15 + (v / maxCount) * 0.6);
         const color = v >= 10 ? COLORS.critical : v >= 5 ? COLORS.warn : COLORS.accent;
-        return `<td><span class="matrix-cell" style="background:${color}${Math.round(intensity * 255).toString(16).padStart(2,'0')};color:${COLORS.text}">${v}</span></td>`;
+        return `<td onclick="App.openPartModelDrawer('${escapeAttr(p.name)}','${escapeAttr(m)}')"><span class="matrix-cell" style="background:${color}${Math.round(intensity * 255).toString(16).padStart(2,'0')};color:${COLORS.text}">${v}</span></td>`;
       }).join('');
       return `<tr>
-        <th scope="row">${escapeHtml(p.name)}<span class="spec">${p.models.length} 機種</span></th>
+        <th scope="row" title="${escapeAttr(p.name)}" onclick="App.openPartDrawer('${escapeAttr(p.name)}')">${escapeHtml(p.name)}<span class="spec">${p.models.length} 機種</span></th>
         ${cells}
-        <td><strong style="color:var(--text);font-family:var(--mono)">${p.count}</strong></td>
+        <td style="cursor:pointer" onclick="App.openPartDrawer('${escapeAttr(p.name)}')" title="${escapeAttr(p.name)} 合計"><strong style="color:var(--text);font-family:var(--mono)">${p.count}</strong></td>
       </tr>`;
     }).join('');
 
@@ -3851,6 +3852,53 @@ window.App = (function () {
     return lensPanel(role, cfg);
   }
 
+  function openPartModelDrawer(partName, model) {
+    const f = currentFilter();
+    const allRecords = RepairAnalyzer.getRecords(state.db, f);
+    const recs = allRecords.filter(r =>
+      (r.part1Norm === partName || r.part2Norm === partName || r.part3Norm === partName ||
+       r.part1 === partName || r.part2 === partName || r.part3 === partName) &&
+      RepairAnalyzer.normalizeModel(r.model) === RepairAnalyzer.normalizeModel(model)
+    );
+    const monthMap = {};
+    for (const r of recs) {
+      if (!monthMap[r.month]) monthMap[r.month] = 0;
+      monthMap[r.month]++;
+    }
+    const monthRows = Object.entries(monthMap).sort((a,b) => b[0].localeCompare(a[0]))
+      .map(([m, n]) => `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:13px"><span>${fmt.monthLabel(m)}</span><span style="color:var(--accent);font-weight:700">${n} 件</span></div>`)
+      .join('');
+    openDrawer({
+      severity: 'info', icon: '⊞',
+      overline: `跨機種矩陣 · ${model}`,
+      title: partName,
+      bodyHtml: `
+        <div class="drawer-banner info">
+          <strong>${model}</strong> 使用零件 <strong>${partName}</strong> 共 <strong>${recs.length}</strong> 件
+        </div>
+        <div class="drawer-sec">
+          <div class="drawer-sec-t"><span class="strong">月份分布</span></div>
+          ${monthRows || '<div class="empty"><div class="empty-t">無記錄</div></div>'}
+        </div>
+        <div class="drawer-sec">
+          <div class="drawer-sec-t"><span class="strong">維修明細</span> <span class="count-tag">${recs.length} 筆</span></div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            ${recs.slice(0, 20).map(r => `
+              <div style="padding:8px 12px;background:var(--surface2);border-radius:6px;font-size:12px;cursor:pointer" onclick="App.openSerialDrawer('${escapeAttr(r.model)}','${escapeAttr(r.serial || '')}')">
+                <div style="display:flex;gap:10px;justify-content:space-between;margin-bottom:3px">
+                  <span style="font-family:var(--mono);color:var(--text3)">${r.date || fmt.monthLabel(r.month)} · ${escapeHtml(r.model)}</span>
+                  ${r.serial ? `<span style="font-family:var(--mono);color:var(--text3)">#${escapeHtml(r.serial)}</span>` : ''}
+                </div>
+                <div style="color:${r.isScrap ? 'var(--critical)' : 'var(--text)'}">${escapeHtml(r.content || r.reason || '—')}</div>
+              </div>
+            `).join('')}
+            ${recs.length > 20 ? `<div style="text-align:center;color:var(--text3);font-size:11px;padding:4px">…還有 ${recs.length - 20} 筆</div>` : ''}
+          </div>
+        </div>
+      `
+    });
+  }
+
   function openPartDrawer(partNorm) {
     openDrawer({
       severity: 'info', icon: '▤',
@@ -4740,7 +4788,7 @@ window.App = (function () {
     toggleSubbar, toggleSidebarMini, showHelpModal,
     exportCrossMatrix,
     // Drawer
-    openKpiDrawer, openAnomalyDrawer, openPartDrawer, openModelDrawer, openSerialDrawer, openSerialTimelineDrawer,
+    openKpiDrawer, openAnomalyDrawer, openPartDrawer, openPartModelDrawer, openModelDrawer, openSerialDrawer, openSerialTimelineDrawer,
     closeDrawer,
     // New functions
     searchDetail,

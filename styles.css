@@ -742,21 +742,25 @@ button, input, select { font-family: inherit; }
   left: 0;
   text-align: left;
   color: var(--text);
-  font-size: 15px;
-  padding-right: 16px;
+  font-size: 14px;
+  padding-right: 12px;
   border-right: 1px solid var(--border);
-  max-width: 280px; min-width: 200px;
+  max-width: 160px; min-width: 100px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  cursor: pointer;
 }
+.matrix tbody th:hover { color: var(--accent); }
 .matrix tbody th .spec { font-size: 15.5px; color: var(--text3); font-family: var(--mono); display: block; margin-top: 2px; }
 .matrix tbody th[scope=row]::after { content: ''; }
 .matrix tbody td {
   padding: 0; text-align: center;
   font-family: var(--mono); font-size: 15px;
-  width: 70px; height: 36px;
+  width: 60px; height: 36px;
   border-bottom: 1px solid var(--border);
+  cursor: pointer;
 }
-.matrix tbody td.empty { color: var(--text-mute); }
+.matrix tbody td:not(.empty):hover .matrix-cell { outline: 2px solid var(--accent); outline-offset: 1px; }
+.matrix tbody td.empty { color: var(--text-mute); cursor: default; }
 .matrix-cell {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 36px; height: 28px; padding: 0 8px;
