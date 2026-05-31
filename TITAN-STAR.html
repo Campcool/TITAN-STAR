@@ -4521,8 +4521,8 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
         result.history = monthKeys.map(mk => {
           const m = db.months[mk];
           if (!m) return { month: mk, count: 0, denom: 0, faultRate: null };
-          const recs = m.records.filter(r => r.model === e.model);
-          const den = m.denominators[e.model] || 0;
+          const recs = m.records.filter(r => (r.model ? r.model.replace(/[-_\s]/g, '') : r.model) === e.model);
+          const den = m.denominators[e.model] || m.denominators[e.model.replace(/[-_\s]/g, '')] || 0;
           return {
             month: mk,
             count: recs.length,
