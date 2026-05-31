@@ -2042,7 +2042,7 @@ window.App = (function () {
                   <span class="month-v">合計</span>
                   <span class="col-resizer" data-col-idx="${2 + displayMonths.length}"></span>
                 </th>` : ''}
-                <th class="month-col">
+                <th class="month-col trend-th">
                   <span class="month-l">趨勢</span>
                   <span class="month-v" style="font-size:11px;color:var(--text-mute)">維修量比</span>
                   <span class="col-resizer" data-col-idx="${2 + displayMonths.length + (showTotalCol ? 1 : 0)}"></span>

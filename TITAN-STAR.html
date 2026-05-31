@@ -2678,6 +2678,42 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
 .ndg-d { font-size: 15px; color: var(--text3); max-width: 320px; line-height: 1.6; }
 .ndg-btn { font-size: 16px; padding: 12px 32px; margin-top: 8px; }
 
+/* ════════════════════════════════════════════════════════════════════
+   機種故障排名表 + 機種深入分析：手機優化
+   ════════════════════════════════════════════════════════════════════ */
+@media (max-width: 820px) {
+  /* 排名表：自適應寬度、不溢出、隱藏次要欄位 */
+  .rank-table { table-layout: auto !important; width: 100% !important; min-width: 0 !important; font-size: 12px !important; }
+  .rank-table col { width: auto !important; }
+  .rank-table thead th,
+  .rank-table tbody td { padding: 9px 5px !important; }
+  .rank-table thead th { font-size: 10.5px !important; letter-spacing: .02em !important; }
+  .rank-table thead th .month-l { font-size: 9px !important; margin-bottom: 2px !important; letter-spacing: 0 !important; }
+  .rank-table thead th .month-v { font-size: 11px !important; }
+  .rank-table td.model-cell { position: static !important; }
+  .rank-table th.model-th  { position: static !important; }
+  .rank-table td.model-cell .model-name { font-size: 12.5px !important; }
+  .rank-table td.model-cell .model-cat  { font-size: 10px !important; }
+  .rank-table .mc-pct  { font-size: 14px !important; }
+  .rank-table .mc-ratio { font-size: 10px !important; }
+  /* 趨勢欄、欄寬調整把手在手機隱藏，節省空間給故障率 */
+  .rank-table .trend-th,
+  .rank-table td.trend-cell { display: none !important; }
+  .rank-table .col-resizer { display: none !important; }
+  .rank-wrap { max-height: none !important; }
+  /* 機種深入分析：月份比較卡 3 欄、縮小 */
+  .dh-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 6px !important; }
+  .dh-month-card { padding: 10px 6px !important; }
+  .dh-month-card .m { font-size: 12px !important; margin-bottom: 4px !important; }
+  .dh-month-card .v { font-size: 22px !important; }
+  .dh-month-card .d { font-size: 11px !important; }
+  .dh-month-card .p { font-size: 14px !important; }
+  .dh-month-card .delta { font-size: 11px !important; }
+  /* 上一月/下一月導覽按鈕縮小 */
+  .dmn-arrow { padding: 8px 10px !important; font-size: 13px !important; }
+  .dmn-tab { padding: 6px 10px !important; font-size: 13px !important; }
+}
+
 </style>
 <style>
 /* ════════════════════════════════════════════════════════════════════
@@ -7422,7 +7458,7 @@ window.App = (function () {
                   <span class="month-v">合計</span>
                   <span class="col-resizer" data-col-idx="${2 + displayMonths.length}"></span>
                 </th>` : ''}
-                <th class="month-col">
+                <th class="month-col trend-th">
                   <span class="month-l">趨勢</span>
                   <span class="month-v" style="font-size:11px;color:var(--text-mute)">維修量比</span>
                   <span class="col-resizer" data-col-idx="${2 + displayMonths.length + (showTotalCol ? 1 : 0)}"></span>
