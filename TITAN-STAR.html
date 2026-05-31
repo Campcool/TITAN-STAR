@@ -8631,6 +8631,17 @@ window.App = (function () {
   }
 
   // ─────────────── Drawer (drill-down) ───────────────
+  function isDrawerOpen() {
+    const d = $('drawer');
+    return !!(d && d.classList.contains('open'));
+  }
+  // 實際關閉抽屜的 DOM 動作（不碰瀏覽歷史）
+  function domCloseDrawer() {
+    $('drawerMask').classList.remove('open');
+    $('drawer').classList.remove('open');
+    $('drawer').setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
   function openDrawer({ severity = 'info', icon = 'i', overline, title, bodyHtml }) {
     $('drawerIco').textContent = icon;
     $('drawerIco').className = 'drawer-ico ' + severity;
@@ -8641,13 +8652,26 @@ window.App = (function () {
     $('drawer').classList.add('open');
     $('drawer').setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
+    $('drawerBody').scrollTop = 0;
+    // 推入一個歷史狀態：手機「上一頁」會先關抽屜而非離開頁面。
+    // 已在抽屜狀態時（抽屜內再開下一層）不重複推入，維持單一返回層級。
+    if (!(history.state && history.state.__drawer)) {
+      history.pushState({ __drawer: true }, '');
+    }
   }
   function closeDrawer() {
-    $('drawerMask').classList.remove('open');
-    $('drawer').classList.remove('open');
-    $('drawer').setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
+    // 使用者主動關閉（X 或點遮罩）：若目前停在抽屜歷史狀態，則 back() 觸發
+    // popstate 完成 DOM 關閉，使歷史回到開抽屜前，避免殘留多餘的返回層級。
+    if (history.state && history.state.__drawer) {
+      history.back();
+    } else {
+      domCloseDrawer();
+    }
   }
+  // 手機/瀏覽器返回鍵：若抽屜開著，攔下來只關抽屜，不離開頁面
+  window.addEventListener('popstate', () => {
+    if (isDrawerOpen()) domCloseDrawer();
+  });
 
   // ── Drawer: KPI ──
   function openKpiDrawer(kind) {
