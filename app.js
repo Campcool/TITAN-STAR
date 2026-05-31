@@ -1166,13 +1166,16 @@ window.App = (function () {
       ${roleAnoms.length > 0 ? `
         <div class="ri-anoms-label">本視角相關異常警示</div>
         <div class="ri-anoms">
-          ${roleAnoms.map(a => `
-            <div class="ri-anom ${a.severity}">
+          ${roleAnoms.map(a => {
+            const gi = (state.currentAnomalies || []).indexOf(a);
+            return `
+            <div class="ri-anom ${a.severity}" role="button" tabindex="0" onclick="App.openAnomalyDrawer(${gi})">
               <span class="ri-anom-ico">${a.icon}</span>
               <span class="ri-anom-t">${a.title}</span>
               <span class="ri-anom-m">${escapeHtml(a.subject)}</span>
-            </div>
-          `).join('')}
+              <span class="ri-anom-arrow">→</span>
+            </div>`;
+          }).join('')}
         </div>
       ` : ''}
     `;

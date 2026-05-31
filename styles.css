@@ -1769,7 +1769,12 @@ button, input, select { font-family: inherit; }
   border: 1px solid var(--border);
   background: var(--surface);
   font-size: 13px;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
 }
+.ri-anom:hover { background: var(--hover); border-color: var(--border2); }
+.ri-anom-arrow { margin-left: auto; color: var(--text3); flex-shrink: 0; font-weight: 700; }
+.ri-anom-m { flex: 1; }
 .ri-anom.critical { border-left: 3px solid var(--critical); }
 .ri-anom.warn     { border-left: 3px solid var(--warn); }
 .ri-anom.info     { border-left: 3px solid var(--info); }

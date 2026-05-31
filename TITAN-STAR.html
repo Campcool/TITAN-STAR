@@ -1785,7 +1785,12 @@ button, input, select { font-family: inherit; }
   border: 1px solid var(--border);
   background: var(--surface);
   font-size: 13px;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
 }
+.ri-anom:hover { background: var(--hover); border-color: var(--border2); }
+.ri-anom-arrow { margin-left: auto; color: var(--text3); flex-shrink: 0; font-weight: 700; }
+.ri-anom-m { flex: 1; }
 .ri-anom.critical { border-left: 3px solid var(--critical); }
 .ri-anom.warn     { border-left: 3px solid var(--warn); }
 .ri-anom.info     { border-left: 3px solid var(--info); }
@@ -6813,13 +6818,16 @@ window.App = (function () {
       ${roleAnoms.length > 0 ? `
         <div class="ri-anoms-label">本視角相關異常警示</div>
         <div class="ri-anoms">
-          ${roleAnoms.map(a => `
-            <div class="ri-anom ${a.severity}">
+          ${roleAnoms.map(a => {
+            const gi = (state.currentAnomalies || []).indexOf(a);
+            return `
+            <div class="ri-anom ${a.severity}" role="button" tabindex="0" onclick="App.openAnomalyDrawer(${gi})">
               <span class="ri-anom-ico">${a.icon}</span>
               <span class="ri-anom-t">${a.title}</span>
               <span class="ri-anom-m">${escapeHtml(a.subject)}</span>
-            </div>
-          `).join('')}
+              <span class="ri-anom-arrow">→</span>
+            </div>`;
+          }).join('')}
         </div>
       ` : ''}
     `;
