@@ -74,13 +74,16 @@
     </button>
     <!-- Role selector embedded next to analysis tab -->
     <div class="role-sel" id="roleSelWrap" style="display:none">
-      <button class="role-sel-btn" id="roleSelBtn" onclick="App.toggleRoleDropdown()" title="切換分析視角">
+      <!-- Desktop: custom dropdown button -->
+      <button class="role-sel-btn role-sel-desktop" id="roleSelBtn" onclick="App.toggleRoleDropdown()" title="切換分析視角">
         <span id="roleSelIco">⊞</span>
         <span id="roleSelLabel">綜合</span>
         <span class="role-sel-focus" id="roleSelFocus"></span>
         <span class="role-sel-arrow">▾</span>
       </button>
       <div class="role-sel-drop" id="roleSelDrop" style="display:none"></div>
+      <!-- Mobile: native select -->
+      <select class="role-sel-mobile sb-select" id="roleSelMobile" onchange="App.setAnalysisRole(this.value)" style="display:none"></select>
     </div>
   </div>
   <div class="mode-bar-r" id="modeBtns">

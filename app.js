@@ -675,6 +675,15 @@ window.App = (function () {
         </button>`
       ).join('');
     }
+    // Mobile select: populate once, sync value always
+    const msel = $('roleSelMobile');
+    if (msel) {
+      if (!msel.options.length) {
+        msel.innerHTML = Object.entries(ANALYSIS_ROLES).map(([k, r]) =>
+          `<option value="${k}">${r.icon} ${r.label}</option>`).join('');
+      }
+      msel.value = cur;
+    }
 
     // In-content banner hidden: focus now shown beside the top-bar selector
     const gb = $('globalRoleBanner');
