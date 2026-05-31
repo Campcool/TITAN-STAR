@@ -1113,6 +1113,14 @@
 
     const keys = [...info.keys()];
 
+    // 權威生產品名目錄：凡出現在任一月份「整新數」彙總表的機種，視為已確立的
+    // 獨立生產型號。兩個名稱若都在此目錄中，代表它們是各自獨立登錄的型號
+    // （例如 THSM010 與 THS0010），即使長得相似也不應警示。
+    const knownModels = new Set();
+    for (const e of info.values()) {
+      if (e.inDenom) knownModels.add(e.key);
+    }
+
     // (1) 已自動合併：同一 key 下有多種原始寫法（僅資訊，不需動作）
     const merged = [];
     for (const e of info.values()) {
@@ -1135,6 +1143,8 @@
     for (let i = 0; i < keys.length; i++) {
       for (let j = i + 1; j < keys.length; j++) {
         const a = keys[i], b = keys[j];
+        // 兩者皆為已確立的生產型號 → 確定是不同型號，不警示
+        if (knownModels.has(a) && knownModels.has(b)) continue;
         const fa = confusableFold(a), fb = confusableFold(b);
         let reason = null, confidence = null;
         if (fa === fb) {
@@ -1154,8 +1164,8 @@
         if (!reason) continue;
         const ea = info.get(a), eb = info.get(b);
         suspicious.push({
-          a: { key: a, count: ea.count, months: [...ea.months].sort(), sheets: [...ea.sheets] },
-          b: { key: b, count: eb.count, months: [...eb.months].sort(), sheets: [...eb.sheets] },
+          a: { key: a, count: ea.count, months: [...ea.months].sort(), sheets: [...ea.sheets], known: knownModels.has(a) },
+          b: { key: b, count: eb.count, months: [...eb.months].sort(), sheets: [...eb.sheets], known: knownModels.has(b) },
           reason,
           confidence,
         });

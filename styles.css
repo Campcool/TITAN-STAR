@@ -2763,3 +2763,5 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
   .mq-conf { margin-left: 0 !important; }
   .mq-meta { flex-direction: column !important; gap: 3px !important; }
 }
+.mq-known   { color: var(--ok, #22c55e); font-size: 11px; margin-left: 4px; }
+.mq-unknown { color: var(--critical, #ef4444); font-size: 11px; margin-left: 4px; }

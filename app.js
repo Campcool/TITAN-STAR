@@ -3761,8 +3761,8 @@ window.App = (function () {
                 </div>
                 <div class="mq-reason">${escapeHtml(s.reason)}</div>
                 <div class="mq-meta">
-                  <span>${escapeHtml(s.a.key)}：${s.a.count} 件（${s.a.months.map(fmt.monthLabel).join('、') || '僅分母'}）</span>
-                  <span>${escapeHtml(s.b.key)}：${s.b.count} 件（${s.b.months.map(fmt.monthLabel).join('、') || '僅分母'}）</span>
+                  <span>${escapeHtml(s.a.key)}：${s.a.count} 件（${s.a.months.map(fmt.monthLabel).join('、') || '僅分母'}）${s.a.known ? '<b class="mq-known">✓生產品名</b>' : '<b class="mq-unknown">⚠不在生產品名</b>'}</span>
+                  <span>${escapeHtml(s.b.key)}：${s.b.count} 件（${s.b.months.map(fmt.monthLabel).join('、') || '僅分母'}）${s.b.known ? '<b class="mq-known">✓生產品名</b>' : '<b class="mq-unknown">⚠不在生產品名</b>'}</span>
                 </div>
               </div>`).join('')}
           </div>
