@@ -2799,6 +2799,55 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
 .mq-known   { color: var(--ok, #22c55e); font-size: 11px; margin-left: 4px; }
 .mq-unknown { color: var(--critical, #ef4444); font-size: 11px; margin-left: 4px; }
 
+/* ───────── 角色視角下鑽面板 ───────── */
+.lens {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--lc, var(--accent));
+  background: color-mix(in srgb, var(--lc, var(--accent)) 7%, var(--surface2));
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+@supports not (color: color-mix(in srgb, red 10%, blue)) {
+  .lens { background: var(--surface2); }
+}
+.lens-h { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
+.lens-ico {
+  font-size: 16px; color: var(--lc, var(--accent));
+  width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; flex-shrink: 0;
+  background: color-mix(in srgb, var(--lc, var(--accent)) 15%, transparent);
+}
+.lens-role { font-weight: 700; font-size: 14.5px; color: var(--lc, var(--accent)); }
+.lens-chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; margin-bottom: 11px; }
+.lens-chip {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 9px; padding: 9px 10px; text-align: center;
+}
+.lens-chip .lc-v { font-size: 16px; font-weight: 700; color: var(--text); line-height: 1.2; }
+.lens-chip .lc-l { font-size: 10.5px; color: var(--text2); margin-top: 3px; }
+.lens-chip.bad  .lc-v { color: var(--critical, #ef4444); }
+.lens-chip.warn .lc-v { color: var(--warn, #f59e0b); }
+.lens-chip.good .lc-v { color: var(--ok, #22c55e); }
+.lens-insight { font-size: 13px; line-height: 1.65; color: var(--text); margin-bottom: 11px; }
+.lens-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.lens-btn {
+  font-size: 12.5px; font-weight: 600;
+  color: var(--lc, var(--accent));
+  background: color-mix(in srgb, var(--lc, var(--accent)) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--lc, var(--accent)) 35%, transparent);
+  border-radius: 999px; padding: 7px 14px; cursor: pointer;
+  transition: background .12s;
+}
+.lens-btn:hover { background: color-mix(in srgb, var(--lc, var(--accent)) 22%, transparent); }
+@supports not (color: color-mix(in srgb, red 10%, blue)) {
+  .lens-btn { background: var(--surface3); border-color: var(--border2); }
+}
+@media (max-width: 820px) {
+  .lens { padding: 12px 13px !important; }
+  .lens-chips { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
 </style>
 <style>
 /* ════════════════════════════════════════════════════════════════════
@@ -9170,12 +9219,308 @@ window.App = (function () {
     `;
   }
 
+  // ═══════════════ 角色視角下鑽 ═══════════════
+  // 同一個實體（機種／零件），不同角色點進去最關心的「下一步」不同。
+  // 依當前 state.analysisRole 在抽屜頂端加一塊「XX 視角關注」面板：
+  // 給該角色最在意的數字、一句解讀、以及帶往對應分頁/抽屜的行動按鈕。
+  const FW_LENS_KWS = ['韌體','異常關機','無回應','當機','重啟','重開','升級','OTA','firmware','update','版本','軟體','APP','閃退','連線異常','連不上','死機','系統異常','無反應'];
+  const HW_LENS_KWS = ['焊','虛焊','破裂','變形','短路','斷裂','接觸不良','氧化','腐蝕','電容','電阻','電源','脫落','鬆動','冷焊','假焊','元件'];
+  const isWarrantyIn = (r) => (r.warranty || '').includes('保固') || (r.warranty || '').toLowerCase() === 'y' || (r.warrantyType || '').includes('保固');
+  const matchKw = (r, kws) => { const t = `${r.content || ''} ${r.reason || ''} ${r.reasonRaw || ''}`; return kws.some(k => t.includes(k)); };
+
+  function rateCls(rate) { return rate == null ? '' : rate >= 0.1 ? 'bad' : rate >= 0.05 ? 'warn' : 'good'; }
+  function pctStr(x) { return x == null ? '—' : (x * 100).toFixed(1) + '%'; }
+  function lensMoney(n) { return 'NT$ ' + Math.round(n || 0).toLocaleString('en'); }
+
+  function lensPanel(role, { chips = [], insight = '', actions = [] }) {
+    const ri = ANALYSIS_ROLES[role] || ANALYSIS_ROLES.all;
+    return `
+      <div class="lens" style="--lc:${ri.color}">
+        <div class="lens-h">
+          <span class="lens-ico">${ri.icon}</span>
+          <span class="lens-role">${ri.label}視角・最關注</span>
+        </div>
+        ${chips.length ? `<div class="lens-chips">${chips.map(c => `
+          <div class="lens-chip ${c.cls || ''}"><div class="lc-v">${c.value}</div><div class="lc-l">${c.label}</div></div>`).join('')}</div>` : ''}
+        ${insight ? `<div class="lens-insight">${insight}</div>` : ''}
+        ${actions.length ? `<div class="lens-actions">${actions.map(a => `<button class="lens-btn" onclick="${a.onclick}">${a.label} →</button>`).join('')}</div>` : ''}
+      </div>`;
+  }
+
+  // 計算某機種的跨角色指標
+  function modelMetrics(modelName) {
+    const recs = RepairAnalyzer.getRecords(state.db, { model: modelName });
+    const allRecs = RepairAnalyzer.getRecords(state.db, {});
+    const history = RepairAnalyzer.modelHistory(state.db, modelName);
+    const count = recs.length;
+    const scrap = recs.filter(r => r.isScrap).length;
+    const totalDenom = history.reduce((s, h) => s + (h.denom || 0), 0);
+    const rate = totalDenom ? count / totalDenom : null;
+    const share = allRecs.length ? count / allRecs.length : 0;
+    const withCount = history.filter(h => h.count > 0);
+    const last = withCount[withCount.length - 1];
+    const prev = withCount[withCount.length - 2];
+    const momCount = (last && prev) ? last.count - prev.count : null;
+    const momRate = (last && prev && last.faultRate != null && prev.faultRate != null) ? (last.faultRate - prev.faultRate) * 100 : null;
+    const aggMap = {};
+    for (const h of history) for (const p of (h.topParts || [])) aggMap[p.name] = (aggMap[p.name] || 0) + p.count;
+    const topParts = Object.entries(aggMap).map(([name, c]) => ({ name, count: c })).sort((a, b) => b.count - a.count);
+    const serialMap = {};
+    for (const r of recs) { if (r.serial) serialMap[r.serial] = (serialMap[r.serial] || 0) + 1; }
+    const repeated = Object.entries(serialMap).filter(([, c]) => c >= 2).sort((a, b) => b[1] - a[1]);
+    const warrantyIn = recs.filter(isWarrantyIn).length;
+    const fwHits = recs.filter(r => matchKw(r, FW_LENS_KWS)).length;
+    const hwHits = recs.filter(r => matchKw(r, HW_LENS_KWS)).length;
+    const cfg = loadCostCfg();
+    const cost = RepairAnalyzer.costAnalysis(recs, cfg);
+    // 故障原因集中度
+    const reasonMap = {};
+    for (const r of recs) { const k = r.content || r.reason; if (k) reasonMap[k] = (reasonMap[k] || 0) + 1; }
+    const topReason = Object.entries(reasonMap).sort((a, b) => b[1] - a[1])[0] || null;
+    return { modelName, recs, count, scrap, scrapRate: count ? scrap / count : 0, rate, share, momCount, momRate, topParts, repeated, warrantyIn, fwHits, hwHits, cost, topReason, lastMonth: last ? last.month : null };
+  }
+
+  function modelLens(modelName) {
+    const role = state.analysisRole || 'all';
+    if (role === 'all') return '';
+    const M = modelMetrics(modelName);
+    if (!M.count) return '';
+    const esc = escapeAttr(modelName);
+    const momTxt = (d, unit, inv) => d == null ? '持平' : `${d > 0 ? '▲+' : '▼'}${Math.abs(d).toFixed(unit === '%' ? 1 : 0)}${unit}`;
+    const momCls = (d, goodWhenDown = true) => d == null || d === 0 ? '' : (d > 0) === goodWhenDown ? 'bad' : 'good';
+    const partsAct = M.topParts.length ? [{ label: `查最耗零件「${M.topParts[0].name.slice(0,10)}」`, onclick: `App.openPartDrawer('${escapeAttr(M.topParts[0].name)}')` }] : [];
+
+    let cfg;
+    switch (role) {
+      case 'ceo': cfg = {
+        chips: [
+          { label: '佔總維修比重', value: pctStr(M.share), cls: M.share >= 0.15 ? 'bad' : M.share >= 0.08 ? 'warn' : '' },
+          { label: '故障率', value: pctStr(M.rate), cls: rateCls(M.rate) },
+          { label: '報廢損失估算', value: M.cost.configured ? lensMoney(M.cost.scrapCost) : '未設單價', cls: M.cost.scrapCost > 0 ? 'bad' : '' },
+          { label: '月趨勢', value: momTxt(M.momRate, '%'), cls: momCls(M.momRate) },
+        ],
+        insight: M.share >= 0.1 ? `此機種佔整體維修 ${pctStr(M.share)}，是資源與品牌曝險的重點，建議要求生產/品檢提出改善時程。` : `佔整體維修 ${pctStr(M.share)}，屬一般範圍；持續觀察月趨勢即可。`,
+        actions: [{ label: '看品質成本', onclick: `App.switchPage('cost')` }, { label: '看月趨勢', onclick: `App.switchPage('trend')` }],
+      }; break;
+      case 'finance': cfg = {
+        chips: [
+          { label: '報廢件數', value: M.scrap, cls: M.scrap > 0 ? 'bad' : '' },
+          { label: '報廢成本', value: M.cost.configured ? lensMoney(M.cost.scrapCost) : '未設單價', cls: M.cost.scrapCost > 0 ? 'bad' : '' },
+          { label: '工時成本', value: M.cost.configured ? lensMoney(M.cost.laborCost) : '—' },
+          { label: 'COPQ 合計', value: M.cost.configured ? lensMoney(M.cost.totalCost) : '—', cls: 'bad' },
+        ],
+        insight: M.cost.configured ? `此機種品質成本約 ${lensMoney(M.cost.totalCost)}（報廢 ${lensMoney(M.cost.scrapCost)} + 工時 ${lensMoney(M.cost.laborCost)}）。若改善可回收此金額，為 ROI 評估基準。` : `尚未設定單價，無法估算金額。請至成本量化頁填入機種/類別單價。`,
+        actions: [{ label: '設定/查看成本', onclick: `App.switchPage('cost')` }],
+      }; break;
+      case 'procure': cfg = {
+        chips: [
+          { label: '耗用零件種類', value: M.topParts.length },
+          { label: '最高用量零件', value: M.topParts[0] ? M.topParts[0].count + ' 件' : '—', cls: 'warn' },
+          { label: '月趨勢', value: momTxt(M.momCount, '件'), cls: momCls(M.momCount) },
+        ],
+        insight: M.topParts.length ? `備料優先序：${M.topParts.slice(0,3).map(p=>`${p.name}(${p.count})`).join('、')}。若月趨勢上升，建議提高安全庫存。` : '本機種無明顯零件集中。',
+        actions: [...partsAct, { label: '看零件 Pareto', onclick: `App.switchPage('parts')` }],
+      }; break;
+      case 'prod': cfg = {
+        chips: [
+          { label: '故障率', value: pctStr(M.rate), cls: rateCls(M.rate) },
+          { label: '報廢率', value: pctStr(M.scrapRate), cls: M.scrapRate >= 0.3 ? 'bad' : M.scrapRate >= 0.1 ? 'warn' : '' },
+          { label: '月趨勢', value: momTxt(M.momRate, '%'), cls: momCls(M.momRate) },
+          { label: '主故障', value: M.topReason ? `${M.topReason[0].slice(0,8)} ×${M.topReason[1]}` : '—' },
+        ],
+        insight: (M.rate != null && M.rate >= 0.05) ? `故障率 ${pctStr(M.rate)} 偏高，建議比對製造批次找出是否集中於特定批號。` : `故障率在可接受範圍；留意報廢率與主故障模式是否上升。`,
+        actions: [{ label: '看製造批次', onclick: `App.switchPage('batch')` }, { label: '看品質/SPC', onclick: `App.switchPage('quality')` }],
+      }; break;
+      case 'qa': cfg = {
+        chips: [
+          { label: '重複維修台數', value: M.repeated.length, cls: M.repeated.length > 0 ? 'bad' : '' },
+          { label: '保固期內', value: M.warrantyIn, cls: M.warrantyIn > 0 ? 'warn' : '' },
+          { label: '報廢率', value: pctStr(M.scrapRate), cls: M.scrapRate >= 0.3 ? 'bad' : '' },
+        ],
+        insight: M.repeated.length > 0 ? `有 ${M.repeated.length} 台重複進廠（最高 #${M.repeated[0][0]} ×${M.repeated[0][1]}），是品質未閉環指標，建議開立 CAPA。` : `無重複維修，品質閉環狀況良好。`,
+        actions: [
+          ...(M.repeated.length ? [{ label: `查重複序號 #${M.repeated[0][0]}`, onclick: `App.openSerialDrawer('${esc}','${escapeAttr(M.repeated[0][0])}')` }] : []),
+          { label: '開立/查 CAPA', onclick: `App.switchPage('capa')` },
+        ],
+      }; break;
+      case 'cs': cfg = {
+        chips: [
+          { label: '保固曝險', value: M.warrantyIn, cls: M.warrantyIn > 0 ? 'warn' : '' },
+          { label: '重複進廠台數', value: M.repeated.length, cls: M.repeated.length > 0 ? 'bad' : '' },
+          { label: '報廢件數', value: M.scrap },
+        ],
+        insight: M.warrantyIn > 0 || M.repeated.length > 0 ? `${M.warrantyIn} 件保固期內、${M.repeated.length} 台重複進廠，屬客訴高風險，建議主動聯繫客戶說明處理進度。` : `客訴風險低。`,
+        actions: [{ label: '看維修明細', onclick: `App.switchPage('detail')` }],
+      }; break;
+      case 'repair': cfg = {
+        chips: [
+          { label: '維修件數', value: M.count },
+          { label: '主力備料', value: M.topParts[0] ? M.topParts[0].name.slice(0,10) : '—', cls: 'warn' },
+          { label: '報廢率', value: pctStr(M.scrapRate), cls: M.scrapRate >= 0.3 ? 'bad' : '' },
+          { label: '主故障', value: M.topReason ? `×${M.topReason[1]}` : '—' },
+        ],
+        insight: M.topReason ? `最常見故障：「${M.topReason[0]}」(${M.topReason[1]} 件)。主力備料為 ${M.topParts.slice(0,3).map(p=>p.name).join('、') || '—'}。` : '無集中故障模式。',
+        actions: [...partsAct, { label: '看故障原因', onclick: `App.switchPage('reason')` }],
+      }; break;
+      case 'hw': cfg = {
+        chips: [
+          { label: '疑似硬體故障', value: M.hwHits, cls: M.hwHits > 0 ? 'warn' : '' },
+          { label: '報廢率', value: pctStr(M.scrapRate), cls: M.scrapRate >= 0.3 ? 'bad' : '' },
+          { label: '關鍵零件', value: M.topParts[0] ? M.topParts[0].name.slice(0,10) : '—' },
+        ],
+        insight: M.hwHits > 0 ? `${M.hwHits} 件含硬體關鍵字（焊接/破裂/短路等），若集中於同一零件，為 ECO 設計變更候選。` : `未見明顯硬體缺陷關鍵字。`,
+        actions: [...partsAct, { label: '看風險/根因', onclick: `App.switchPage('risk')` }],
+      }; break;
+      case 'fw': cfg = {
+        chips: [
+          { label: '疑似韌體故障', value: M.fwHits, cls: M.fwHits > 0 ? 'warn' : '' },
+          { label: '佔此機種比', value: M.count ? pctStr(M.fwHits / M.count) : '—' },
+          { label: '主故障描述', value: M.topReason ? M.topReason[0].slice(0,10) : '—' },
+        ],
+        insight: M.fwHits > 0 ? `${M.fwHits} 件含韌體/軟體關鍵字（當機/重啟/連線等），建議比對在役韌體版本是否一致，評估 OTA 修正。` : `未見明顯韌體相關故障。`,
+        actions: [{ label: '看故障原因', onclick: `App.switchPage('reason')` }],
+      }; break;
+      case 'logistics': cfg = {
+        chips: [
+          { label: '報廢件數', value: M.scrap, cls: M.scrap > 0 ? 'bad' : '' },
+          { label: '報廢率', value: pctStr(M.scrapRate), cls: M.scrapRate >= 0.3 ? 'bad' : '' },
+          { label: '重工台數', value: M.repeated.length },
+          { label: '月趨勢', value: momTxt(M.momCount, '件'), cls: momCls(M.momCount) },
+        ],
+        insight: `報廢 ${M.scrap} 件直接影響可出貨數；重複進廠 ${M.repeated.length} 台佔用週轉。`,
+        actions: [{ label: '看報廢/重修', onclick: `App.switchPage('scrap')` }],
+      }; break;
+      case 'sales': cfg = {
+        chips: [
+          { label: '品質燈號', value: M.rate == null ? '—' : M.rate >= 0.1 ? '🔴 紅' : M.rate >= 0.05 ? '🟡 黃' : '🟢 綠', cls: rateCls(M.rate) },
+          { label: '故障率', value: pctStr(M.rate), cls: rateCls(M.rate) },
+          { label: '月趨勢', value: momTxt(M.momRate, '%'), cls: momCls(M.momRate) },
+        ],
+        insight: M.rate != null && M.rate < 0.05 ? `品質燈號綠，可作為推廣亮點。` : `故障率偏高，銷售時需留意客戶信心，避免主推。`,
+        actions: [{ label: '看月趨勢', onclick: `App.switchPage('trend')` }],
+      }; break;
+      case 'factory': cfg = {
+        chips: [
+          { label: '維修件數', value: M.count },
+          { label: '佔總維修', value: pctStr(M.share) },
+          { label: '重複進廠', value: M.repeated.length, cls: M.repeated.length > 5 ? 'warn' : '' },
+          { label: '月趨勢', value: momTxt(M.momCount, '件'), cls: momCls(M.momCount) },
+        ],
+        insight: `此機種佔總維修 ${pctStr(M.share)}；重複進廠 ${M.repeated.length} 台影響產能週轉，需跨部門協調品檢與維修。`,
+        actions: [{ label: '看異常偵測', onclick: `App.switchPage('alerts')` }],
+      }; break;
+      default: return '';
+    }
+    return lensPanel(role, cfg);
+  }
+
+  // 計算某零件的跨角色指標
+  function partMetrics(partNorm) {
+    const allRecs = RepairAnalyzer.getRecords(state.db, {});
+    const recs = allRecs.filter(r => r.part1Norm === partNorm || r.part2Norm === partNorm || r.part3Norm === partNorm);
+    const qty = recs.reduce((s, r) => {
+      let q = 0;
+      if (r.part1Norm === partNorm) q += (r.qty1 || 0);
+      if (r.part2Norm === partNorm) q += (r.qty2 || 0);
+      if (r.part3Norm === partNorm) q += (r.qty3 || 0);
+      return s + (q || 1);
+    }, 0);
+    const models = {};
+    for (const r of recs) models[r.model] = (models[r.model] || 0) + 1;
+    const modelArr = Object.entries(models).map(([m, c]) => ({ model: m, count: c })).sort((a, b) => b.count - a.count);
+    const scrapLinked = recs.filter(r => r.isScrap).length;
+    // 月趨勢
+    const trend = RepairAnalyzer.partTrend(state.db, partNorm, {});
+    const withC = trend.filter(t => t.count > 0);
+    const last = withC[withC.length - 1], prev = withC[withC.length - 2];
+    const momQty = (last && prev) ? last.count - prev.count : null;
+    const fwHits = recs.filter(r => matchKw(r, FW_LENS_KWS)).length;
+    const hwHits = recs.filter(r => matchKw(r, HW_LENS_KWS)).length;
+    return { partNorm, recs, qty, modelArr, scrapLinked, momQty, fwHits, hwHits, models: modelArr.length };
+  }
+
+  function partLens(partNorm) {
+    const role = state.analysisRole || 'all';
+    if (role === 'all') return '';
+    const P = partMetrics(partNorm);
+    if (!P.recs.length) return '';
+    const momTxt = (d) => d == null ? '持平' : `${d > 0 ? '▲+' : '▼'}${Math.abs(d)}件`;
+    const momCls = (d) => d == null || d === 0 ? '' : d > 0 ? 'bad' : 'good';
+    const topModelAct = P.modelArr.length ? [{ label: `查最大用量機種 ${P.modelArr[0].model}`, onclick: `App.openModelDrawer('${escapeAttr(P.modelArr[0].model)}')` }] : [];
+
+    let cfg;
+    switch (role) {
+      case 'procure': cfg = {
+        chips: [
+          { label: '總用量', value: P.qty + ' 件', cls: 'warn' },
+          { label: '涉及機種', value: P.models },
+          { label: '月趨勢', value: momTxt(P.momQty), cls: momCls(P.momQty) },
+        ],
+        insight: `此零件用於 ${P.models} 個機種，總用量 ${P.qty} 件${P.momQty > 0 ? `，且較上月增加 ${P.momQty} 件，建議提高安全庫存與供應商備貨` : '。'}`,
+        actions: [...topModelAct, { label: '看零件 Pareto', onclick: `App.switchPage('parts')` }],
+      }; break;
+      case 'hw': cfg = {
+        chips: [
+          { label: '跨機種數', value: P.models, cls: P.models >= 3 ? 'bad' : '' },
+          { label: '疑似硬體故障', value: P.hwHits, cls: P.hwHits > 0 ? 'warn' : '' },
+          { label: '關聯報廢', value: P.scrapLinked, cls: P.scrapLinked > 0 ? 'bad' : '' },
+        ],
+        insight: P.models >= 3 ? `此零件橫跨 ${P.models} 個機種出現，若為共用料，可能是系統性元件可靠性/設計問題，建議列入 ECO 評估。` : `集中於少數機種，較可能為個別機種設計或製程問題。`,
+        actions: [...topModelAct, { label: '看風險/根因', onclick: `App.switchPage('risk')` }],
+      }; break;
+      case 'repair': cfg = {
+        chips: [
+          { label: '使用筆數', value: P.recs.length },
+          { label: '涉及機種', value: P.models },
+          { label: '關聯報廢', value: P.scrapLinked },
+        ],
+        insight: `此零件出現在 ${P.recs.length} 筆維修、${P.models} 個機種。點下方看依故障部位分類的詳細記錄。`,
+        actions: [{ label: '看故障記錄分類', onclick: `App.openPartFaultDrawer('${escapeAttr(partNorm)}')` }, ...topModelAct],
+      }; break;
+      case 'finance': cfg = {
+        chips: [
+          { label: '總用量', value: P.qty + ' 件' },
+          { label: '關聯報廢', value: P.scrapLinked, cls: P.scrapLinked > 0 ? 'bad' : '' },
+        ],
+        insight: `此零件用量 ${P.qty} 件、關聯 ${P.scrapLinked} 件報廢。零件單價 × 用量即為直接物料成本，可於成本頁納入估算。`,
+        actions: [{ label: '看品質成本', onclick: `App.switchPage('cost')` }],
+      }; break;
+      case 'qa': cfg = {
+        chips: [
+          { label: '涉及機種', value: P.models },
+          { label: '關聯報廢', value: P.scrapLinked, cls: P.scrapLinked > 0 ? 'bad' : '' },
+          { label: '月趨勢', value: momTxt(P.momQty), cls: momCls(P.momQty) },
+        ],
+        insight: P.scrapLinked > 0 ? `此零件關聯 ${P.scrapLinked} 件報廢，若用量暴增需確認來料批次品質。` : `關聯報廢低。`,
+        actions: [{ label: '看製造批次', onclick: `App.switchPage('batch')` }],
+      }; break;
+      case 'fw': cfg = {
+        chips: [
+          { label: '疑似韌體相關', value: P.fwHits, cls: P.fwHits > 0 ? 'warn' : '' },
+          { label: '涉及機種', value: P.models },
+        ],
+        insight: P.fwHits > 0 ? `${P.fwHits} 筆使用此零件的記錄含韌體關鍵字，需確認是否為軟硬體交互問題。` : `此零件與韌體關聯不明顯。`,
+        actions: [{ label: '看故障原因', onclick: `App.switchPage('reason')` }],
+      }; break;
+      default: cfg = {
+        chips: [
+          { label: '總用量', value: P.qty + ' 件' },
+          { label: '涉及機種', value: P.models },
+          { label: '月趨勢', value: momTxt(P.momQty), cls: momCls(P.momQty) },
+        ],
+        insight: `此零件用於 ${P.models} 個機種，總用量 ${P.qty} 件。`,
+        actions: [...topModelAct, { label: '看零件 Pareto', onclick: `App.switchPage('parts')` }],
+      };
+    }
+    return lensPanel(role, cfg);
+  }
+
   function openPartDrawer(partNorm) {
     openDrawer({
       severity: 'info', icon: '▤',
       overline: '零件深入分析',
       title: partNorm,
-      bodyHtml: partDrillContent(partNorm),
+      bodyHtml: partLens(partNorm) + partDrillContent(partNorm),
     });
   }
   function openPartFaultDrawer(partNorm) {
@@ -9228,7 +9573,7 @@ window.App = (function () {
       severity: 'info', icon: '#',
       overline: `機種深入分析 · ${cat}${subtitle}`,
       title: model,
-      bodyHtml: modelDrillContent(model, focusMonth),
+      bodyHtml: modelLens(model) + modelDrillContent(model, focusMonth),
     });
   }
   function openSerialDrawer(model, serial) {

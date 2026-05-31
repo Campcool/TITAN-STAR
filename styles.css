@@ -2782,3 +2782,52 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
 }
 .mq-known   { color: var(--ok, #22c55e); font-size: 11px; margin-left: 4px; }
 .mq-unknown { color: var(--critical, #ef4444); font-size: 11px; margin-left: 4px; }
+
+/* ───────── 角色視角下鑽面板 ───────── */
+.lens {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--lc, var(--accent));
+  background: color-mix(in srgb, var(--lc, var(--accent)) 7%, var(--surface2));
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+@supports not (color: color-mix(in srgb, red 10%, blue)) {
+  .lens { background: var(--surface2); }
+}
+.lens-h { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
+.lens-ico {
+  font-size: 16px; color: var(--lc, var(--accent));
+  width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; flex-shrink: 0;
+  background: color-mix(in srgb, var(--lc, var(--accent)) 15%, transparent);
+}
+.lens-role { font-weight: 700; font-size: 14.5px; color: var(--lc, var(--accent)); }
+.lens-chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; margin-bottom: 11px; }
+.lens-chip {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 9px; padding: 9px 10px; text-align: center;
+}
+.lens-chip .lc-v { font-size: 16px; font-weight: 700; color: var(--text); line-height: 1.2; }
+.lens-chip .lc-l { font-size: 10.5px; color: var(--text2); margin-top: 3px; }
+.lens-chip.bad  .lc-v { color: var(--critical, #ef4444); }
+.lens-chip.warn .lc-v { color: var(--warn, #f59e0b); }
+.lens-chip.good .lc-v { color: var(--ok, #22c55e); }
+.lens-insight { font-size: 13px; line-height: 1.65; color: var(--text); margin-bottom: 11px; }
+.lens-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.lens-btn {
+  font-size: 12.5px; font-weight: 600;
+  color: var(--lc, var(--accent));
+  background: color-mix(in srgb, var(--lc, var(--accent)) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--lc, var(--accent)) 35%, transparent);
+  border-radius: 999px; padding: 7px 14px; cursor: pointer;
+  transition: background .12s;
+}
+.lens-btn:hover { background: color-mix(in srgb, var(--lc, var(--accent)) 22%, transparent); }
+@supports not (color: color-mix(in srgb, red 10%, blue)) {
+  .lens-btn { background: var(--surface3); border-color: var(--border2); }
+}
+@media (max-width: 820px) {
+  .lens { padding: 12px 13px !important; }
+  .lens-chips { grid-template-columns: repeat(2, 1fr) !important; }
+}
