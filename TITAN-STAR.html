@@ -8964,6 +8964,7 @@ window.App = (function () {
           <div class="dd-row-stat">
             <div class="v">${it.count}</div>
             <div class="p ${pCls}">${pct == null ? '—' : (pct * 100).toFixed(1) + '%'}</div>
+            ${it.denom ? `<div class="p" style="font-size:10.5px;color:var(--text3);margin-top:1px">／${it.denom} 台</div>` : ''}
           </div>
         </div>`;
     }).join('')}</div>`;
