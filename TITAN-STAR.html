@@ -453,6 +453,18 @@ button, input, select { font-family: inherit; }
   line-height: 1.2;
 }
 .page-d { color: var(--text3); font-size: 15.5px; margin-top: 4px; line-height: 1.5; max-width: 560px; }
+.page-usage {
+  display: flex; gap: 10px; align-items: flex-start;
+  background: var(--info-soft, rgba(56,189,248,.1));
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--info, #38bdf8);
+  border-radius: 10px;
+  padding: 11px 14px; margin: 0 0 20px;
+  font-size: 14px; line-height: 1.6; color: var(--text2);
+}
+.page-usage .pu-ico { flex-shrink: 0; font-size: 15px; line-height: 1.6; }
+.page-usage b { color: var(--text); font-weight: 700; }
+@media (max-width: 600px) { .page-usage { font-size: 15px; } }
 .page-meta {
   font-family: var(--mono); font-size: 14.5px; color: var(--text3);
   padding: 6px 12px; background: var(--surface); border-radius: 16px;
@@ -3234,6 +3246,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
             </div>
             <div class="page-meta" id="summaryMeta"></div>
           </div>
+          <div class="page-usage"><span class="pu-ico">💡</span><span><b>使用時機：</b>開週會 / 月會前快速掌握全廠重點，依你的角色（主管 / 工程 / 品保）查看當期最該追蹤的事項與建議行動。</span></div>
           <div class="sum-banner" id="sumBanner"></div>
           <div class="kpi-grid" id="sumKpi"></div>
           <div id="sumBody"></div>
@@ -3248,6 +3261,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
             </div>
             <div class="page-meta" id="overviewMeta"></div>
           </div>
+          <div class="page-usage"><span class="pu-ico">💡</span><span><b>使用時機：</b>每次匯入新資料後的第一站，先看當期維修 KPI、機種故障率排名與最常更換零件，建立整體概況再深入各分頁。</span></div>
           <!-- Role Insight Panel -->
           <div class="ri-panel" id="roleInsightPanel"></div>
           <div class="kpi-grid" id="kpiGrid"></div>
@@ -3281,6 +3295,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
             </div>
             <div class="page-meta" id="alertsMeta"></div>
           </div>
+          <div class="page-usage"><span class="pu-ico">💡</span><span><b>使用時機：</b>想快速揪出當月「不對勁」的訊號時使用 — 零件用量暴增、新出現的高頻故障、故障率偏高的機種或跨月重複維修，依嚴重 / 注意 / 提醒分級排查。</span></div>
           <div class="anom-grid" id="anomGrid"></div>
         </div>
 
@@ -3293,6 +3308,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
             </div>
             <div class="page-meta" id="partsMeta"></div>
           </div>
+          <div class="page-usage"><span class="pu-ico">💡</span><span><b>使用時機：</b>規劃備料安全庫存、或要找出「最該優先改善」的關鍵零件時使用 — 依件數排序與累計佔比，鎖定造成多數故障的少數零件。</span></div>
           <div class="card sec">
             <div class="card-h"><div class="card-t">🧩 故障零件大類根因</div><div class="card-sub">依元件料號大類歸類 · 看故障性質（連接器 / 電源 / IC / 開關 / 機構…）</div></div>
             <div class="comp-cat-wrap">
@@ -3334,6 +3350,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
               <button class="btn" onclick="App.exportCrossMatrix()">⤓ Excel</button>
             </div>
           </div>
+          <div class="page-usage"><span class="pu-ico">💡</span><span><b>使用時機：</b>懷疑某零件是「共用料件缺陷」、想確認其影響範圍時使用 — 列出同一零件跨 ≥ 2 個機種出現的情形，判斷是否為料件本身問題。</span></div>
           <div class="matrix-wrap" id="crossMatrix"></div>
         </div>
 
@@ -3346,6 +3363,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
             </div>
             <div class="page-meta" id="trendMeta"></div>
           </div>
+          <div class="page-usage"><span class="pu-ico">💡</span><span><b>使用時機：</b>想看長期走勢、判斷問題正在惡化還是改善時使用 — 跨全月份比較維修件數、故障率與主要零件的月度變化。</span></div>
           <div class="grid-2 sec">
             <div class="card">
               <div class="card-h"><div class="card-t">維修件數 vs 報廢件數</div></div>
@@ -3372,6 +3390,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
             </div>
             <div class="page-meta" id="reasonMeta"></div>
           </div>
+          <div class="page-usage"><span class="pu-ico">💡</span><span><b>使用時機：</b>想了解故障的「性質」與根因分布、決定改善方向時使用 — 看故障大類佔比與故障內容排名，找出最常見的失效模式。</span></div>
           <div class="grid-2 sec">
             <div class="card">
               <div class="card-h"><div class="card-t">故障大類</div></div>
@@ -3397,6 +3416,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
             </div>
             <div class="page-meta" id="scrapMeta"></div>
           </div>
+          <div class="page-usage"><span class="pu-ico">💡</span><span><b>使用時機：</b>追蹤重工 / 報廢損失、揪出「修了又壞」的序號時使用 — 檢視跨月份重複維修、同月重修與報廢機種，評估維修品質。</span></div>
           <div class="sec">
             <div class="sec-h"><span class="sec-t"><span class="strong">跨月份重複維修</span></span></div>
             <div id="crossMonthSection"></div>
@@ -3422,6 +3442,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
             </div>
             <div class="page-meta" id="qualityMeta"></div>
           </div>
+          <div class="page-usage"><span class="pu-ico">💡</span><span><b>使用時機：</b>向上彙報品質績效、或監控製程是否失控時使用 — 看 DPPM、FPY 直通率、重工率，並用 SPC 管制圖判斷故障率是否超出管制界線。</span></div>
           <div class="kpi-grid" id="qualityKpi"></div>
           <div class="card sec">
             <div class="card-h"><div class="card-t">SPC 故障率管制圖（p-chart）</div></div>
@@ -3439,6 +3460,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
             </div>
             <div class="page-meta" id="batchMeta"></div>
           </div>
+          <div class="page-usage"><span class="pu-ico">💡</span><span><b>使用時機：</b>懷疑特定「出廠批次」或「整新批次」有系統性瑕疵時使用 — 研判全新 / 整新故障佔比、找出故障集中的元件批次與製程梯次。</span></div>
           <div id="batchNotice" style="display:none"></div>
           <div class="kpi-grid" id="batchKpi"></div>
           <div class="batch-2col">
@@ -3485,6 +3507,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
             </div>
             <div class="page-meta" id="riskMeta"></div>
           </div>
+          <div class="page-usage"><span class="pu-ico">💡</span><span><b>使用時機：</b>做正式 FMEA 風險評估、排定改善優先序、或預估下月趨勢時使用 — 依 RPN 風險評分排序，並透過根因樹追溯部位 → 故障模式。</span></div>
           <div class="card sec" id="forecastCard"></div>
           <div class="sec">
             <div class="sec-h"><span class="sec-t"><span class="strong">FMEA 風險矩陣</span> 依 RPN 排序</span></div>
@@ -3512,6 +3535,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
               <button class="btn primary" onclick="App.openCapaForm()">+ 新增 CAPA</button>
             </div>
           </div>
+          <div class="page-usage"><span class="pu-ico">💡</span><span><b>使用時機：</b>針對重大異常或反覆故障開立「矯正預防措施」並追蹤到底時使用 — 從異常偵測 / 風險分析按「+CAPA」帶入問題，指派負責人與截止日，持續追蹤改善狀態直到關閉。</span></div>
           <div class="capa-kpi-row" id="capaKpiRow"></div>
           <div id="capaList"></div>
         </div>
@@ -3528,6 +3552,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
               <button class="btn" onclick="App.openCostConfig()">⚙ 單價設定</button>
             </div>
           </div>
+          <div class="page-usage"><span class="pu-ico">💡</span><span><b>使用時機：</b>要把故障 / 報廢換算成「金額」、向管理層證明改善效益時使用 — 設定單價後，量化報廢成本、維修工時成本與各類別損失。</span></div>
           <div id="costContent"></div>
         </div>
 
@@ -3544,6 +3569,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
               <div class="page-meta" id="detailMeta"></div>
             </div>
           </div>
+          <div class="page-usage"><span class="pu-ico">💡</span><span><b>使用時機：</b>需要查核某筆原始記錄、或匯出特定條件資料時使用 — 以序號 / 機種 / 故障原因搜尋逐筆明細，並可匯出 CSV 做進一步分析。</span></div>
           <div class="tbl-wrap">
             <table class="tbl">
               <thead>
