@@ -381,6 +381,65 @@ window.App = (function () {
   }
 
   // ─────────────── Page switching ───────────────
+  function openDashboardDirect() {
+    // 登入後直接進主介面，不彈 alert；若無資料則顯示引導畫面
+    state.db = RepairDB.load();
+    $('uploadZone').style.display = 'none';
+    $('dash').classList.add('active');
+    if ($('modeBar')) $('modeBar').style.display = 'flex';
+    if ($('rmaDash')) $('rmaDash').style.display = 'none';
+    const mub = $('modeUploadBtn'); if (mub) mub.style.display = '';
+    const mrb = $('modeReportBtn'); if (mrb) mrb.style.display = '';
+    const rsw = $('roleSelWrap'); if (rsw) rsw.style.display = '';
+    const mrma = $('modeRma'); if (mrma) mrma.style.display = '';
+    try {
+      const c = localStorage.getItem('titan_subbar_collapsed');
+      const sb = $('subbar');
+      if (sb) sb.classList.toggle('collapsed', c === '1');
+    } catch(e) {}
+    try {
+      const m = localStorage.getItem('titan_sidebar_mini');
+      const sbar = $('sidebar');
+      const layout = document.querySelector('.layout');
+      const miniBtn = $('sidebarMiniToggle');
+      if (m === '1') {
+        if (sbar) sbar.classList.add('mini');
+        if (layout) layout.classList.add('sidebar-mini');
+        if (miniBtn) miniBtn.textContent = '▷';
+      }
+    } catch(e) {}
+    if (!Object.keys(state.db.months).length) {
+      // 無資料：顯示引導畫面
+      $('anomGrid') && ($('anomGrid').innerHTML = '');
+      const content = document.getElementById('pageOverview');
+      if (content) {
+        content.classList.add('active');
+        // 在頁面頂端插入上傳引導卡（若尚未插入）
+        if (!document.getElementById('noDataGuide')) {
+          const guide = document.createElement('div');
+          guide.id = 'noDataGuide';
+          guide.className = 'no-data-guide';
+          guide.innerHTML = `
+            <div class="ndg-ico">📂</div>
+            <div class="ndg-t">尚未載入報表資料</div>
+            <div class="ndg-d">點擊右上角 ⤒ 按鈕上傳 Excel 報表，或點下方按鈕開始</div>
+            <button class="btn primary ndg-btn" onclick="App.openUpload()">⤒ 上傳報表</button>`;
+          content.prepend(guide);
+        }
+      }
+      syncDisplaySizeButtons();
+      return;
+    }
+    // 有資料：正常渲染
+    state.selectedMonths = Object.keys(state.db.months).sort();
+    state.selectedCategory = '全部';
+    state.selectedModel = '全部';
+    renderAnalysisRoleBar();
+    renderAll();
+    syncDisplaySizeButtons();
+    window.scrollTo(0, 0);
+  }
+
   function openDashboard() {
     state.db = RepairDB.load();
     if (!Object.keys(state.db.months).length) {
@@ -4206,7 +4265,7 @@ window.App = (function () {
   return {
     handleFiles, removeMonth, clearAll, confirmClear, exportData, importData,
     publishData,
-    openDashboard, openUpload, switchPage,
+    openDashboard, openDashboardDirect, openUpload, switchPage,
     toggleNav, closeNav, setDisplaySize,
     setMonth, setMonthDirect, setCategory, setModel,
     setAnalysisRole,

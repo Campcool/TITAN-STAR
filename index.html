@@ -779,12 +779,18 @@ function onAuthSuccess() {
   try { App.renderUploadList(); } catch(e) {}
   try { updateRmaBadge(); } catch(e) {}
 
-  // 永遠先顯示上傳頁，隱藏分析頂列，預選「維修分析」模式
-  document.getElementById('modeBar').style.display = 'none';
-  document.getElementById('dash').classList.remove('active');
-  document.getElementById('rmaDash').style.display = 'none';
-  document.getElementById('uploadZone').style.display = 'flex';
-  try { uzSelectMode('analysis'); } catch(e) {}
+  // 直接進入分析主介面，若無資料則顯示引導上傳
+  const modeBar = document.getElementById('modeBar');
+  const dash    = document.getElementById('dash');
+  const rmaDash = document.getElementById('rmaDash');
+  const uz      = document.getElementById('uploadZone');
+
+  if (modeBar) modeBar.style.display = 'flex';
+  if (uz)      uz.style.display = 'none';
+  if (rmaDash) rmaDash.style.display = 'none';
+  if (dash)    dash.classList.add('active');
+
+  try { App.openDashboardDirect(); } catch(e) {}
 }
 </script>
 

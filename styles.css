@@ -2650,3 +2650,14 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
     box-shadow: 0 0 0 3px rgba(56,189,248,.4);
   }
 }
+
+/* ── 無資料引導卡（登入後直接進主介面時顯示）── */
+.no-data-guide {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 14px; padding: 56px 24px;
+  text-align: center;
+}
+.ndg-ico { font-size: 52px; }
+.ndg-t { font-size: 22px; font-weight: 700; color: var(--text); }
+.ndg-d { font-size: 15px; color: var(--text3); max-width: 320px; line-height: 1.6; }
+.ndg-btn { font-size: 16px; padding: 12px 32px; margin-top: 8px; }
