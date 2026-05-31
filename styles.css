@@ -927,6 +927,11 @@ button, input, select { font-family: inherit; }
 .rank-table tbody tr.rank-row {
   cursor: pointer;
   transition: background .12s;
+  height: 68px;
+}
+.rank-table tbody tr.rank-row td {
+  height: 68px;
+  vertical-align: middle;
 }
 /* Zebra striping — apply via class so rank-detail-row doesn't disrupt count */
 .rank-table tbody tr.rank-row.alt td:not(.model-cell):not(.rank-cell) { background: rgba(255,255,255,0.02); }
