@@ -1044,8 +1044,12 @@
     return String(raw).toUpperCase().replace(MODEL_STRIP_RE, '');
   }
 
-  // 易混淆字元折疊 — 僅供「相似度比對」，不改變實際儲存 key
-  const CONFUSE_MAP = { O:'0', Q:'0', D:'0', I:'1', L:'1', S:'5', B:'8', Z:'2', G:'6' };
+  // 易混淆字元折疊 — 僅供「相似度比對」，不改變實際儲存 key。
+  // 只折疊「字母 vs 數字」這種視覺上真歧義、且型號命名不會用來區分產品的對：
+  //   O↔0、I↔1、L↔1。
+  // 刻意不含 S/5、B/8、Z/2、G/6 等——本產品線的型號碼會用這些字元做為
+  //   有意義的不同尾碼（如 ...3Z 與 ...32 是兩個獨立型號），折疊會造成大量誤報。
+  const CONFUSE_MAP = { O: '0', I: '1', L: '1' };
   function confusableFold(key) {
     let out = '';
     for (const ch of key) out += (CONFUSE_MAP[ch] || ch);
@@ -1113,12 +1117,20 @@
 
     const keys = [...info.keys()];
 
-    // 權威生產品名目錄：凡出現在任一月份「整新數」彙總表的機種，視為已確立的
-    // 獨立生產型號。兩個名稱若都在此目錄中，代表它們是各自獨立登錄的型號
-    // （例如 THSM010 與 THS0010），即使長得相似也不應警示。
+    // 權威生產品名目錄：整新數彙總表機種 ∪ 零件目錄機種 ∪ 各機種工作表名稱。
+    // 凡列入此目錄者，皆為已確立的獨立生產型號。兩個名稱若都在目錄中，代表
+    // 它們是各自獨立登錄的型號（例如 THSM010 與 THS0010），即使長得相似也不警示。
     const knownModels = new Set();
-    for (const e of info.values()) {
-      if (e.inDenom) knownModels.add(e.key);
+    for (const [, m] of Object.entries((db && db.months) || {})) {
+      for (const dk of Object.keys(m.denominators || {})) {
+        const k = normalizeModel(dk); if (k) knownModels.add(k);
+      }
+      for (const pk of Object.keys(m.partCatalog || {})) {
+        const k = normalizeModel(pk); if (k) knownModels.add(k);
+      }
+      for (const sk of Object.keys(m.sheetMeta || {})) {
+        const k = normalizeModel(sk); if (k) knownModels.add(k);
+      }
     }
 
     // (1) 已自動合併：同一 key 下有多種原始寫法（僅資訊，不需動作）
@@ -1145,23 +1157,14 @@
         const a = keys[i], b = keys[j];
         // 兩者皆為已確立的生產型號 → 確定是不同型號，不警示
         if (knownModels.has(a) && knownModels.has(b)) continue;
+        // 僅在「除去字母/數字易混淆字元後完全相同」時才警示。
+        // 例：MSM0801 與 MSMO801（0 vs 字母O）。產品碼以 A/B、3/8、Z/2 等
+        // 區分型號的情形不會在此誤觸，因為那些是不同字元、折疊後仍不相等。
+        if (a === b) continue;
         const fa = confusableFold(a), fb = confusableFold(b);
-        let reason = null, confidence = null;
-        if (fa === fb) {
-          reason = '只差易混淆字元（如 O↔0、I↔1、S↔5、B↔8），可能是同一型號被打成兩種寫法';
-          confidence = 'high';
-        } else if (Math.abs(a.length - b.length) <= 1) {
-          const maxLen = Math.max(a.length, b.length);
-          const dist = levenshtein(a, b);
-          if (maxLen >= 4 && dist === 1) {
-            reason = '名稱僅差一個字元，疑似輸入錯誤';
-            confidence = 'medium';
-          } else if (maxLen >= 6 && dist === 2) {
-            reason = '名稱差兩個字元，可能為同型號的不同寫法';
-            confidence = 'low';
-          }
-        }
-        if (!reason) continue;
+        if (fa !== fb) continue;
+        const reason = '兩個名稱只差字母與數字的易混淆字元（O↔0、I↔1、L↔1），且其中一個不在生產品名清單中，疑似同一型號被打成兩種寫法';
+        const confidence = 'high';
         const ea = info.get(a), eb = info.get(b);
         suspicious.push({
           a: { key: a, count: ea.count, months: [...ea.months].sort(), sheets: [...ea.sheets], known: knownModels.has(a) },
