@@ -500,6 +500,7 @@ window.App = (function () {
   function renderFilters() {
     const months = Object.keys(state.db.months).sort();
     const all = state.selectedMonths.length === 0 || state.selectedMonths.length === months.length;
+    const selMonth = all ? '__ALL__' : (state.selectedMonths[0] || '__ALL__');
 
     // Month chips
     const mc = $('monthChips');
@@ -510,6 +511,14 @@ window.App = (function () {
         const m = state.db.months[mk];
         return `<button class="chip ${sel ? 'active' : ''}" onclick="App.setMonth('${mk}')">${fmt.monthLabel(mk)} <span class="num">${m.records.length}</span></button>`;
       }).join('');
+
+    // Mobile month select
+    const ms = $('monthSelect');
+    if (ms) {
+      ms.innerHTML = `<option value="__ALL__">月份：全部(${months.length})</option>`
+        + months.map(mk => `<option value="${mk}">${fmt.monthLabel(mk)} (${state.db.months[mk].records.length})</option>`).join('');
+      ms.value = selMonth;
+    }
 
     // Category chips
     const records = RepairAnalyzer.getRecords(state.db, { months: state.selectedMonths });
@@ -524,6 +533,16 @@ window.App = (function () {
         const color = c === '全部' ? COLORS.text3 : (CAT_COLOR[c] || COLORS.text3);
         return `<button class="chip cat-chip ${sel ? 'active' : ''}" style="--c:${color}" onclick="App.setCategory('${c}')">${c} <span class="num">${count}</span></button>`;
       }).join('');
+
+    // Mobile category select
+    const cs = $('catSelect');
+    if (cs) {
+      cs.innerHTML = cats.map(c => {
+        const count = c === '全部' ? records.length : (catCounts[c] || 0);
+        return `<option value="${c}">${c === '全部' ? `大類：全部(${count})` : `${c}(${count})`}</option>`;
+      }).join('');
+      cs.value = state.selectedCategory;
+    }
 
     // Model chips (only when a category is selected)
     if (state.selectedCategory !== '全部') {

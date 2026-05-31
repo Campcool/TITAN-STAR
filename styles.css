@@ -2540,3 +2540,55 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
   /* 側邊收合鈕在抽屜中不需要 */
   .sidebar .sidebar-mini-toggle { display: none; }
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   手機四項修正（authoritative · 最末覆蓋）
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ① 角色切換下拉選單脫離 overflow-x:auto 的裁剪框 */
+@media (max-width: 820px) {
+  .role-sel-drop {
+    position: fixed !important;
+    top: 60px !important; left: 0 !important; right: 0 !important;
+    width: 100% !important; min-width: unset !important;
+    border-radius: 0 0 14px 14px;
+    max-height: 60vh; overflow-y: auto;
+    z-index: 9999;
+    box-shadow: 0 8px 32px rgba(0,0,0,.4);
+  }
+}
+
+/* ② 月份/大類：手機顯示下拉選單，桌機顯示 chip */
+.subbar-mobile-row {
+  display: none;
+  gap: 10px; align-items: center; margin-bottom: 4px;
+}
+.sb-select {
+  flex: 1; min-width: 0;
+  padding: 10px 12px;
+  background: var(--surface2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 10px;
+  font-size: 15px; font-family: inherit; cursor: pointer;
+  appearance: auto;
+}
+.sb-select:focus { outline: none; border-color: var(--accent); }
+@media (max-width: 820px) {
+  .subbar-mobile-row { display: flex; }
+  .subbar-chips-row  { display: none !important; }
+}
+
+/* ③ 側邊抽屜開啟時強制顯示文字標籤（覆蓋 mini 模式的隱藏規則）*/
+.sidebar.open .snav-lbl  { display: inline !important; }
+.sidebar.open .snav-h    { display: block  !important; }
+.sidebar.open .snav-sep  { display: block  !important; }
+.sidebar.open .snav-item { white-space: nowrap; }
+.sidebar.open .snav-badge { display: inline-flex !important; }
+
+/* ④ 登入頁面置中修正 */
+#loginScreen {
+  display: none;
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center;
+}
+#loginScreen > div { align-self: center; margin-left: auto; margin-right: auto; }

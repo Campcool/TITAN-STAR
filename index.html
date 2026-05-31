@@ -167,8 +167,14 @@
       </button>
     </div>
     <div id="subbarBody">
-      <div class="subbar-row" id="monthChips"></div>
-      <div class="subbar-row" id="catChips"></div>
+      <!-- Mobile: dropdown selects (≤820px) -->
+      <div class="subbar-mobile-row" id="subbarMobileRow">
+        <select class="sb-select" id="monthSelect" onchange="App.setMonth(this.value)"></select>
+        <select class="sb-select" id="catSelect" onchange="App.setCategory(this.value)"></select>
+      </div>
+      <!-- Desktop: chip rows (>820px) -->
+      <div class="subbar-row subbar-chips-row" id="monthChips"></div>
+      <div class="subbar-row subbar-chips-row" id="catChips"></div>
       <div class="subbar-row" id="modelChips" style="display:none"></div>
     </div>
   </div>

@@ -2557,6 +2557,58 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
   .sidebar .sidebar-mini-toggle { display: none; }
 }
 
+/* ════════════════════════════════════════════════════════════════════
+   手機四項修正（authoritative · 最末覆蓋）
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ① 角色切換下拉選單脫離 overflow-x:auto 的裁剪框 */
+@media (max-width: 820px) {
+  .role-sel-drop {
+    position: fixed !important;
+    top: 60px !important; left: 0 !important; right: 0 !important;
+    width: 100% !important; min-width: unset !important;
+    border-radius: 0 0 14px 14px;
+    max-height: 60vh; overflow-y: auto;
+    z-index: 9999;
+    box-shadow: 0 8px 32px rgba(0,0,0,.4);
+  }
+}
+
+/* ② 月份/大類：手機顯示下拉選單，桌機顯示 chip */
+.subbar-mobile-row {
+  display: none;
+  gap: 10px; align-items: center; margin-bottom: 4px;
+}
+.sb-select {
+  flex: 1; min-width: 0;
+  padding: 10px 12px;
+  background: var(--surface2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 10px;
+  font-size: 15px; font-family: inherit; cursor: pointer;
+  appearance: auto;
+}
+.sb-select:focus { outline: none; border-color: var(--accent); }
+@media (max-width: 820px) {
+  .subbar-mobile-row { display: flex; }
+  .subbar-chips-row  { display: none !important; }
+}
+
+/* ③ 側邊抽屜開啟時強制顯示文字標籤（覆蓋 mini 模式的隱藏規則）*/
+.sidebar.open .snav-lbl  { display: inline !important; }
+.sidebar.open .snav-h    { display: block  !important; }
+.sidebar.open .snav-sep  { display: block  !important; }
+.sidebar.open .snav-item { white-space: nowrap; }
+.sidebar.open .snav-badge { display: inline-flex !important; }
+
+/* ④ 登入頁面置中修正 */
+#loginScreen {
+  display: none;
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center;
+}
+#loginScreen > div { align-self: center; margin-left: auto; margin-right: auto; }
+
 </style>
 <style>
 /* ════════════════════════════════════════════════════════════════════
@@ -3217,8 +3269,14 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
       </button>
     </div>
     <div id="subbarBody">
-      <div class="subbar-row" id="monthChips"></div>
-      <div class="subbar-row" id="catChips"></div>
+      <!-- Mobile: dropdown selects (≤820px) -->
+      <div class="subbar-mobile-row" id="subbarMobileRow">
+        <select class="sb-select" id="monthSelect" onchange="App.setMonth(this.value)"></select>
+        <select class="sb-select" id="catSelect" onchange="App.setCategory(this.value)"></select>
+      </div>
+      <!-- Desktop: chip rows (>820px) -->
+      <div class="subbar-row subbar-chips-row" id="monthChips"></div>
+      <div class="subbar-row subbar-chips-row" id="catChips"></div>
       <div class="subbar-row" id="modelChips" style="display:none"></div>
     </div>
   </div>
@@ -5750,6 +5808,7 @@ window.App = (function () {
   function renderFilters() {
     const months = Object.keys(state.db.months).sort();
     const all = state.selectedMonths.length === 0 || state.selectedMonths.length === months.length;
+    const selMonth = all ? '__ALL__' : (state.selectedMonths[0] || '__ALL__');
 
     // Month chips
     const mc = $('monthChips');
@@ -5760,6 +5819,14 @@ window.App = (function () {
         const m = state.db.months[mk];
         return `<button class="chip ${sel ? 'active' : ''}" onclick="App.setMonth('${mk}')">${fmt.monthLabel(mk)} <span class="num">${m.records.length}</span></button>`;
       }).join('');
+
+    // Mobile month select
+    const ms = $('monthSelect');
+    if (ms) {
+      ms.innerHTML = `<option value="__ALL__">月份：全部(${months.length})</option>`
+        + months.map(mk => `<option value="${mk}">${fmt.monthLabel(mk)} (${state.db.months[mk].records.length})</option>`).join('');
+      ms.value = selMonth;
+    }
 
     // Category chips
     const records = RepairAnalyzer.getRecords(state.db, { months: state.selectedMonths });
@@ -5774,6 +5841,16 @@ window.App = (function () {
         const color = c === '全部' ? COLORS.text3 : (CAT_COLOR[c] || COLORS.text3);
         return `<button class="chip cat-chip ${sel ? 'active' : ''}" style="--c:${color}" onclick="App.setCategory('${c}')">${c} <span class="num">${count}</span></button>`;
       }).join('');
+
+    // Mobile category select
+    const cs = $('catSelect');
+    if (cs) {
+      cs.innerHTML = cats.map(c => {
+        const count = c === '全部' ? records.length : (catCounts[c] || 0);
+        return `<option value="${c}">${c === '全部' ? `大類：全部(${count})` : `${c}(${count})`}</option>`;
+      }).join('');
+      cs.value = state.selectedCategory;
+    }
 
     // Model chips (only when a category is selected)
     if (state.selectedCategory !== '全部') {
