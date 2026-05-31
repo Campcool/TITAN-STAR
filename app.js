@@ -768,7 +768,7 @@ window.App = (function () {
     const nMonths = state.selectedMonths.length;
     const statsLabel = `${nMonths}個月 · ${filteredRecords.length.toLocaleString()}筆紀錄${filteredRefurb > 0 ? ` · 整新數 ${filteredRefurb.toLocaleString()}` : ''}`;
 
-    el.textContent = `${monthLabel}　${catLabel}　(${statsLabel})`;
+    el.innerHTML = `<span class="sb-pill">${monthLabel}</span><span class="sb-pill">${catLabel}</span><span class="sb-pill-stat">${filteredRecords.length.toLocaleString()}筆</span>`;
   }
 
   function renderGlobalRoleBanner() {

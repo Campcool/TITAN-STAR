@@ -2597,3 +2597,28 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
 
 /* 登入按鈕文字置中 */
 #loginScreen .btn { text-align: center; justify-content: center; }
+
+/* ── 篩選列膠囊徽章 ── */
+.sb-pill {
+  display: inline-flex; align-items: center;
+  padding: 3px 11px; border-radius: 999px;
+  background: var(--surface3); border: 1px solid var(--border);
+  color: var(--text); font-size: 13.5px; font-weight: 600;
+  white-space: nowrap;
+}
+.sb-pill-stat {
+  display: inline-flex; align-items: center;
+  padding: 3px 10px; border-radius: 999px;
+  background: transparent; border: 1px solid var(--border);
+  color: var(--text3); font-size: 12.5px;
+  white-space: nowrap;
+}
+#subbarSummaryText { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+
+/* ── 月份/大類/角色下拉改膠囊 ── */
+.sb-select,
+.role-sel-mobile {
+  border-radius: 999px !important;
+  padding: 8px 16px !important;
+  font-weight: 600;
+}
