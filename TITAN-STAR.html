@@ -2498,6 +2498,64 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
 .amini-metric { font-family: var(--mono); font-weight: 700; font-size: 18px; margin-top: 7px; }
 .amini-metric span { font-size: 11px; color: var(--text3); font-weight: 500; margin-left: 5px; }
 
+/* ════════════════════════════════════════════════════════════════════
+   行動裝置頂部列重整（authoritative · 置於檔末覆蓋舊規則）
+   修正：手機上主切換列被擠壓成直書、與篩選列/標題重疊
+   ════════════════════════════════════════════════════════════════════ */
+@media (max-width: 820px) {
+  /* 主切換列：允許換行，群組之間不再互相擠壓 */
+  .mode-bar {
+    height: auto; min-height: 52px;
+    flex-wrap: wrap;
+    row-gap: 8px; column-gap: 8px;
+    padding: 9px 12px;
+    justify-content: flex-start;
+    align-items: center;
+  }
+  .mode-bar-l { flex-shrink: 0; }
+  .mode-tabs { flex-wrap: wrap; padding: 3px; }
+  /* 關鍵：中文字不再逐字直書斷行 */
+  .mode-tab { white-space: nowrap; padding: 7px 13px; font-size: 14px; }
+  .role-sel-btn { white-space: nowrap; }
+  .mode-bar-r {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin-left: auto; row-gap: 8px; align-items: center;
+  }
+  .topbar-btn { padding: 0 10px; font-size: 13px; white-space: nowrap; }
+
+  /* 篩選列改為一般流（非黏性），徹底避免與會換行的主切換列重疊 */
+  .subbar { position: static !important; top: auto !important; z-index: 1; }
+}
+
+/* 小手機：再瘦身，避免右側控制群組換到太多行 */
+@media (max-width: 480px) {
+  .mode-bar-brand { display: none; }
+  .mode-bar-user { display: none; }     /* 工號於「帳號管理」內仍可見 */
+  .role-sel-focus { display: none; }
+  .mode-tab { padding: 6px 11px; font-size: 13.5px; }
+  .mode-tabs { gap: 2px; }
+  .topbar-btn { padding: 0 9px; font-size: 12.5px; }
+  .fsc-sel { font-size: 12.5px; padding: 0 6px; }
+  .mode-bar-r { gap: 5px; }
+  /* 主切換列圖示縮小 */
+  .mode-bar-l .s-icon { width: 30px; height: 30px; line-height: 30px; font-size: 14px; }
+}
+
+/* ── 行動裝置側邊抽屜：恢復垂直清單（修正被平板橫向規則污染）── */
+@media (max-width: 1100px) {
+  .sidebar { display: block; }
+  .sidebar .snav { flex-direction: column; gap: 4px; }
+  .sidebar .snav-item {
+    white-space: normal; flex-shrink: 1; width: 100%;
+    justify-content: space-between; padding: 13px 16px; font-size: 16px;
+  }
+  .sidebar .snav-item .snav-r { display: flex; }
+  .sidebar .snav-h { display: block; }
+  .sidebar .snav-sep { display: block; }
+  /* 側邊收合鈕在抽屜中不需要 */
+  .sidebar .sidebar-mini-toggle { display: none; }
+}
+
 </style>
 <style>
 /* ════════════════════════════════════════════════════════════════════
