@@ -601,6 +601,12 @@ window.App = (function () {
     renderAll();
     collapseSubbar();
   }
+  function setMonthDirect(mk) {
+    const allMonths = Object.keys(state.db.months).sort();
+    state.selectedMonths = mk === '__ALL__' ? allMonths.slice() : [mk];
+    renderAll();
+    collapseSubbar();
+  }
 
   function setCategory(c) {
     state.selectedCategory = c;
@@ -4202,7 +4208,7 @@ window.App = (function () {
     publishData,
     openDashboard, openUpload, switchPage,
     toggleNav, closeNav, setDisplaySize,
-    setMonth, setCategory, setModel,
+    setMonth, setMonthDirect, setCategory, setModel,
     setAnalysisRole,
     openCapaForm, saveCapaForm, setCapaStatus, deleteCapa,
     openCostConfig, saveCostConfig, quickEstimateCost,
