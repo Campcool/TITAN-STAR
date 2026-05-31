@@ -8285,9 +8285,9 @@ window.App = (function () {
         return `<td onclick="App.openPartModelDrawer('${escapeAttr(p.name)}','${escapeAttr(m)}')"><span class="matrix-cell" style="background:${color}${Math.round(intensity * 255).toString(16).padStart(2,'0')};color:${COLORS.text}">${v}</span></td>`;
       }).join('');
       return `<tr>
-        <th scope="row" title="${escapeAttr(p.name)}" onclick="App.openPartDrawer('${escapeAttr(p.name)}')">${escapeHtml(p.name)}<span class="spec">${p.models.length} 機種</span></th>
+        <th scope="row" title="${escapeAttr(p.name)}" onclick="App.openMatrixPartDrawer('${escapeAttr(p.name)}')">${escapeHtml(p.name)}<span class="spec">${p.models.length} 機種</span></th>
         ${cells}
-        <td style="cursor:pointer" onclick="App.openPartDrawer('${escapeAttr(p.name)}')" title="${escapeAttr(p.name)} 合計"><strong style="color:var(--text);font-family:var(--mono)">${p.count}</strong></td>
+        <td style="cursor:pointer" onclick="App.openMatrixPartDrawer('${escapeAttr(p.name)}')" title="${escapeAttr(p.name)} 合計"><strong style="color:var(--text);font-family:var(--mono)">${p.count}</strong></td>
       </tr>`;
     }).join('');
 
@@ -9573,38 +9573,89 @@ window.App = (function () {
     return lensPanel(role, cfg);
   }
 
-  function openPartModelDrawer(partName, model) {
+  function openMatrixPartDrawer(partName) {
+    // Use no month filter so we see ALL months in DB
     const f = currentFilter();
-    const allRecords = RepairAnalyzer.getRecords(state.db, f);
-    const recs = allRecords.filter(r =>
-      (r.part1Norm === partName || r.part2Norm === partName || r.part3Norm === partName ||
-       r.part1 === partName || r.part2 === partName || r.part3 === partName) &&
-      RepairAnalyzer.normalizeModel(r.model) === RepairAnalyzer.normalizeModel(model)
-    );
-    const monthMap = {};
-    for (const r of recs) {
-      if (!monthMap[r.month]) monthMap[r.month] = 0;
-      monthMap[r.month]++;
-    }
-    const monthRows = Object.entries(monthMap).sort((a,b) => b[0].localeCompare(a[0]))
-      .map(([m, n]) => `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:13px"><span>${fmt.monthLabel(m)}</span><span style="color:var(--accent);font-weight:700">${n} 件</span></div>`)
-      .join('');
+    const noMonthFilter = { category: f.category, model: f.model };
+    const history = RepairAnalyzer.partHistoryDetailed(state.db, partName, noMonthFilter)
+      .filter(h => h.count > 0)
+      .sort((a, b) => b.month.localeCompare(a.month));
+
+    const totalModels = new Set(history.flatMap(h => Object.keys(h.perModel)));
+    const totalCount = history.reduce((s, h) => s + h.count, 0);
+
+    const monthSections = history.map(h => {
+      const modelRows = Object.entries(h.perModel)
+        .sort((a, b) => b[1] - a[1])
+        .map(([m, cnt]) => `
+          <div class="dd-row" style="cursor:pointer" onclick="App.openPartModelDrawer('${escapeAttr(partName)}','${escapeAttr(m)}','${h.month}')">
+            <div class="dd-row-model">
+              <span class="name">${escapeHtml(m)}</span>
+              ${(() => { const cat = RepairParser ? RepairParser.getCategory(m) : ''; return cat ? `<span class="tag cat" style="--c:${CAT_COLOR[cat]||COLORS.text3}">${cat}</span>` : ''; })()}
+            </div>
+            <div class="dd-row-bar-wrap">
+              <div class="dd-row-bar"><div style="width:${Math.max(4, Math.round(cnt / (Object.values(h.perModel)[0] || 1) * 100))}%"></div></div>
+              <div class="dd-row-bar-label">整新數 ${h.denoms[m] || '—'}</div>
+            </div>
+            <div class="dd-row-stat">
+              <div class="v">${cnt}</div>
+              <div class="p">${h.denoms[m] ? ((cnt / h.denoms[m]) * 100).toFixed(1) + '%' : '—'}</div>
+            </div>
+          </div>`).join('');
+      return `
+        <div class="drawer-sec">
+          <div class="drawer-sec-t">
+            <span class="strong">${fmt.monthLabel(h.month)}</span>
+            <span class="count-tag">${Object.keys(h.perModel).length} 機種 · ${h.count} 件</span>
+          </div>
+          ${modelRows}
+        </div>`;
+    }).join('');
+
     openDrawer({
       severity: 'info', icon: '⊞',
-      overline: `跨機種矩陣 · ${model}`,
+      overline: '跨機種矩陣 · 零件分析',
       title: partName,
       bodyHtml: `
         <div class="drawer-banner info">
-          <strong>${model}</strong> 使用零件 <strong>${partName}</strong> 共 <strong>${recs.length}</strong> 件
+          跨 <strong>${totalModels.size}</strong> 機種 · 歷史共 <strong>${totalCount}</strong> 件 · 點擊機種可查明細
         </div>
-        <div class="drawer-sec">
-          <div class="drawer-sec-t"><span class="strong">月份分布</span></div>
-          ${monthRows || '<div class="empty"><div class="empty-t">無記錄</div></div>'}
+        ${monthSections || '<div class="empty"><div class="empty-t">無記錄</div></div>'}
+      `
+    });
+  }
+
+  function openPartModelDrawer(partName, model, fixedMonth) {
+    const f = currentFilter();
+    // Get records from all months in DB (matrix is not month-filtered)
+    const allMonthRecords = [];
+    for (const [mk, mdata] of Object.entries(state.db.months)) {
+      if (!mdata) continue;
+      for (const r of mdata.records) {
+        if (f.category && f.category !== '全部' && r.category !== f.category) continue;
+        allMonthRecords.push({ ...r, month: mk });
+      }
+    }
+    const recs = allMonthRecords.filter(r =>
+      (r.part1Norm === partName || r.part2Norm === partName || r.part3Norm === partName ||
+       r.part1 === partName || r.part2 === partName || r.part3 === partName) &&
+      RepairAnalyzer.normalizeModel(r.model) === RepairAnalyzer.normalizeModel(model) &&
+      (!fixedMonth || r.month === fixedMonth)
+    );
+    const monthLabel = fixedMonth ? fmt.monthLabel(fixedMonth) : '全部月份';
+    openDrawer({
+      severity: 'info', icon: '⊞',
+      overline: `${model} · ${monthLabel}`,
+      title: partName,
+      bodyHtml: `
+        <div class="drawer-banner info">
+          <strong>${model}</strong> × <strong>${partName}</strong>　共 <strong>${recs.length}</strong> 件
         </div>
         <div class="drawer-sec">
           <div class="drawer-sec-t"><span class="strong">維修明細</span> <span class="count-tag">${recs.length} 筆</span></div>
           <div style="display:flex;flex-direction:column;gap:4px">
-            ${recs.slice(0, 20).map(r => `
+            ${recs.length === 0 ? '<div class="empty"><div class="empty-t">無記錄</div></div>' :
+              recs.slice(0, 30).map(r => `
               <div style="padding:8px 12px;background:var(--surface2);border-radius:6px;font-size:12px;cursor:pointer" onclick="App.openSerialDrawer('${escapeAttr(r.model)}','${escapeAttr(r.serial || '')}')">
                 <div style="display:flex;gap:10px;justify-content:space-between;margin-bottom:3px">
                   <span style="font-family:var(--mono);color:var(--text3)">${r.date || fmt.monthLabel(r.month)} · ${escapeHtml(r.model)}</span>
@@ -9613,7 +9664,7 @@ window.App = (function () {
                 <div style="color:${r.isScrap ? 'var(--critical)' : 'var(--text)'}">${escapeHtml(r.content || r.reason || '—')}</div>
               </div>
             `).join('')}
-            ${recs.length > 20 ? `<div style="text-align:center;color:var(--text3);font-size:11px;padding:4px">…還有 ${recs.length - 20} 筆</div>` : ''}
+            ${recs.length > 30 ? `<div style="text-align:center;color:var(--text3);font-size:11px;padding:4px">…還有 ${recs.length - 30} 筆</div>` : ''}
           </div>
         </div>
       `
@@ -10509,7 +10560,7 @@ window.App = (function () {
     toggleSubbar, toggleSidebarMini, showHelpModal,
     exportCrossMatrix,
     // Drawer
-    openKpiDrawer, openAnomalyDrawer, openPartDrawer, openPartModelDrawer, openModelDrawer, openSerialDrawer, openSerialTimelineDrawer,
+    openKpiDrawer, openAnomalyDrawer, openPartDrawer, openMatrixPartDrawer, openPartModelDrawer, openModelDrawer, openSerialDrawer, openSerialTimelineDrawer,
     closeDrawer,
     // New functions
     searchDetail,
