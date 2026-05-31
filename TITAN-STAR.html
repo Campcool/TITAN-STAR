@@ -2503,41 +2503,42 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
    修正：手機上主切換列被擠壓成直書、與篩選列/標題重疊
    ════════════════════════════════════════════════════════════════════ */
 @media (max-width: 820px) {
-  /* 主切換列：允許換行，群組之間不再互相擠壓 */
+  /* 主切換列：保持「單行」並可橫向滑動，永不換行 / 永不直書 / 永不重疊 */
   .mode-bar {
-    height: auto; min-height: 52px;
-    flex-wrap: wrap;
-    row-gap: 8px; column-gap: 8px;
-    padding: 9px 12px;
+    height: 56px; min-height: 56px;
+    flex-wrap: nowrap !important;
+    overflow-x: auto; overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    gap: 8px; padding: 0 12px;
     justify-content: flex-start;
     align-items: center;
   }
-  .mode-bar-l { flex-shrink: 0; }
-  .mode-tabs { flex-wrap: wrap; padding: 3px; }
-  /* 關鍵：中文字不再逐字直書斷行 */
-  .mode-tab { white-space: nowrap; padding: 7px 13px; font-size: 14px; }
-  .role-sel-btn { white-space: nowrap; }
-  .mode-bar-r {
-    display: flex; flex-wrap: wrap; gap: 6px;
-    margin-left: auto; row-gap: 8px; align-items: center;
-  }
-  .topbar-btn { padding: 0 10px; font-size: 13px; white-space: nowrap; }
+  .mode-bar::-webkit-scrollbar { height: 0; display: none; }
+  /* 三個群組都不收縮、不換行，依序排在同一行 */
+  .mode-bar-l,
+  .mode-tabs,
+  .mode-bar-r { flex-shrink: 0 !important; flex-wrap: nowrap !important; }
+  .mode-bar-r { margin-left: 4px; gap: 6px; }
+  .mode-tabs { padding: 3px; }
+  /* 關鍵：中文字不逐字直書斷行 */
+  .mode-tab,
+  .role-sel-btn,
+  .topbar-btn { white-space: nowrap; }
+  .mode-tab { padding: 7px 13px; font-size: 14px; }
+  .topbar-btn { padding: 0 11px; font-size: 13px; }
 
-  /* 篩選列改為一般流（非黏性），徹底避免與會換行的主切換列重疊 */
+  /* 篩選列改為一般流（非黏性），徹底避免與主切換列重疊 */
   .subbar { position: static !important; top: auto !important; z-index: 1; }
 }
 
-/* 小手機：再瘦身，避免右側控制群組換到太多行 */
+/* 小手機：縮小元件，讓單行可滑動列更精簡 */
 @media (max-width: 480px) {
   .mode-bar-brand { display: none; }
-  .mode-bar-user { display: none; }     /* 工號於「帳號管理」內仍可見 */
   .role-sel-focus { display: none; }
   .mode-tab { padding: 6px 11px; font-size: 13.5px; }
   .mode-tabs { gap: 2px; }
-  .topbar-btn { padding: 0 9px; font-size: 12.5px; }
+  .topbar-btn { padding: 0 10px; font-size: 12.5px; }
   .fsc-sel { font-size: 12.5px; padding: 0 6px; }
-  .mode-bar-r { gap: 5px; }
-  /* 主切換列圖示縮小 */
   .mode-bar-l .s-icon { width: 30px; height: 30px; line-height: 30px; font-size: 14px; }
 }
 
