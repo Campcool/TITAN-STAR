@@ -6283,11 +6283,13 @@ window.App = (function () {
     const sb = $('sidebar'), ov = $('navOverlay');
     if (sb) sb.classList.add('open');
     if (ov) ov.classList.add('show');
+    document.body.classList.add('nav-open');
   }
   function closeNav() {
     const sb = $('sidebar'), ov = $('navOverlay');
     if (sb) sb.classList.remove('open');
     if (ov) ov.classList.remove('show');
+    document.body.classList.remove('nav-open');
   }
 
   // ─────────────── Display size (accessibility) ───────────────
