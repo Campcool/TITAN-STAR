@@ -10683,7 +10683,10 @@ window.Auth = (function () {
   const SESSION_KEY = 'titan_session';
   const ADMIN_ID    = '031780';
 
-  // ─── Crypto ───
+  // Local helpers (Auth module is a separate IIFE from App, cannot share scope)
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
   async function hashPwd(username, password) {
     const raw = username + ':' + password;
     // crypto.subtle requires secure context (HTTPS/localhost); fallback for file:// or older mobile
@@ -10962,7 +10965,7 @@ window.Auth = (function () {
         <div class="ap-user-info">
           ${userAvatarHtml(uid, u.name || '')}
           <span class="ap-uid">${uid}</span>
-          ${u.name ? `<span class="ap-name">${escapeHtml(u.name)}</span>` : ''}
+          ${u.name ? `<span class="ap-name">${esc(u.name)}</span>` : ''}
           ${u.isAdmin ? '<span class="ap-tag admin">管理員</span>' : ''}
           ${u.mustChange ? '<span class="ap-tag must-change">待改密</span>' : ''}
           ${lastLogin[uid] ? `<span class="ap-last-login">最後登入 ${fmtTime(lastLogin[uid])} · ${loginCount[uid]}次</span>` : '<span class="ap-last-login muted">未登入</span>'}
@@ -10986,8 +10989,8 @@ window.Auth = (function () {
       : recent.map(e => `
           <div style="display:flex;gap:10px;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--border);font-size:13px">
             <span style="font-family:var(--mono);color:var(--text3);flex-shrink:0">${fmtTime(e.ts)}</span>
-            <span style="font-family:var(--mono);font-weight:600;color:var(--text);flex-shrink:0">${escapeHtml(e.uid)}</span>
-            ${e.name ? `<span style="color:var(--text2)">${escapeHtml(e.name)}</span>` : ''}
+            <span style="font-family:var(--mono);font-weight:600;color:var(--text);flex-shrink:0">${esc(e.uid)}</span>
+            ${e.name ? `<span style="color:var(--text2)">${esc(e.name)}</span>` : ''}
           </div>`).join('');
   }
 
