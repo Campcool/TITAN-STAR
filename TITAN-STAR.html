@@ -11006,20 +11006,23 @@ window.Auth = (function () {
 
   async function addUser() {
     const username = document.getElementById('newUserInput').value.trim();
+    const name     = (document.getElementById('newNameInput') || {}).value?.trim() || '';
     const errEl    = document.getElementById('addUserErr');
     errEl.textContent = '';
-    if (!username) { errEl.textContent = '請輸入帳號'; return; }
+    if (!username) { errEl.textContent = '請輸入員工編號'; return; }
     if (!/^[a-zA-Z0-9_\-\.]+$/.test(username)) { errEl.textContent = '帳號僅限英數字及 - _ .'; return; }
     const users = loadUsers();
     if (users[username]) { errEl.textContent = '帳號已存在'; return; }
     users[username] = {
       hash: await hashPwd(username, username),
+      name,
       isAdmin: false,
-      mustChange: true,
-      localChanged: false,
+      mustChange: false,
+      localChanged: true,
     };
     saveUsers(users);
     document.getElementById('newUserInput').value = '';
+    if (document.getElementById('newNameInput')) document.getElementById('newNameInput').value = '';
     renderUserList();
   }
 
@@ -13222,8 +13225,12 @@ function onAuthSuccess() {
       <!-- Add user -->
       <div class="ap-sec-t">新增帳號</div>
       <div class="ap-add-row">
-        <input class="ls-input" type="text" id="newUserInput" placeholder="帳號（預設密碼同帳號）"
-          onkeydown="if(event.key==='Enter')Auth.addUser()">
+        <input class="ls-input" type="text" id="newUserInput" placeholder="員工編號"
+          onkeydown="if(event.key==='Enter')document.getElementById('newNameInput').focus()"
+          style="flex:0 0 130px">
+        <input class="ls-input" type="text" id="newNameInput" placeholder="姓名（如：陳皇銘）"
+          onkeydown="if(event.key==='Enter')Auth.addUser()"
+          style="flex:1">
         <button class="btn primary" onclick="Auth.addUser()">新增</button>
       </div>
       <div class="ls-err" id="addUserErr" style="margin-bottom:8px"></div>

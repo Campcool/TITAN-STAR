@@ -805,8 +805,12 @@ function onAuthSuccess() {
       <!-- Add user -->
       <div class="ap-sec-t">新增帳號</div>
       <div class="ap-add-row">
-        <input class="ls-input" type="text" id="newUserInput" placeholder="帳號（預設密碼同帳號）"
-          onkeydown="if(event.key==='Enter')Auth.addUser()">
+        <input class="ls-input" type="text" id="newUserInput" placeholder="員工編號"
+          onkeydown="if(event.key==='Enter')document.getElementById('newNameInput').focus()"
+          style="flex:0 0 130px">
+        <input class="ls-input" type="text" id="newNameInput" placeholder="姓名（如：陳皇銘）"
+          onkeydown="if(event.key==='Enter')Auth.addUser()"
+          style="flex:1">
         <button class="btn primary" onclick="Auth.addUser()">新增</button>
       </div>
       <div class="ls-err" id="addUserErr" style="margin-bottom:8px"></div>

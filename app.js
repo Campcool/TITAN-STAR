@@ -5189,20 +5189,23 @@ window.Auth = (function () {
 
   async function addUser() {
     const username = document.getElementById('newUserInput').value.trim();
+    const name     = (document.getElementById('newNameInput') || {}).value?.trim() || '';
     const errEl    = document.getElementById('addUserErr');
     errEl.textContent = '';
-    if (!username) { errEl.textContent = '請輸入帳號'; return; }
+    if (!username) { errEl.textContent = '請輸入員工編號'; return; }
     if (!/^[a-zA-Z0-9_\-\.]+$/.test(username)) { errEl.textContent = '帳號僅限英數字及 - _ .'; return; }
     const users = loadUsers();
     if (users[username]) { errEl.textContent = '帳號已存在'; return; }
     users[username] = {
       hash: await hashPwd(username, username),
+      name,
       isAdmin: false,
-      mustChange: true,
-      localChanged: false,
+      mustChange: false,
+      localChanged: true,
     };
     saveUsers(users);
     document.getElementById('newUserInput').value = '';
+    if (document.getElementById('newNameInput')) document.getElementById('newNameInput').value = '';
     renderUserList();
   }
 
