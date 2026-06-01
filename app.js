@@ -192,7 +192,8 @@ window.App = (function () {
       if (!Object.keys(db.months || {}).length) { alert('目前沒有資料可發布,請先上傳報表'); return; }
       const payload = {
         months: db.months,
-        // users 帳號資料不輸出至公開 data.json（僅存本機 localStorage）
+        // 無密碼模式：帳號清單（僅工號與管理員旗標，無密碼）一併發布，讓所有裝置同步可登入帳號
+        users: JSON.parse(localStorage.getItem('titan_users_v1') || '{}'),
         capa: JSON.parse(localStorage.getItem('titan_capa_v1') || '[]'),
         costCfg: JSON.parse(localStorage.getItem('titan_cost_cfg_v1') || 'null'),
         publishedAt: new Date().toISOString(),
@@ -4779,7 +4780,8 @@ window.App = (function () {
 
   // ─────────────── Init ───────────────
   async function init() {
-    await syncCloud();
+    const cloud = await syncCloud();
+    state.cloudUsers = (cloud && cloud.users) ? cloud.users : null;
     setupUpload();
     state.db = RepairDB.load();
     renderUploadList();
@@ -4797,9 +4799,11 @@ window.App = (function () {
         collapseSidebarMini();
       });
     }
-    // Boot Auth — shows login screen or restores session
+    // Boot Auth — shows login screen or restores session.
+    // Pass cloud-published users so accounts created on the admin device
+    // are recognised on every other device after publish.
     try {
-      await Auth.boot();
+      await Auth.boot(state.cloudUsers);
     } catch(e) {
       // Fallback if Auth module fails
       document.getElementById('uploadZone').style.display = 'flex';
