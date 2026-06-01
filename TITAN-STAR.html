@@ -6007,10 +6007,20 @@ window.App = (function () {
       const raw = localStorage.getItem('repair_db_v2');
       const db = raw ? JSON.parse(raw) : { months: {} };
       if (!Object.keys(db.months || {}).length) { alert('目前沒有資料可發布,請先上傳報表'); return; }
+      const KNOWN_NAMES = {
+        '031780':'陳皇銘','773999':'鄧金汀','690091':'李榮貴','109004':'廖裕淳',
+        '111003':'曾慕棠','114001':'楊永富','114002':'葉燕玲','114004':'林以臻',
+        '114005':'徐啟芳','114007':'柯智傑','114008':'劉柏增','114011':'徐瑞霞',
+        '114024':'蔡宜佑','115005':'劉書銘','068910':'高世璋',
+      };
+      const rawUsers = JSON.parse(localStorage.getItem('titan_users_v1') || '{}');
+      // Ensure names are filled before publishing
+      for (const [uid, name] of Object.entries(KNOWN_NAMES)) {
+        if (rawUsers[uid] && !rawUsers[uid].name) rawUsers[uid].name = name;
+      }
       const payload = {
         months: db.months,
-        // 無密碼模式：帳號清單（僅工號與管理員旗標，無密碼）一併發布，讓所有裝置同步可登入帳號
-        users: JSON.parse(localStorage.getItem('titan_users_v1') || '{}'),
+        users: rawUsers,
         capa: JSON.parse(localStorage.getItem('titan_capa_v1') || '[]'),
         costCfg: JSON.parse(localStorage.getItem('titan_cost_cfg_v1') || 'null'),
         publishedAt: new Date().toISOString(),
