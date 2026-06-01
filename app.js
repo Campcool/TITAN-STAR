@@ -4907,7 +4907,7 @@ window.Auth = (function () {
       '114011': { hash: '', isAdmin: false, mustChange: false, name: '徐瑞霞' },
       '114024': { hash: '', isAdmin: false, mustChange: false, name: '蔡宜佑' },
       '115005': { hash: '', isAdmin: false, mustChange: false, name: '劉書銘' },
-      '068910': { hash: '', isAdmin: false, mustChange: false, name: '' },
+      '068910': { hash: '', isAdmin: false, mustChange: false, name: '高世璋' },
     };
     for (const [uid, seed] of Object.entries(SEED_USERS)) {
       if (!users[uid]) users[uid] = { ...seed, localChanged: true };
@@ -4984,10 +4984,26 @@ window.Auth = (function () {
     document.getElementById('changePwScreen').style.display = 'none';
   }
 
+  // Surname avatar: derive a stable hue from the uid, show the first char of the name
+  function userAvatarHtml(uid, name) {
+    const surname = name ? name.charAt(0) : uid.charAt(0);
+    // Deterministic hue from uid string
+    let h = 0;
+    for (let i = 0; i < uid.length; i++) h = (h * 31 + uid.charCodeAt(i)) & 0xFFFF;
+    const hue = h % 360;
+    const bg = `hsl(${hue},55%,52%)`;
+    const fullLabel = name ? `${name}（${uid}）` : uid;
+    return `<span class="user-avatar" style="background:${bg}" title="${fullLabel}">${surname}</span>`;
+  }
+
   function showMainUI(session) {
     hideAuthScreens();
     const userEl = document.getElementById('modeBarUser');
-    if (userEl) userEl.textContent = '👤 ' + session.username;
+    if (userEl) {
+      const users = loadUsers();
+      const name = (users[session.username] && users[session.username].name) || '';
+      userEl.innerHTML = userAvatarHtml(session.username, name);
+    }
     const adminBtn = document.getElementById('adminPanelBtn');
     if (adminBtn) adminBtn.style.display = session.isAdmin ? '' : 'none';
     // Trigger app restore (defined in index.html inline script)
@@ -5127,6 +5143,7 @@ window.Auth = (function () {
     const rows = sorted.map(([uid, u]) => `
       <div class="ap-user-row ${uid === ADMIN_ID ? 'is-admin' : ''}">
         <div class="ap-user-info">
+          ${userAvatarHtml(uid, u.name || '')}
           <span class="ap-uid">${uid}</span>
           ${u.name ? `<span class="ap-name">${escapeHtml(u.name)}</span>` : ''}
           ${u.isAdmin ? '<span class="ap-tag admin">管理員</span>' : ''}
