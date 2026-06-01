@@ -4891,13 +4891,27 @@ window.Auth = (function () {
   async function initUsers(cloudUsers) {
     let users = loadUsers();
 
-    // Always ensure admin exists locally
-    if (!users[ADMIN_ID]) {
-      users[ADMIN_ID] = { hash: '', isAdmin: true, mustChange: false, localChanged: true };
-    }
-    // Seed second built-in user
-    if (!users['773999']) {
-      users['773999'] = { hash: '', isAdmin: false, mustChange: false, localChanged: true };
+    // Always ensure all known employees exist locally
+    const SEED_USERS = {
+      '031780': { hash: '', isAdmin: true,  mustChange: false, name: '陳皇銘' },
+      '773999': { hash: '', isAdmin: false, mustChange: false, name: '鄧金汀' },
+      '690091': { hash: '', isAdmin: false, mustChange: false, name: '李榮貴' },
+      '109004': { hash: '', isAdmin: false, mustChange: false, name: '廖裕淳' },
+      '111003': { hash: '', isAdmin: false, mustChange: false, name: '曾慕棠' },
+      '114001': { hash: '', isAdmin: false, mustChange: false, name: '楊永富' },
+      '114002': { hash: '', isAdmin: false, mustChange: false, name: '葉燕玲' },
+      '114004': { hash: '', isAdmin: false, mustChange: false, name: '林以臻' },
+      '114005': { hash: '', isAdmin: false, mustChange: false, name: '徐啟芳' },
+      '114007': { hash: '', isAdmin: false, mustChange: false, name: '柯智傑' },
+      '114008': { hash: '', isAdmin: false, mustChange: false, name: '劉柏增' },
+      '114011': { hash: '', isAdmin: false, mustChange: false, name: '徐瑞霞' },
+      '114024': { hash: '', isAdmin: false, mustChange: false, name: '蔡宜佑' },
+      '115005': { hash: '', isAdmin: false, mustChange: false, name: '劉書銘' },
+      '068910': { hash: '', isAdmin: false, mustChange: false, name: '' },
+    };
+    for (const [uid, seed] of Object.entries(SEED_USERS)) {
+      if (!users[uid]) users[uid] = { ...seed, localChanged: true };
+      else if (seed.name && !users[uid].name) users[uid].name = seed.name;
     }
 
     // Merge cloud users
@@ -5007,6 +5021,7 @@ window.Auth = (function () {
       }
     }
 
+    recordLogin(username);
     setSession(username, isAdmin);
     showMainUI({ username, isAdmin });
   }
@@ -5056,6 +5071,28 @@ window.Auth = (function () {
   }
 
   // ─── Admin panel ───
+  const LOGIN_LOG_KEY = 'titan_login_log_v1';
+  function recordLogin(username) {
+    try {
+      const users = loadUsers();
+      const name = (users[username] && users[username].name) || '';
+      const log = JSON.parse(localStorage.getItem(LOGIN_LOG_KEY) || '[]');
+      log.push({ uid: username, name, ts: Date.now() });
+      // Keep last 500 entries
+      if (log.length > 500) log.splice(0, log.length - 500);
+      localStorage.setItem(LOGIN_LOG_KEY, JSON.stringify(log));
+    } catch (e) { /* ignore */ }
+  }
+  function getLoginLogs() {
+    try { return JSON.parse(localStorage.getItem(LOGIN_LOG_KEY) || '[]'); }
+    catch { return []; }
+  }
+  function clearLoginLogs() {
+    if (!confirm('確定清除所有登入記錄？')) return;
+    localStorage.removeItem(LOGIN_LOG_KEY);
+    renderUserList();
+  }
+
   function openAdminPanel() {
     const session = getSession();
     if (!session || !session.isAdmin) return;
@@ -5071,14 +5108,30 @@ window.Auth = (function () {
 
   function renderUserList() {
     const users = loadUsers();
+    const logs = getLoginLogs();
+    // Build last-login map per uid
+    const lastLogin = {};
+    const loginCount = {};
+    for (const entry of logs) {
+      loginCount[entry.uid] = (loginCount[entry.uid] || 0) + 1;
+      if (!lastLogin[entry.uid] || entry.ts > lastLogin[entry.uid]) lastLogin[entry.uid] = entry.ts;
+    }
+    const fmtTime = ts => {
+      const d = new Date(ts);
+      return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    };
+
     const el = document.getElementById('userListEl');
     if (!el) return;
-    const rows = Object.entries(users).map(([uid, u]) => `
+    const sorted = Object.entries(users).sort(([a],[b]) => a.localeCompare(b, undefined, { numeric: true }));
+    const rows = sorted.map(([uid, u]) => `
       <div class="ap-user-row ${uid === ADMIN_ID ? 'is-admin' : ''}">
         <div class="ap-user-info">
           <span class="ap-uid">${uid}</span>
+          ${u.name ? `<span class="ap-name">${escapeHtml(u.name)}</span>` : ''}
           ${u.isAdmin ? '<span class="ap-tag admin">管理員</span>' : ''}
           ${u.mustChange ? '<span class="ap-tag must-change">待改密</span>' : ''}
+          ${lastLogin[uid] ? `<span class="ap-last-login">最後登入 ${fmtTime(lastLogin[uid])} · ${loginCount[uid]}次</span>` : '<span class="ap-last-login muted">未登入</span>'}
         </div>
         <div class="ap-user-actions">
           ${uid !== ADMIN_ID ? `
@@ -5089,6 +5142,19 @@ window.Auth = (function () {
       </div>
     `).join('');
     el.innerHTML = rows || '<div style="color:var(--text3);font-size:13px">無帳號資料</div>';
+
+    // Login log section
+    const logEl = document.getElementById('loginLogEl');
+    if (!logEl) return;
+    const recent = [...logs].reverse().slice(0, 60);
+    logEl.innerHTML = recent.length === 0
+      ? '<div style="color:var(--text3);font-size:13px;padding:8px 0">尚無登入記錄</div>'
+      : recent.map(e => `
+          <div style="display:flex;gap:10px;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--border);font-size:13px">
+            <span style="font-family:var(--mono);color:var(--text3);flex-shrink:0">${fmtTime(e.ts)}</span>
+            <span style="font-family:var(--mono);font-weight:600;color:var(--text);flex-shrink:0">${escapeHtml(e.uid)}</span>
+            ${e.name ? `<span style="color:var(--text2)">${escapeHtml(e.name)}</span>` : ''}
+          </div>`).join('');
   }
 
   async function addUser() {
@@ -5160,7 +5226,7 @@ window.Auth = (function () {
 
   return {
     boot, doLogin, doChangePw, logout,
-    openAdminPanel, closeAdminPanel, addUser, resetUserPwd, deleteUser,
+    openAdminPanel, closeAdminPanel, addUser, resetUserPwd, deleteUser, clearLoginLogs,
     exportUsers, mergeCloudUsers,
   };
 })();

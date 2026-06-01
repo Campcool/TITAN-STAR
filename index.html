@@ -814,6 +814,12 @@ function onAuthSuccess() {
       <div class="ap-sec-t" style="margin-top:18px">帳號列表</div>
       <div id="userListEl" class="ap-user-list"></div>
       <div class="ap-note">重置密碼 → 密碼恢復為帳號名稱，對方下次登入需重設。操作後請記得「☁ 發布到雲端」讓同步生效。</div>
+      <!-- Login log -->
+      <div class="ap-sec-t" style="margin-top:24px;display:flex;align-items:center;justify-content:space-between">
+        <span>登入記錄（本機，最新 60 筆）</span>
+        <button class="btn sm danger" onclick="Auth.clearLoginLogs()">清除</button>
+      </div>
+      <div id="loginLogEl" style="max-height:220px;overflow-y:auto;padding:4px 0"></div>
     </div>
   </div>
 </div>
