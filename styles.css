@@ -3001,7 +3001,7 @@ html[data-fontscale] body { zoom: 1; }
   transition: transform .22s cubic-bezier(.34,1.56,.64,1),
               box-shadow .22s ease, border-color .22s ease !important;
 }
-.btn:hover {
+.btn:hover, .btn:active {
   animation: jelly-pop .42s cubic-bezier(.34,1.56,.64,1) !important;
   border-color: rgba(56,189,248,.70) !important;
   color: var(--accent) !important;
@@ -3057,10 +3057,14 @@ html[data-fontscale] body { zoom: 1; }
 
 /* ── Chip（深色主題）── */
 .chip {
+  background: linear-gradient(135deg, rgba(56,189,248,.10) 0%, rgba(56,189,248,.04) 100%) !important;
+  backdrop-filter: blur(10px) saturate(1.4) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(1.4) !important;
+  border: 1px solid rgba(56,189,248,.22) !important;
   transition: transform .22s cubic-bezier(.34,1.56,.64,1),
               box-shadow .22s ease, border-color .22s ease !important;
 }
-.chip:hover:not(.active) {
+.chip:hover:not(.active), .chip:active:not(.active) {
   animation: jelly-wiggle .5s ease !important;
   border-color: rgba(56,189,248,.60) !important;
   box-shadow: 0 0 0 3px rgba(56,189,248,.16),
@@ -3081,7 +3085,7 @@ html[data-fontscale] body { zoom: 1; }
               background .18s ease, color .18s ease,
               box-shadow .22s ease !important;
 }
-.snav-item:not(.active):hover {
+.snav-item:not(.active):hover, .snav-item:not(.active):active {
   animation: jelly-pop .38s cubic-bezier(.34,1.56,.64,1) !important;
   background: rgba(56,189,248,.12) !important;
   color: var(--accent) !important;
@@ -3092,11 +3096,16 @@ html[data-fontscale] body { zoom: 1; }
 
 /* ── Mode tab（深色主題）── */
 .mode-tab {
+  background: linear-gradient(135deg, rgba(56,189,248,.08) 0%, rgba(56,189,248,.02) 100%) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(56,189,248,.16) !important;
   transition: transform .22s cubic-bezier(.34,1.56,.64,1),
               background .18s ease, box-shadow .22s ease !important;
 }
-.mode-tab:not(.active):hover {
+.mode-tab:not(.active):hover, .mode-tab:not(.active):active {
   animation: jelly-pop .35s cubic-bezier(.34,1.56,.64,1) !important;
+  background: rgba(56,189,248,.16) !important;
   box-shadow: 0 0 0 3px rgba(56,189,248,.18),
               0 4px 14px rgba(56,189,248,.24) !important;
 }
