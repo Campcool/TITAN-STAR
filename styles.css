@@ -812,6 +812,7 @@ button, input, select { font-family: inherit; }
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 36px; height: 28px; padding: 0 8px;
   border-radius: 6px; font-weight: 700;
+  color: #f5f8fc;
 }
 
 /* ══════════════════════ Anomaly cards (full page) ══════════════════════ */

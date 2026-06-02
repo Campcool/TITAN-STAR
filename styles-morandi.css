@@ -275,5 +275,8 @@ input:focus, select:focus, textarea:focus {
 .amini { background: var(--surface) !important; border-color: var(--border) !important; }
 .amini:hover { background: var(--surface2) !important; }
 .amini-type { color: var(--text) !important; }  /* 蓋掉 inline 亮色，改用深暖黑；分類靠淡彩底辨識 */
+
+/* ── 跨機種矩陣格子：淺色主題改深色數字（白字配淡彩底看不見）── */
+.matrix-cell { color: var(--text) !important; }
 .amini-subject { color: var(--text) !important; }
 .amini-msg { color: var(--text2) !important; }
