@@ -3,6 +3,16 @@
    疊加在 styles.css 之後；只覆蓋 :root 色彩變數，其餘 UI 結構不變
    ════════════════════════════════════════════════════════════════════ */
 
+/* Morandi primary 呼吸光 keyframe（霧藍，淺底適用） */
+@keyframes glow-pulse-morandi {
+  0%,100% { box-shadow: 0 0 0 0 rgba(91,130,166,0),
+                        inset 0 1px 0 rgba(255,255,255,.55),
+                        0 4px 14px rgba(91,130,166,.20); }
+  50%      { box-shadow: 0 0 0 5px rgba(91,130,166,.14),
+                        inset 0 1px 0 rgba(255,255,255,.65),
+                        0 8px 24px rgba(91,130,166,.36); }
+}
+
 :root {
   /* ── 底色系：溫潤米白，護眼不刺眼 ── */
   --bg:       #EDECEA;   /* 大地米白底 */
@@ -305,7 +315,8 @@ input:focus, select:focus, textarea:focus {
     inset 0 1.5px 0 rgba(255,255,255,.65),
     0 0 0 4px rgba(91,130,166,.14),
     0 8px 24px rgba(91,130,166,.30) !important;
-  animation: jelly-pop .42s cubic-bezier(.34,1.56,.64,1) !important;
+  animation: jelly-pop .42s cubic-bezier(.34,1.56,.64,1),
+             glow-pulse-morandi 1.2s ease infinite !important;
 }
 .chip:hover:not(.active) {
   border-color: rgba(91,130,166,.45) !important;

@@ -2966,12 +2966,14 @@ html[data-fontscale] body { zoom: 1; }
   .lens-chips { grid-template-columns: repeat(2, 1fr) !important; }
 }
 
+
 /* ════════════════════════════════════════════════════════════════════
    ◎ QQ 果凍多巴胺互動系統
-   全站可點擊元素：透明糖果玻璃底 + 彈跳/晃動動畫 + hover 暈染光
+   深色主題（styles.css）：亮青 #38bdf8 系，深底高對比發光
+   淺色主題（styles-morandi.css 覆蓋）：霧藍 #5B82A6 系
    ════════════════════════════════════════════════════════════════════ */
 
-/* ── 彈跳 keyframes ── */
+/* ── 共用 keyframes ── */
 @keyframes jelly-pop {
   0%   { transform: scale(1,1); }
   28%  { transform: scale(1.10, 0.90); }
@@ -2988,93 +2990,108 @@ html[data-fontscale] body { zoom: 1; }
   72%  { transform: rotate(2deg)  scale(1.03); }
   88%  { transform: rotate(-1deg) scale(1.01); }
 }
-@keyframes glow-pulse {
+/* 深色主題 primary 呼吸光（亮青，高飽和） */
+@keyframes glow-pulse-dark {
   0%,100% { box-shadow: 0 0 0 0 rgba(56,189,248,0),
-                        inset 0 1px 0 rgba(255,255,255,.20),
-                        0 4px 16px rgba(56,189,248,.22); }
-  50%      { box-shadow: 0 0 0 4px rgba(56,189,248,.12),
-                        inset 0 1px 0 rgba(255,255,255,.28),
-                        0 6px 20px rgba(56,189,248,.35); }
+                        inset 0 1px 0 rgba(255,255,255,.22),
+                        0 4px 16px rgba(56,189,248,.30); }
+  50%      { box-shadow: 0 0 0 5px rgba(56,189,248,.18),
+                        inset 0 1px 0 rgba(255,255,255,.32),
+                        0 8px 28px rgba(56,189,248,.50); }
 }
 
-/* ── 通用果凍按鈕基底（dark 主題）── */
+/* ── .btn 基底（深色主題：深藍底透明糖果）── */
 .btn {
   background: linear-gradient(145deg,
-    rgba(255,255,255,.12) 0%,
-    rgba(56,189,248,.10) 50%,
-    rgba(255,255,255,.04) 100%) !important;
+    rgba(56,189,248,.14) 0%,
+    rgba(255,255,255,.08) 50%,
+    rgba(56,189,248,.04) 100%) !important;
   backdrop-filter: blur(14px) saturate(1.6) !important;
   -webkit-backdrop-filter: blur(14px) saturate(1.6) !important;
-  border: 1px solid rgba(255,255,255,.18) !important;
+  border: 1px solid rgba(56,189,248,.28) !important;
+  color: var(--text2) !important;
   box-shadow:
-    inset 0 1.5px 0 rgba(255,255,255,.22),
-    inset 0 -1px 0 rgba(0,0,0,.08),
-    0 2px 12px rgba(0,0,0,.18) !important;
+    inset 0 1.5px 0 rgba(255,255,255,.18),
+    inset 0 -1px 0 rgba(0,0,0,.15),
+    0 2px 10px rgba(0,0,0,.25) !important;
   transition: transform .22s cubic-bezier(.34,1.56,.64,1),
-              box-shadow .22s ease,
-              border-color .22s ease,
-              background .22s ease !important;
+              box-shadow .22s ease, border-color .22s ease !important;
 }
 .btn:hover {
   animation: jelly-pop .42s cubic-bezier(.34,1.56,.64,1) !important;
-  border-color: rgba(56,189,248,.55) !important;
-  box-shadow:
-    inset 0 1.5px 0 rgba(255,255,255,.30),
-    0 0 0 3px rgba(56,189,248,.10),
-    0 6px 20px rgba(56,189,248,.22) !important;
+  border-color: rgba(56,189,248,.70) !important;
   color: var(--accent) !important;
+  box-shadow:
+    inset 0 1.5px 0 rgba(255,255,255,.28),
+    0 0 0 3px rgba(56,189,248,.18),
+    0 6px 24px rgba(56,189,248,.35) !important;
 }
 .btn:active {
   transform: scale(.93) !important;
-  box-shadow: inset 0 2px 6px rgba(0,0,0,.20), 0 1px 4px rgba(0,0,0,.12) !important;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,.30), 0 1px 4px rgba(0,0,0,.20) !important;
   transition: transform .08s ease !important;
 }
 
-/* Primary 按鈕：亮藍糖果 */
+/* Primary（深色主題：強亮青果凍） */
 .btn.primary {
   background: linear-gradient(145deg,
-    rgba(56,189,248,.30) 0%,
-    rgba(99,179,237,.16) 55%,
-    rgba(56,189,248,.08) 100%) !important;
-  border: 1px solid rgba(56,189,248,.60) !important;
+    rgba(56,189,248,.35) 0%,
+    rgba(99,179,237,.20) 55%,
+    rgba(56,189,248,.10) 100%) !important;
+  border: 1px solid rgba(56,189,248,.70) !important;
   color: var(--accent) !important;
   font-weight: 700 !important;
   box-shadow:
-    inset 0 1.5px 0 rgba(255,255,255,.30),
-    0 0 12px rgba(56,189,248,.20),
-    0 4px 16px rgba(56,189,248,.18) !important;
+    inset 0 1.5px 0 rgba(255,255,255,.28),
+    0 0 14px rgba(56,189,248,.28),
+    0 4px 18px rgba(56,189,248,.25) !important;
 }
 .btn.primary:hover {
-  animation: jelly-pop .42s cubic-bezier(.34,1.56,.64,1), glow-pulse 1.2s ease infinite !important;
-  border-color: rgba(56,189,248,.90) !important;
+  animation: jelly-pop .42s cubic-bezier(.34,1.56,.64,1),
+             glow-pulse-dark 1.2s ease infinite !important;
+  border-color: rgba(56,189,248,.95) !important;
   box-shadow:
-    inset 0 1.5px 0 rgba(255,255,255,.38),
-    0 0 0 4px rgba(56,189,248,.14),
-    0 8px 24px rgba(56,189,248,.38) !important;
+    inset 0 1.5px 0 rgba(255,255,255,.36),
+    0 0 0 4px rgba(56,189,248,.22),
+    0 10px 30px rgba(56,189,248,.50) !important;
 }
 
-/* ── Chip / 篩選標籤 ── */
+/* Danger */
+.btn.danger {
+  background: linear-gradient(145deg,
+    rgba(239,68,68,.22) 0%, rgba(239,68,68,.08) 100%) !important;
+  border: 1px solid rgba(239,68,68,.55) !important;
+  color: var(--critical) !important;
+}
+.btn.danger:hover {
+  animation: jelly-pop .42s cubic-bezier(.34,1.56,.64,1) !important;
+  border-color: rgba(239,68,68,.85) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.20),
+              0 0 0 3px rgba(239,68,68,.18),
+              0 6px 20px rgba(239,68,68,.35) !important;
+}
+
+/* ── Chip（深色主題）── */
 .chip {
   transition: transform .22s cubic-bezier(.34,1.56,.64,1),
-              box-shadow .22s ease,
-              border-color .22s ease !important;
+              box-shadow .22s ease, border-color .22s ease !important;
 }
 .chip:hover:not(.active) {
   animation: jelly-wiggle .5s ease !important;
-  border-color: rgba(56,189,248,.45) !important;
-  box-shadow: 0 0 0 3px rgba(56,189,248,.10), 0 4px 12px rgba(56,189,248,.16) !important;
+  border-color: rgba(56,189,248,.60) !important;
+  box-shadow: 0 0 0 3px rgba(56,189,248,.16),
+              0 4px 14px rgba(56,189,248,.24) !important;
   color: var(--accent) !important;
 }
 .chip:active { transform: scale(.91) !important; }
 .chip.active {
-  animation: none !important;
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.28),
-    0 0 0 2px rgba(56,189,248,.22),
-    0 4px 14px rgba(56,189,248,.26) !important;
+    inset 0 1px 0 rgba(255,255,255,.22),
+    0 0 0 2px rgba(56,189,248,.30),
+    0 4px 16px rgba(56,189,248,.32) !important;
 }
 
-/* ── Sidebar nav items ── */
+/* ── Sidebar nav（深色主題）── */
 .snav-item {
   transition: transform .22s cubic-bezier(.34,1.56,.64,1),
               background .18s ease, color .18s ease,
@@ -3082,24 +3099,25 @@ html[data-fontscale] body { zoom: 1; }
 }
 .snav-item:not(.active):hover {
   animation: jelly-pop .38s cubic-bezier(.34,1.56,.64,1) !important;
-  background: rgba(56,189,248,.10) !important;
+  background: rgba(56,189,248,.12) !important;
   color: var(--accent) !important;
-  box-shadow: inset 3px 0 0 rgba(56,189,248,.55),
-              0 2px 10px rgba(56,189,248,.14) !important;
+  box-shadow: inset 3px 0 0 rgba(56,189,248,.75),
+              0 2px 12px rgba(56,189,248,.20) !important;
 }
 .snav-item:active { transform: scale(.95) translateX(2px) !important; }
 
-/* ── Mode tabs ── */
+/* ── Mode tab（深色主題）── */
 .mode-tab {
   transition: transform .22s cubic-bezier(.34,1.56,.64,1),
               background .18s ease, box-shadow .22s ease !important;
 }
 .mode-tab:not(.active):hover {
   animation: jelly-pop .35s cubic-bezier(.34,1.56,.64,1) !important;
-  box-shadow: 0 0 0 3px rgba(56,189,248,.12), 0 4px 12px rgba(56,189,248,.16) !important;
+  box-shadow: 0 0 0 3px rgba(56,189,248,.18),
+              0 4px 14px rgba(56,189,248,.24) !important;
 }
 
-/* ── Topbar action buttons ── */
+/* ── Topbar 按鈕（深色主題）── */
 .topbar-btn {
   transition: transform .22s cubic-bezier(.34,1.56,.64,1),
               box-shadow .22s ease, border-color .22s ease !important;
@@ -3107,85 +3125,86 @@ html[data-fontscale] body { zoom: 1; }
 .topbar-btn:hover {
   animation: jelly-pop .4s cubic-bezier(.34,1.56,.64,1) !important;
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.30),
-    0 0 0 3px rgba(56,189,248,.14),
-    0 6px 18px rgba(56,189,248,.28) !important;
+    inset 0 1px 0 rgba(255,255,255,.28),
+    0 0 0 4px rgba(56,189,248,.20),
+    0 8px 24px rgba(56,189,248,.38) !important;
+  border-color: rgba(56,189,248,.80) !important;
 }
 .topbar-btn:active { transform: scale(.91) !important; }
 
-/* ── Anomaly mini cards ── */
+/* ── Anomaly mini cards（深色主題）── */
 .amini {
   transition: transform .22s cubic-bezier(.34,1.56,.64,1),
               box-shadow .22s ease, border-color .22s ease !important;
 }
 .amini:hover {
-  transform: translateY(-3px) scale(1.015) !important;
-  box-shadow: 0 0 0 2px rgba(56,189,248,.22),
-              0 8px 24px rgba(56,189,248,.18) !important;
-  border-color: rgba(56,189,248,.45) !important;
+  transform: translateY(-4px) scale(1.018) !important;
+  box-shadow: 0 0 0 2px rgba(56,189,248,.32),
+              0 10px 30px rgba(56,189,248,.28) !important;
+  border-color: rgba(56,189,248,.60) !important;
 }
 .amini:active { transform: scale(.96) !important; }
 
-/* ── Anomaly column headers ── */
+/* ── Anomaly column header（深色主題）── */
 .acol-head {
   transition: transform .22s cubic-bezier(.34,1.56,.64,1),
               background .18s ease, box-shadow .2s ease !important;
 }
 .acol-head:hover {
   animation: jelly-pop .36s cubic-bezier(.34,1.56,.64,1) !important;
+  box-shadow: inset 0 -2px 0 rgba(56,189,248,.55) !important;
 }
 
-/* ── Matrix cells ── */
+/* ── Matrix cell（深色主題）── */
 .matrix-cell {
   transition: transform .2s cubic-bezier(.34,1.56,.64,1),
               box-shadow .2s ease, filter .2s ease !important;
 }
 .matrix tbody td:not(.empty):hover .matrix-cell {
-  transform: scale(1.18) !important;
-  filter: brightness(1.15) saturate(1.3) !important;
-  box-shadow: 0 0 0 3px rgba(56,189,248,.25),
-              0 4px 14px rgba(56,189,248,.28) !important;
+  transform: scale(1.22) !important;
+  filter: brightness(1.25) saturate(1.4) !important;
+  box-shadow: 0 0 0 3px rgba(56,189,248,.35),
+              0 6px 18px rgba(56,189,248,.40) !important;
   outline: none !important;
-  z-index: 2 !important;
-  position: relative !important;
+  z-index: 2; position: relative;
 }
-.matrix tbody td:not(.empty):active .matrix-cell { transform: scale(.92) !important; }
+.matrix tbody td:not(.empty):active .matrix-cell { transform: scale(.90) !important; }
 
-/* ── Summary 行動卡片按鈕 ── */
+/* ── Summary 卡片按鈕（深色主題）── */
 .sum-card-go, .sum-card-capa {
   transition: transform .22s cubic-bezier(.34,1.56,.64,1),
               box-shadow .22s ease, border-color .22s ease !important;
 }
 .sum-card-go:hover, .sum-card-capa:hover {
   animation: jelly-pop .4s cubic-bezier(.34,1.56,.64,1) !important;
-  box-shadow: 0 0 0 3px rgba(56,189,248,.14),
-              0 6px 16px rgba(56,189,248,.22) !important;
+  box-shadow: 0 0 0 3px rgba(56,189,248,.22),
+              0 8px 22px rgba(56,189,248,.32) !important;
+  border-color: rgba(56,189,248,.70) !important;
 }
 .sum-card-go:active, .sum-card-capa:active { transform: scale(.91) !important; }
 
-/* ── KPI 卡片 ── */
+/* ── KPI 卡片（深色主題）── */
 .kpi {
   transition: transform .22s cubic-bezier(.34,1.56,.64,1),
               box-shadow .22s ease !important;
 }
 .kpi:hover {
-  transform: translateY(-3px) scale(1.02) !important;
-  box-shadow: 0 0 0 2px rgba(56,189,248,.16),
-              0 8px 24px rgba(56,189,248,.16) !important;
+  transform: translateY(-4px) scale(1.025) !important;
+  box-shadow: 0 0 0 2px rgba(56,189,248,.24),
+              0 10px 28px rgba(56,189,248,.24) !important;
 }
 .kpi:active { transform: scale(.97) !important; }
 
-/* ── 月份 / 機種 rank 列 ── */
+/* ── Rank 列（深色主題）── */
 .mrank-top {
   transition: transform .2s cubic-bezier(.34,1.56,.64,1),
               background .18s ease, box-shadow .2s ease !important;
 }
 .mrank-top:hover {
-  transform: translateX(4px) !important;
-  box-shadow: inset 3px 0 0 rgba(56,189,248,.55),
-              0 2px 12px rgba(56,189,248,.14) !important;
+  transform: translateX(5px) !important;
+  box-shadow: inset 3px 0 0 rgba(56,189,248,.80),
+              0 2px 14px rgba(56,189,248,.20) !important;
 }
-
 
 </style>
 <style>
@@ -11967,7 +11986,7 @@ window.Auth = (function () {
 
 </script>
 <script>
-window.__morandiCSS__ = "/* ════════════════════════════════════════════════════════════════════\n   TITAN-STAR — 莫蘭迪/大地色系主題\n   疊加在 styles.css 之後；只覆蓋 :root 色彩變數，其餘 UI 結構不變\n   ════════════════════════════════════════════════════════════════════ */\n\n:root {\n  /* ── 底色系：溫潤米白，護眼不刺眼 ── */\n  --bg:       #EDECEA;   /* 大地米白底 */\n  --surface:  #F8F7F5;   /* 卡片近白 */\n  --surface2: #EEECEA;   /* 次表面淺米 */\n  --surface3: #E2E0DC;   /* 三級灰 */\n  --hover:    rgba(0,0,0,0.04);\n\n  /* ── 邊框：柔和陰影邊 ── */\n  --border:  rgba(0,0,0,0.09);\n  --border2: rgba(0,0,0,0.16);\n\n  /* ── 文字：暖灰黑層次 ── */\n  --text:      #28241F;  /* 深暖黑，主要文字 */\n  --text2:     #514D47;  /* 中暖灰，次要文字 */\n  --text3:     #857F77;  /* 輕灰棕，標籤/輔助 */\n  --text-mute: #ADA89F;  /* 最淡，placeholder */\n\n  /* ── 強調色：霧霾藍（主要互動/連結/高亮） ── */\n  --accent:        #5B82A6;\n  --accent-soft:   rgba(91,130,166,0.10);\n  --accent-strong: rgba(91,130,166,0.22);\n\n  /* ── 嚴重警示：柔和磚紅 ── */\n  --critical:        #C26360;\n  --critical-soft:   rgba(194,99,96,0.10);\n  --critical-strong: rgba(194,99,96,0.20);\n\n  /* ── 警告：暖琥珀褐 ── */\n  --warn:        #B8833A;\n  --warn-soft:   rgba(184,131,58,0.10);\n  --warn-strong: rgba(184,131,58,0.20);\n\n  /* ── 達標/正常：鼠尾草綠 ── */\n  --ok:      #6E9C68;\n  --ok-soft: rgba(110,156,104,0.12);\n\n  /* ── 資訊/中性：暖灰褐 ── */\n  --info:      #8C8275;\n  --info-soft: rgba(140,130,117,0.12);\n}\n\n/* ──────────────────────────────────────────────────────────────────\n   深色主題中寫死的白色系元素，在淺色主題需要反轉\n   ────────────────────────────────────────────────────────────────── */\n\n/* 整體底色已由 :root --bg 控制，body 跟著走 */\nbody {\n  background: var(--bg);\n  color: var(--text);\n}\n\n/* ── 頂部 Logo 漸層 → 改為品牌藍方向 ── */\n.uz-logo, .logo-badge {\n  background: linear-gradient(135deg, var(--accent), #7A9EBF) !important;\n  color: #fff !important;\n}\n\n/* ── 主 nav sidebar ── */\n#sidebar {\n  background: var(--surface) !important;\n  border-right: 1px solid var(--border) !important;\n}\n.nav-item { color: var(--text2) !important; }\n.nav-item:hover { background: var(--surface2) !important; color: var(--text) !important; }\n.nav-item.active {\n  background: var(--accent-soft) !important;\n  color: var(--accent) !important;\n  border-left-color: var(--accent) !important;\n}\n\n/* ── 頁面 header ── */\n#pageHeader {\n  background: var(--surface) !important;\n  border-bottom: 1px solid var(--border) !important;\n}\n.page-title { color: var(--text) !important; }\n\n/* ── 卡片 ── */\n.card, .sum-card, .kpi-card, .trend-card {\n  background: var(--surface) !important;\n  border-color: var(--border) !important;\n  box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;\n}\n\n/* ── KPI 數字：保留語意色，不改 ── */\n\n/* ── 表格 ── */\ntable thead th {\n  background: var(--surface2) !important;\n  color: var(--text2) !important;\n  border-color: var(--border2) !important;\n}\ntable tbody tr { border-bottom: 1px solid var(--border) !important; }\ntable tbody tr:nth-child(even) { background: rgba(0,0,0,0.025) !important; }\ntable tbody tr:hover { background: var(--accent-soft) !important; }\ntable td, table th { border-color: var(--border) !important; }\ntable td { border-bottom: 1px solid var(--border) !important; }\n\n/* ── 機種排名 mrank cards ── */\n.mrank-row {\n  border: 1px solid var(--border2) !important;\n  box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;\n}\n.mrank-row + .mrank-row { margin-top: 6px; }\n.mrank-top:hover { background: var(--accent-soft) !important; }\n\n/* ── 按鈕 ── */\n.btn-primary, .sum-card-go {\n  background: var(--accent) !important;\n  color: #fff !important;\n}\n.btn-primary:hover, .sum-card-go:hover {\n  background: #4A6F93 !important;\n}\n.btn-outline, .sum-card-capa {\n  border-color: var(--accent) !important;\n  color: var(--accent) !important;\n  background: transparent !important;\n}\n.btn-outline:hover, .sum-card-capa:hover {\n  background: var(--accent-soft) !important;\n}\n\n/* ── 輸入框 ── */\ninput, select, textarea {\n  background: var(--surface) !important;\n  color: var(--text) !important;\n  border-color: var(--border2) !important;\n}\ninput:focus, select:focus, textarea:focus {\n  border-color: var(--accent) !important;\n  outline: none !important;\n  box-shadow: 0 0 0 2px var(--accent-soft) !important;\n}\n\n/* ── 抽屜/Modal ── */\n#drawer, .modal-panel {\n  background: var(--surface) !important;\n  border-left: 1px solid var(--border) !important;\n}\n\n/* ── 搜尋列 ── */\n.search-bar, #detailSearch {\n  background: var(--surface2) !important;\n  border-color: var(--border) !important;\n  color: var(--text) !important;\n}\n\n/* ── 標籤 Chip ── */\n.chip, .tag, .badge {\n  background: var(--surface2) !important;\n  color: var(--text2) !important;\n  border-color: var(--border) !important;\n}\n\n/* ── COPQ onboarding 步驟 ── */\n.ob-step { background: var(--surface2) !important; color: var(--text3) !important; }\n.ob-step.ob-active { background: var(--accent-soft) !important; color: var(--accent) !important; }\n.ob-num { background: var(--surface3) !important; color: var(--text2) !important; }\n.ob-step.ob-active .ob-num { background: var(--accent) !important; color: #fff !important; }\n\n/* ── CEO 摘要框 ── */\n.exec-brief {\n  background: var(--accent-soft) !important;\n  border-left: 4px solid var(--accent) !important;\n}\n.eb-label { color: var(--accent) !important; }\n.eb-text  { color: var(--text) !important; }\n\n/* ── CAPA 表單 ── */\n.capa-row { border-bottom-color: var(--border) !important; }\n.capa-id  { color: var(--text3) !important; }\n\n/* ── data quality panel ── */\n.dq-item { background: var(--surface2) !important; }\n.dq-ok   { color: var(--ok) !important; }\n.dq-warn { color: var(--warn) !important; }\n.dq-bad  { color: var(--critical) !important; }\n\n/* ── 上傳區 ── */\n.uz-card { background: var(--surface) !important; border-color: var(--border2) !important; }\n.uz-card.drag { border-color: var(--accent) !important; background: var(--accent-soft) !important; }\n\n/* ── 分頁/子選單列 ── */\n.sub-nav, .tab-bar {\n  background: var(--surface2) !important;\n  border-bottom-color: var(--border) !important;\n}\n.sub-nav-item.active, .tab-item.active {\n  color: var(--accent) !important;\n  border-bottom-color: var(--accent) !important;\n}\n\n/* ── 月份卡片 ── */\n.uz-month-card {\n  background: var(--surface) !important;\n  border-color: var(--border) !important;\n}\n.uz-month-card:hover { border-color: var(--border2) !important; }\n\n/* ── scroll bar（Webkit） ── */\n::-webkit-scrollbar { width: 6px; height: 6px; }\n::-webkit-scrollbar-track { background: var(--surface2); }\n::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }\n::-webkit-scrollbar-thumb:hover { background: var(--text-mute); }\n\n/* ─── New UI elements ─── */\n.fsc-sel { background: var(--surface2); color: var(--text); border-color: var(--border); }\n.sidebar-mini-toggle { border-color: var(--border); color: var(--text3); }\n.ph-icon-btn { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-strong); }\n.help-modal { background: var(--surface); border-color: var(--border); }\n.help-modal-h { border-color: var(--border); }\n\n/* ── 頂部 mode-bar 與 subbar ── */\n.mode-bar {\n  background: rgba(237,236,234,.92) !important;\n  border-bottom: 1px solid var(--border) !important;\n}\n.mode-tab { color: var(--text2) !important; }\n.mode-tab:hover { color: var(--accent) !important; background: var(--accent-soft) !important; }\n.mode-tab.active {\n  color: var(--accent) !important;\n  background: linear-gradient(135deg, rgba(122,162,196,.20), rgba(122,162,196,.04)) !important;\n  border: 1px solid rgba(122,162,196,.5) !important;\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.4) !important;\n}\n.mode-bar-r .btn { color: var(--text2) !important; border-color: var(--border) !important; background: var(--surface2) !important; }\n.mode-bar-r .btn:hover { color: var(--text) !important; background: var(--surface3) !important; }\n.topbar-btn {\n  background: linear-gradient(135deg, rgba(122,162,196,.20), rgba(122,162,196,.04)) !important;\n  color: var(--accent) !important;\n  border: 1px solid rgba(122,162,196,.5) !important;\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.4) !important;\n}\n.topbar-btn:hover {\n  background: linear-gradient(135deg, rgba(122,162,196,.28), rgba(122,162,196,.08)) !important;\n  border-color: rgba(122,162,196,.75) !important;\n}\n.s-icon { background: linear-gradient(180deg, var(--accent) 0%, #6E9C68 100%) !important; }\n.mode-bar-user { color: var(--text3) !important; }\n.subbar {\n  background: var(--surface) !important;\n  border-bottom: 1px solid var(--border) !important;\n}\n.chip { background: var(--surface2) !important; color: var(--text2) !important; border-color: var(--border) !important; }\n/* 多巴胺玻璃擬態：淺藍漸層透明底 + 藍框，不填滿 */\n.chip.active {\n  background: linear-gradient(135deg, rgba(122,162,196,.24), rgba(122,162,196,.05)) !important;\n  -webkit-backdrop-filter: blur(8px) saturate(1.4); backdrop-filter: blur(8px) saturate(1.4);\n  color: var(--accent) !important;\n  border-color: rgba(122,162,196,.6) !important;\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 2px 10px rgba(122,162,196,.2) !important;\n}\n.subbar-toggle { color: var(--text2) !important; }\n.sb-label { color: var(--text3) !important; }\n.snav-item { color: var(--text2) !important; }\n.snav-item:hover { background: var(--surface2) !important; color: var(--text) !important; }\n.snav-item.active {\n  background: linear-gradient(135deg, rgba(122,162,196,.22), rgba(122,162,196,.04)) !important;\n  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);\n  color: var(--accent) !important;\n  border: 1px solid rgba(122,162,196,.5) !important;\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 2px 8px rgba(122,162,196,.16) !important;\n}\n.snav-item.active .snav-ico { filter: drop-shadow(0 0 4px rgba(122,162,196,.6)); opacity: 1 !important; }\n.snav-h, .snav-sep { border-color: var(--border) !important; color: var(--text3) !important; }\n\n/* ── 異常偵測卡片：淺色主題下標籤文字加深（亮色配淡底對比過低）── */\n.amini { background: var(--surface) !important; border-color: var(--border) !important; }\n.amini-type { color: var(--text) !important; }\n.matrix-cell { color: var(--text) !important; }\n.amini-subject { color: var(--text) !important; }\n.amini-msg { color: var(--text2) !important; }\n\n/* ── Morandi QQ 果凍：暖霧藍系發光（取代亮青 #38bdf8）── */\n/* accent = #5B82A6（霧霾藍），用 rgba(91,130,166,…) */\n\n.btn:hover {\n  border-color: rgba(91,130,166,.60) !important;\n  box-shadow:\n    inset 0 1.5px 0 rgba(255,255,255,.55),\n    0 0 0 3px rgba(91,130,166,.12),\n    0 6px 20px rgba(91,130,166,.22) !important;\n}\n.btn.primary {\n  background: linear-gradient(145deg,\n    rgba(91,130,166,.22) 0%,\n    rgba(122,162,196,.10) 55%,\n    rgba(91,130,166,.04) 100%) !important;\n  border: 1px solid rgba(91,130,166,.55) !important;\n  box-shadow:\n    inset 0 1.5px 0 rgba(255,255,255,.55),\n    0 0 10px rgba(91,130,166,.16),\n    0 4px 14px rgba(91,130,166,.14) !important;\n}\n.btn.primary:hover {\n  border-color: rgba(91,130,166,.85) !important;\n  box-shadow:\n    inset 0 1.5px 0 rgba(255,255,255,.65),\n    0 0 0 4px rgba(91,130,166,.14),\n    0 8px 24px rgba(91,130,166,.30) !important;\n  animation: jelly-pop .42s cubic-bezier(.34,1.56,.64,1) !important;\n}\n.chip:hover:not(.active) {\n  border-color: rgba(91,130,166,.45) !important;\n  box-shadow: 0 0 0 3px rgba(91,130,166,.10), 0 4px 12px rgba(91,130,166,.16) !important;\n}\n.snav-item:not(.active):hover {\n  background: rgba(91,130,166,.08) !important;\n  box-shadow: inset 3px 0 0 rgba(91,130,166,.55),\n              0 2px 10px rgba(91,130,166,.12) !important;\n}\n.topbar-btn:hover {\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.55),\n    0 0 0 3px rgba(91,130,166,.14),\n    0 6px 18px rgba(91,130,166,.24) !important;\n}\n.amini:hover {\n  box-shadow: 0 0 0 2px rgba(91,130,166,.22),\n              0 8px 24px rgba(91,130,166,.16) !important;\n  border-color: rgba(91,130,166,.45) !important;\n  background: var(--surface2) !important;\n}\n.matrix tbody td:not(.empty):hover .matrix-cell {\n  box-shadow: 0 0 0 3px rgba(91,130,166,.25),\n              0 4px 14px rgba(91,130,166,.24) !important;\n}\n.kpi:hover {\n  box-shadow: 0 0 0 2px rgba(91,130,166,.16),\n              0 8px 24px rgba(91,130,166,.14) !important;\n}\n.mrank-top:hover {\n  box-shadow: inset 3px 0 0 rgba(91,130,166,.55),\n              0 2px 12px rgba(91,130,166,.12) !important;\n}\n.sum-card-go:hover, .sum-card-capa:hover {\n  box-shadow: 0 0 0 3px rgba(91,130,166,.14),\n              0 6px 16px rgba(91,130,166,.20) !important;\n}\n";
+window.__morandiCSS__ = "/* ════════════════════════════════════════════════════════════════════\n   TITAN-STAR — 莫蘭迪/大地色系主題\n   疊加在 styles.css 之後；只覆蓋 :root 色彩變數，其餘 UI 結構不變\n   ════════════════════════════════════════════════════════════════════ */\n\n/* Morandi primary 呼吸光 keyframe（霧藍，淺底適用） */\n@keyframes glow-pulse-morandi {\n  0%,100% { box-shadow: 0 0 0 0 rgba(91,130,166,0),\n                        inset 0 1px 0 rgba(255,255,255,.55),\n                        0 4px 14px rgba(91,130,166,.20); }\n  50%      { box-shadow: 0 0 0 5px rgba(91,130,166,.14),\n                        inset 0 1px 0 rgba(255,255,255,.65),\n                        0 8px 24px rgba(91,130,166,.36); }\n}\n\n:root {\n  /* ── 底色系：溫潤米白，護眼不刺眼 ── */\n  --bg:       #EDECEA;   /* 大地米白底 */\n  --surface:  #F8F7F5;   /* 卡片近白 */\n  --surface2: #EEECEA;   /* 次表面淺米 */\n  --surface3: #E2E0DC;   /* 三級灰 */\n  --hover:    rgba(0,0,0,0.04);\n\n  /* ── 邊框：柔和陰影邊 ── */\n  --border:  rgba(0,0,0,0.09);\n  --border2: rgba(0,0,0,0.16);\n\n  /* ── 文字：暖灰黑層次 ── */\n  --text:      #28241F;  /* 深暖黑，主要文字 */\n  --text2:     #514D47;  /* 中暖灰，次要文字 */\n  --text3:     #857F77;  /* 輕灰棕，標籤/輔助 */\n  --text-mute: #ADA89F;  /* 最淡，placeholder */\n\n  /* ── 強調色：霧霾藍（主要互動/連結/高亮） ── */\n  --accent:        #5B82A6;\n  --accent-soft:   rgba(91,130,166,0.10);\n  --accent-strong: rgba(91,130,166,0.22);\n\n  /* ── 嚴重警示：柔和磚紅 ── */\n  --critical:        #C26360;\n  --critical-soft:   rgba(194,99,96,0.10);\n  --critical-strong: rgba(194,99,96,0.20);\n\n  /* ── 警告：暖琥珀褐 ── */\n  --warn:        #B8833A;\n  --warn-soft:   rgba(184,131,58,0.10);\n  --warn-strong: rgba(184,131,58,0.20);\n\n  /* ── 達標/正常：鼠尾草綠 ── */\n  --ok:      #6E9C68;\n  --ok-soft: rgba(110,156,104,0.12);\n\n  /* ── 資訊/中性：暖灰褐 ── */\n  --info:      #8C8275;\n  --info-soft: rgba(140,130,117,0.12);\n}\n\n/* ──────────────────────────────────────────────────────────────────\n   深色主題中寫死的白色系元素，在淺色主題需要反轉\n   ────────────────────────────────────────────────────────────────── */\n\n/* 整體底色已由 :root --bg 控制，body 跟著走 */\nbody {\n  background: var(--bg);\n  color: var(--text);\n}\n\n/* ── 頂部 Logo 漸層 → 改為品牌藍方向 ── */\n.uz-logo, .logo-badge {\n  background: linear-gradient(135deg, var(--accent), #7A9EBF) !important;\n  color: #fff !important;\n}\n\n/* ── 主 nav sidebar ── */\n#sidebar {\n  background: var(--surface) !important;\n  border-right: 1px solid var(--border) !important;\n}\n.nav-item { color: var(--text2) !important; }\n.nav-item:hover { background: var(--surface2) !important; color: var(--text) !important; }\n.nav-item.active {\n  background: var(--accent-soft) !important;\n  color: var(--accent) !important;\n  border-left-color: var(--accent) !important;\n}\n\n/* ── 頁面 header ── */\n#pageHeader {\n  background: var(--surface) !important;\n  border-bottom: 1px solid var(--border) !important;\n}\n.page-title { color: var(--text) !important; }\n\n/* ── 卡片 ── */\n.card, .sum-card, .kpi-card, .trend-card {\n  background: var(--surface) !important;\n  border-color: var(--border) !important;\n  box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;\n}\n\n/* ── KPI 數字：保留語意色，不改 ── */\n\n/* ── 表格 ── */\ntable thead th {\n  background: var(--surface2) !important;\n  color: var(--text2) !important;\n  border-color: var(--border2) !important;\n}\ntable tbody tr { border-bottom: 1px solid var(--border) !important; }\ntable tbody tr:nth-child(even) { background: rgba(0,0,0,0.025) !important; }\ntable tbody tr:hover { background: var(--accent-soft) !important; }\ntable td, table th { border-color: var(--border) !important; }\ntable td { border-bottom: 1px solid var(--border) !important; }\n\n/* ── 機種排名 mrank cards ── */\n.mrank-row {\n  border: 1px solid var(--border2) !important;\n  box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;\n}\n.mrank-row + .mrank-row { margin-top: 6px; }\n.mrank-top:hover { background: var(--accent-soft) !important; }\n\n/* ── 按鈕 ── */\n.btn-primary, .sum-card-go {\n  background: var(--accent) !important;\n  color: #fff !important;\n}\n.btn-primary:hover, .sum-card-go:hover {\n  background: #4A6F93 !important;\n}\n.btn-outline, .sum-card-capa {\n  border-color: var(--accent) !important;\n  color: var(--accent) !important;\n  background: transparent !important;\n}\n.btn-outline:hover, .sum-card-capa:hover {\n  background: var(--accent-soft) !important;\n}\n\n/* ── 輸入框 ── */\ninput, select, textarea {\n  background: var(--surface) !important;\n  color: var(--text) !important;\n  border-color: var(--border2) !important;\n}\ninput:focus, select:focus, textarea:focus {\n  border-color: var(--accent) !important;\n  outline: none !important;\n  box-shadow: 0 0 0 2px var(--accent-soft) !important;\n}\n\n/* ── 抽屜/Modal ── */\n#drawer, .modal-panel {\n  background: var(--surface) !important;\n  border-left: 1px solid var(--border) !important;\n}\n\n/* ── 搜尋列 ── */\n.search-bar, #detailSearch {\n  background: var(--surface2) !important;\n  border-color: var(--border) !important;\n  color: var(--text) !important;\n}\n\n/* ── 標籤 Chip ── */\n.chip, .tag, .badge {\n  background: var(--surface2) !important;\n  color: var(--text2) !important;\n  border-color: var(--border) !important;\n}\n\n/* ── COPQ onboarding 步驟 ── */\n.ob-step { background: var(--surface2) !important; color: var(--text3) !important; }\n.ob-step.ob-active { background: var(--accent-soft) !important; color: var(--accent) !important; }\n.ob-num { background: var(--surface3) !important; color: var(--text2) !important; }\n.ob-step.ob-active .ob-num { background: var(--accent) !important; color: #fff !important; }\n\n/* ── CEO 摘要框 ── */\n.exec-brief {\n  background: var(--accent-soft) !important;\n  border-left: 4px solid var(--accent) !important;\n}\n.eb-label { color: var(--accent) !important; }\n.eb-text  { color: var(--text) !important; }\n\n/* ── CAPA 表單 ── */\n.capa-row { border-bottom-color: var(--border) !important; }\n.capa-id  { color: var(--text3) !important; }\n\n/* ── data quality panel ── */\n.dq-item { background: var(--surface2) !important; }\n.dq-ok   { color: var(--ok) !important; }\n.dq-warn { color: var(--warn) !important; }\n.dq-bad  { color: var(--critical) !important; }\n\n/* ── 上傳區 ── */\n.uz-card { background: var(--surface) !important; border-color: var(--border2) !important; }\n.uz-card.drag { border-color: var(--accent) !important; background: var(--accent-soft) !important; }\n\n/* ── 分頁/子選單列 ── */\n.sub-nav, .tab-bar {\n  background: var(--surface2) !important;\n  border-bottom-color: var(--border) !important;\n}\n.sub-nav-item.active, .tab-item.active {\n  color: var(--accent) !important;\n  border-bottom-color: var(--accent) !important;\n}\n\n/* ── 月份卡片 ── */\n.uz-month-card {\n  background: var(--surface) !important;\n  border-color: var(--border) !important;\n}\n.uz-month-card:hover { border-color: var(--border2) !important; }\n\n/* ── scroll bar（Webkit） ── */\n::-webkit-scrollbar { width: 6px; height: 6px; }\n::-webkit-scrollbar-track { background: var(--surface2); }\n::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }\n::-webkit-scrollbar-thumb:hover { background: var(--text-mute); }\n\n/* ─── New UI elements ─── */\n.fsc-sel { background: var(--surface2); color: var(--text); border-color: var(--border); }\n.sidebar-mini-toggle { border-color: var(--border); color: var(--text3); }\n.ph-icon-btn { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-strong); }\n.help-modal { background: var(--surface); border-color: var(--border); }\n.help-modal-h { border-color: var(--border); }\n\n/* ── 頂部 mode-bar 與 subbar ── */\n.mode-bar {\n  background: rgba(237,236,234,.92) !important;\n  border-bottom: 1px solid var(--border) !important;\n}\n.mode-tab { color: var(--text2) !important; }\n.mode-tab:hover { color: var(--accent) !important; background: var(--accent-soft) !important; }\n.mode-tab.active {\n  color: var(--accent) !important;\n  background: linear-gradient(135deg, rgba(122,162,196,.20), rgba(122,162,196,.04)) !important;\n  border: 1px solid rgba(122,162,196,.5) !important;\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.4) !important;\n}\n.mode-bar-r .btn { color: var(--text2) !important; border-color: var(--border) !important; background: var(--surface2) !important; }\n.mode-bar-r .btn:hover { color: var(--text) !important; background: var(--surface3) !important; }\n.topbar-btn {\n  background: linear-gradient(135deg, rgba(122,162,196,.20), rgba(122,162,196,.04)) !important;\n  color: var(--accent) !important;\n  border: 1px solid rgba(122,162,196,.5) !important;\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.4) !important;\n}\n.topbar-btn:hover {\n  background: linear-gradient(135deg, rgba(122,162,196,.28), rgba(122,162,196,.08)) !important;\n  border-color: rgba(122,162,196,.75) !important;\n}\n.s-icon { background: linear-gradient(180deg, var(--accent) 0%, #6E9C68 100%) !important; }\n.mode-bar-user { color: var(--text3) !important; }\n.subbar {\n  background: var(--surface) !important;\n  border-bottom: 1px solid var(--border) !important;\n}\n.chip { background: var(--surface2) !important; color: var(--text2) !important; border-color: var(--border) !important; }\n/* 多巴胺玻璃擬態：淺藍漸層透明底 + 藍框，不填滿 */\n.chip.active {\n  background: linear-gradient(135deg, rgba(122,162,196,.24), rgba(122,162,196,.05)) !important;\n  -webkit-backdrop-filter: blur(8px) saturate(1.4); backdrop-filter: blur(8px) saturate(1.4);\n  color: var(--accent) !important;\n  border-color: rgba(122,162,196,.6) !important;\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 2px 10px rgba(122,162,196,.2) !important;\n}\n.subbar-toggle { color: var(--text2) !important; }\n.sb-label { color: var(--text3) !important; }\n.snav-item { color: var(--text2) !important; }\n.snav-item:hover { background: var(--surface2) !important; color: var(--text) !important; }\n.snav-item.active {\n  background: linear-gradient(135deg, rgba(122,162,196,.22), rgba(122,162,196,.04)) !important;\n  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);\n  color: var(--accent) !important;\n  border: 1px solid rgba(122,162,196,.5) !important;\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 2px 8px rgba(122,162,196,.16) !important;\n}\n.snav-item.active .snav-ico { filter: drop-shadow(0 0 4px rgba(122,162,196,.6)); opacity: 1 !important; }\n.snav-h, .snav-sep { border-color: var(--border) !important; color: var(--text3) !important; }\n\n/* ── 異常偵測卡片：淺色主題下標籤文字加深（亮色配淡底對比過低）── */\n.amini { background: var(--surface) !important; border-color: var(--border) !important; }\n.amini-type { color: var(--text) !important; }\n.matrix-cell { color: var(--text) !important; }\n.amini-subject { color: var(--text) !important; }\n.amini-msg { color: var(--text2) !important; }\n\n/* ── Morandi QQ 果凍：暖霧藍系發光（取代亮青 #38bdf8）── */\n/* accent = #5B82A6（霧霾藍），用 rgba(91,130,166,…) */\n\n.btn:hover {\n  border-color: rgba(91,130,166,.60) !important;\n  box-shadow:\n    inset 0 1.5px 0 rgba(255,255,255,.55),\n    0 0 0 3px rgba(91,130,166,.12),\n    0 6px 20px rgba(91,130,166,.22) !important;\n}\n.btn.primary {\n  background: linear-gradient(145deg,\n    rgba(91,130,166,.22) 0%,\n    rgba(122,162,196,.10) 55%,\n    rgba(91,130,166,.04) 100%) !important;\n  border: 1px solid rgba(91,130,166,.55) !important;\n  box-shadow:\n    inset 0 1.5px 0 rgba(255,255,255,.55),\n    0 0 10px rgba(91,130,166,.16),\n    0 4px 14px rgba(91,130,166,.14) !important;\n}\n.btn.primary:hover {\n  border-color: rgba(91,130,166,.85) !important;\n  box-shadow:\n    inset 0 1.5px 0 rgba(255,255,255,.65),\n    0 0 0 4px rgba(91,130,166,.14),\n    0 8px 24px rgba(91,130,166,.30) !important;\n  animation: jelly-pop .42s cubic-bezier(.34,1.56,.64,1),\n             glow-pulse-morandi 1.2s ease infinite !important;\n}\n.chip:hover:not(.active) {\n  border-color: rgba(91,130,166,.45) !important;\n  box-shadow: 0 0 0 3px rgba(91,130,166,.10), 0 4px 12px rgba(91,130,166,.16) !important;\n}\n.snav-item:not(.active):hover {\n  background: rgba(91,130,166,.08) !important;\n  box-shadow: inset 3px 0 0 rgba(91,130,166,.55),\n              0 2px 10px rgba(91,130,166,.12) !important;\n}\n.topbar-btn:hover {\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.55),\n    0 0 0 3px rgba(91,130,166,.14),\n    0 6px 18px rgba(91,130,166,.24) !important;\n}\n.amini:hover {\n  box-shadow: 0 0 0 2px rgba(91,130,166,.22),\n              0 8px 24px rgba(91,130,166,.16) !important;\n  border-color: rgba(91,130,166,.45) !important;\n  background: var(--surface2) !important;\n}\n.matrix tbody td:not(.empty):hover .matrix-cell {\n  box-shadow: 0 0 0 3px rgba(91,130,166,.25),\n              0 4px 14px rgba(91,130,166,.24) !important;\n}\n.kpi:hover {\n  box-shadow: 0 0 0 2px rgba(91,130,166,.16),\n              0 8px 24px rgba(91,130,166,.14) !important;\n}\n.mrank-top:hover {\n  box-shadow: inset 3px 0 0 rgba(91,130,166,.55),\n              0 2px 12px rgba(91,130,166,.12) !important;\n}\n.sum-card-go:hover, .sum-card-capa:hover {\n  box-shadow: 0 0 0 3px rgba(91,130,166,.14),\n              0 6px 16px rgba(91,130,166,.20) !important;\n}\n";
 </script>
 <script>
 // ════════════════════════════════════════════════════════════════════
