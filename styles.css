@@ -2550,7 +2550,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
 
 
 /* ════════════════ 異常偵測：三欄（嚴重/注意/提醒）═══════════ */
-.alert-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.alert-cols { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
 @media (max-width: 980px) { .alert-cols { grid-template-columns: 1fr; } }
 .acol { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
 .acol-head {
