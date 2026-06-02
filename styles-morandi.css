@@ -164,11 +164,12 @@ input:focus, select:focus, textarea:focus {
 
 /* ── 標籤 Chip ── */
 .chip, .tag, .badge {
-  background: linear-gradient(135deg, rgba(91,130,166,.14) 0%, rgba(91,130,166,.05) 100%) !important;
+  background: linear-gradient(135deg, rgba(91,130,166,.22) 0%, rgba(91,130,166,.09) 100%) !important;
   backdrop-filter: blur(10px) saturate(1.4) !important;
   -webkit-backdrop-filter: blur(10px) saturate(1.4) !important;
   color: var(--text2) !important;
-  border-color: rgba(91,130,166,.35) !important;
+  border-color: rgba(91,130,166,.45) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 1px 6px rgba(91,130,166,.12) !important;
 }
 
 /* ── COPQ onboarding 步驟 ── */

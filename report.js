@@ -122,6 +122,8 @@
   @media (max-width: 700px) {
     body { padding: 0; }
     .doc { padding: 20px 16px; }
+    .trend-grid { grid-template-columns: 1fr; }
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   }
   @media print {
     body { background: white; padding: 0; }
@@ -269,7 +271,7 @@
   .tag {
     display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 0.67em;
     padding: 1px 6px; border-radius: 8px; background: #f1f5f9; color: #475569;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #e2e8f0; white-space: nowrap;
   }
   .pill {
     display: inline-flex; align-items: center; gap: 4px;
@@ -429,7 +431,7 @@
 
   <!-- Top models -->
   <h2 class="sec">機種故障排名 <span class="meta">本月前 10</span></h2>
-  <table>
+  <div class="table-wrap"><table>
     <thead><tr>
       <th style="width:32px">#</th>
       <th>機種</th>
@@ -454,11 +456,11 @@
         </tr>
       `).join('')}
     </tbody>
-  </table>
+  </table></div>
 
   <!-- Top parts -->
   <h2 class="sec">本月最常更換零件 <span class="meta">前 15</span></h2>
-  <table>
+  <div class="table-wrap"><table>
     <thead><tr>
       <th style="width:32px">#</th>
       <th>零件名稱</th>
@@ -484,7 +486,7 @@
         </tr>
       `).join('')}
     </tbody>
-  </table>
+  </table></div>
 
   <div class="footer">
     <span>維修分析報表 · ${d.reportDate}</span>
