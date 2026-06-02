@@ -254,14 +254,16 @@
   .anom-mlabel { font-size: 0.67em; color: #64748b; margin-top: 3px; }
 
   /* Tables */
-  table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85em; min-width: 560px; }
   thead th {
     text-align: left; padding: 10px 12px; font-size: 0.72em;
     letter-spacing: .08em; text-transform: uppercase; color: #64748b; font-weight: 700;
     border-bottom: 1.5px solid #cbd5e1; background: #f1f5f9;
+    white-space: nowrap;
   }
-  tbody td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+  tbody td { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
   tbody tr:last-child td { border-bottom: none; }
+  .table-wrap table { min-width: 680px; }
   .num { font-family: 'JetBrains Mono', monospace; }
   .right { text-align: right; }
   .center { text-align: center; }
@@ -431,16 +433,16 @@
 
   <!-- Top models -->
   <h2 class="sec">機種故障排名 <span class="meta">本月前 10</span></h2>
-  <div class="table-wrap"><table>
+  <div class="table-wrap"><table style="min-width:700px">
     <thead><tr>
-      <th style="width:32px">#</th>
-      <th>機種</th>
-      <th>大類</th>
-      <th class="right">件數</th>
-      <th class="right">整新數</th>
-      <th class="right">故障率</th>
-      <th class="right">報廢</th>
-      <th>主要故障內容</th>
+      <th style="width:36px">#</th>
+      <th style="min-width:100px">機種</th>
+      <th style="min-width:90px">大類</th>
+      <th class="right" style="width:70px">件數</th>
+      <th class="right" style="width:80px">整新數</th>
+      <th class="right" style="width:90px">故障率</th>
+      <th class="right" style="width:60px">報廢</th>
+      <th style="min-width:160px">主要故障內容</th>
     </tr></thead>
     <tbody>
       ${d.modelRank.map((r, i) => `
