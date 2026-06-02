@@ -270,3 +270,10 @@ input:focus, select:focus, textarea:focus {
 }
 .snav-item.active .snav-ico { filter: drop-shadow(0 0 4px rgba(122,162,196,.6)); opacity: 1 !important; }
 .snav-h, .snav-sep { border-color: var(--border) !important; color: var(--text3) !important; }
+
+/* ── 異常偵測卡片：淺色主題下標籤文字加深（亮色配淡底對比過低）── */
+.amini { background: var(--surface) !important; border-color: var(--border) !important; }
+.amini:hover { background: var(--surface2) !important; }
+.amini-type { color: var(--text) !important; }  /* 蓋掉 inline 亮色，改用深暖黑；分類靠淡彩底辨識 */
+.amini-subject { color: var(--text) !important; }
+.amini-msg { color: var(--text2) !important; }

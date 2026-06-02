@@ -2581,7 +2581,7 @@ html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
   background: var(--surface2); border: 1px solid var(--border);
   border-left: 3px solid var(--text3); border-radius: 9px;
   padding: 14px 14px 12px; cursor: pointer; transition: all .15s;
-  min-width: 0; overflow: hidden;
+  min-width: 0; flex-shrink: 0;
 }
 .amini.critical { border-left-color: var(--critical); }
 .amini.warn { border-left-color: var(--warn); }
