@@ -2284,10 +2284,12 @@ button, input, select { font-family: inherit; }
    無障礙顯示大小（長輩友善）+ 行動裝置導覽 + RWD 強化
    ════════════════════════════════════════════════════════════════════ */
 
-/* 全站等比縮放：套用於 body，連同字級、間距、圖表一起放大 */
-html[data-fontscale="sm"] body { zoom: 1; }
-html[data-fontscale="md"] body { zoom: 1.12; }   /* 預設：適合長輩 */
-html[data-fontscale="lg"] body { zoom: 1.28; }   /* 特大 */
+/* 字級縮放：調 html font-size 讓文字放大，同時等比縮放關鍵間距變數 */
+html[data-fontscale="sm"] { font-size: 14px; }
+html[data-fontscale="md"] { font-size: 15.5px; }
+html[data-fontscale="lg"] { font-size: 17px; }
+/* 清除舊 zoom，避免殘留 */
+html[data-fontscale] body { zoom: 1; }
 
 /* 系統控制群組（字級 + 深淺色，放同一組） */
 .sys-ctl-group {
