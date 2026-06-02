@@ -226,19 +226,22 @@
 
   // ─── Per-model history across months
   function modelHistory(db, modelName) {
+    const normName = normalizeModel(modelName);
     const monthKeys = Object.keys(db.months).sort();
     return monthKeys.map(mk => {
       const m = db.months[mk];
       if (!m) return { month: mk, count: 0, denom: 0, faultRate: null, scrap: 0 };
-      const recs = m.records.filter(r => r.model === modelName);
-      const denom = m.denominators[modelName] || 0;
+      const recs = m.records.filter(r => normalizeModel(r.model) === normName);
+      // denominators keys may be raw or normalized — try both
+      const denom = m.denominators[normName]
+        || Object.entries(m.denominators || {}).find(([k]) => normalizeModel(k) === normName)?.[1]
+        || 0;
       return {
         month: mk,
         count: recs.length,
         denom,
         faultRate: denom ? (recs.length / denom) : null,
         scrap: recs.filter(r => r.isScrap).length,
-        // Top parts this month for this model
         topParts: aggregateParts(recs).slice(0, 5),
       };
     });
