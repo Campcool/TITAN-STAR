@@ -801,6 +801,12 @@ button, input, select { font-family: inherit; }
   border-bottom: 1px solid var(--border);
   min-width: 80px;
 }
+/* 合計欄（第二欄）右側加隔線，視覺分隔合計與各機種 */
+.matrix thead th:nth-child(2),
+.matrix tbody td:nth-child(2) {
+  border-right: 2px solid var(--border2);
+  min-width: 64px;
+}
 .matrix tbody th {
   left: 0;
   text-align: left;
@@ -8394,12 +8400,26 @@ window.App = (function () {
     const models = Array.from(modelSet).sort();
     state.currentCrossModels = models;
 
-    // Color scale based on max count in matrix
-    const maxCount = Math.max(...cross.flatMap(p => Object.values(p.perModel)));
+    // Sort by total count descending (highest = most abnormal → first)
+    const sorted = cross.slice().sort((a, b) => b.count - a.count).slice(0, 50);
 
-    const head = `<tr><th style="min-width:100px"></th>${models.map(m => `<th title="${escapeAttr(m)}">${m}</th>`).join('')}<th style="color:var(--text)">合計</th></tr>`;
-    const body = cross.slice(0, 50).map(p => {
-      const pNorm = RepairAnalyzer.normalizeModel(p.name);
+    // Color scale based on max count in matrix
+    const maxCount = Math.max(...sorted.flatMap(p => Object.values(p.perModel)));
+    const maxTotal = sorted[0]?.count || 1;
+
+    // Header: 零件名稱 | 合計 | model1 | model2 | ...
+    const head = `<tr>
+      <th style="min-width:130px">零件名稱</th>
+      <th style="color:var(--text);min-width:64px">合計</th>
+      ${models.map(m => `<th title="${escapeAttr(m)}">${m}</th>`).join('')}
+    </tr>`;
+
+    const body = sorted.map(p => {
+      const totalIntensity = Math.min(0.85, 0.18 + (p.count / maxTotal) * 0.65);
+      const totalColor = p.count >= 20 ? COLORS.critical : p.count >= 8 ? COLORS.warn : COLORS.accent;
+      const totalCell = `<td style="cursor:pointer" onclick="App.openMatrixPartDrawer('${escapeAttr(p.name)}')" title="點擊查看明細">
+        <span class="matrix-cell" style="background:${totalColor}${Math.round(totalIntensity * 255).toString(16).padStart(2,'0')}">${p.count}</span>
+      </td>`;
       const cells = models.map(m => {
         const v = p.perModel[m];
         if (!v) return `<td class="empty">·</td>`;
@@ -8409,8 +8429,8 @@ window.App = (function () {
       }).join('');
       return `<tr>
         <th scope="row" title="${escapeAttr(p.name)}" onclick="App.openMatrixPartDrawer('${escapeAttr(p.name)}')">${escapeHtml(p.name)}<span class="spec">${p.models.length} 機種</span></th>
+        ${totalCell}
         ${cells}
-        <td style="cursor:pointer" onclick="App.openMatrixPartDrawer('${escapeAttr(p.name)}')" title="${escapeAttr(p.name)} 合計"><strong style="color:var(--text);font-family:var(--mono)">${p.count}</strong></td>
       </tr>`;
     }).join('');
 

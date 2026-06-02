@@ -785,6 +785,12 @@ button, input, select { font-family: inherit; }
   border-bottom: 1px solid var(--border);
   min-width: 80px;
 }
+/* 合計欄（第二欄）右側加隔線，視覺分隔合計與各機種 */
+.matrix thead th:nth-child(2),
+.matrix tbody td:nth-child(2) {
+  border-right: 2px solid var(--border2);
+  min-width: 64px;
+}
 .matrix tbody th {
   left: 0;
   text-align: left;
