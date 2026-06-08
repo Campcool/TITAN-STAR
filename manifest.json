@@ -1,0 +1,24 @@
+{
+  "name": "TITAN-STAR 維修分析",
+  "short_name": "TITAN",
+  "description": "工廠維修分析 & RMA 管理系統",
+  "start_url": "./TITAN-STAR.html",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#161d28",
+  "background_color": "#161d28",
+  "lang": "zh-TW",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%23161d28'/><text x='96' y='130' font-size='100' text-anchor='middle' font-family='system-ui' fill='%2338bdf8'>S</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "shortcuts": [
+    { "name": "總覽", "url": "./TITAN-STAR.html#summary", "description": "跨月份維修 KPI" },
+    { "name": "異常偵測", "url": "./TITAN-STAR.html#alerts", "description": "即時異常警示" }
+  ]
+}

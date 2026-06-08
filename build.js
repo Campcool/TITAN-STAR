@@ -30,6 +30,8 @@ html = html.replace('<link rel="stylesheet" href="styles.css">',     inlineStyle
 html = html.replace('<link rel="stylesheet" href="rma-styles.css">', inlineStyle(rmaStylesCss));
 // 莫蘭迪改用 JS 注入（window.__morandiCSS__），移除外部 link 避免 404
 html = html.replace('<link rel="stylesheet" href="styles-morandi.css" id="morandiThemeLink">', '');
+// 單檔版不使用 manifest / SW（需要獨立檔案才能運作），移除相關 link
+html = html.replace('<link rel="manifest" href="manifest.json">', '');
 html = html.replace('<script src="parser.js"></script>',   inlineScript(parserJs));
 html = html.replace('<script src="analyzer.js"></script>', inlineScript(analyzerJs));
 html = html.replace('<script src="report.js"></script>',   inlineScript(reportJs));

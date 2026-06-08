@@ -101,6 +101,67 @@
     w.document.close();
   }
 
+  // B1: Excel export
+  function resolveMonths(db) {
+    const months = Object.keys(db.months).sort();
+    return {
+      latestMonth: months[months.length - 1] || null,
+      prevMonth: months.length >= 2 ? months[months.length - 2] : null,
+      months,
+    };
+  }
+
+  function exportExcel(db, opts) {
+    if (typeof XLSX === 'undefined') { alert('Excel 匯出模組未載入'); return; }
+    const { latestMonth, prevMonth } = resolveMonths(db);
+    const curRecords = latestMonth ? (db.months[latestMonth]?.records || []) : [];
+    const curDenom = latestMonth ? (db.months[latestMonth]?.denominators || {}) : {};
+    const modelRankData = RepairAnalyzer.modelRank(curRecords, curDenom).slice(0, 20);
+    const topPartsData = RepairAnalyzer.partPareto(curRecords).slice(0, 30);
+    const trend = RepairAnalyzer.monthlyTrend(db, {});
+    const fmt = (v) => v == null ? '' : v;
+
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1: 機種故障排名
+    const rankRows = [['排名','機種','大類','件數','整新數','故障率(%)','報廢件數','主要故障內容']];
+    modelRankData.forEach((r, i) => {
+      rankRows.push([
+        i + 1, r.model, r.category || '', r.count,
+        r.denom || '', r.faultRate != null ? +(r.faultRate * 100).toFixed(2) : '',
+        r.scrap || 0,
+        r.topContents.slice(0, 3).map(c => `${c.name}×${c.count}`).join('・'),
+      ]);
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rankRows), '機種故障排名');
+
+    // Sheet 2: 零件 Pareto
+    const partRows = [['排名','零件名稱','件數','佔比(%)','累計佔比(%)','影響機種數','相關機種']];
+    topPartsData.forEach((p, i) => {
+      partRows.push([
+        i + 1, p.name, p.count,
+        +(p.pct * 100).toFixed(2),
+        +(p.cumPct * 100).toFixed(2),
+        p.models.length,
+        p.models.slice(0, 5).join(', '),
+      ]);
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(partRows), '零件Pareto');
+
+    // Sheet 3: 月趨勢
+    const trendRows = [['月份','維修件數','報廢件數','故障率(%)','整新基數']];
+    trend.forEach(t => {
+      trendRows.push([t.month, t.count, t.scrap, t.faultPct != null ? +t.faultPct.toFixed(2) : '', t.denom || '']);
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(trendRows), '月趨勢');
+
+    const fname = `TITAN-STAR_${latestMonth || 'report'}_${new Date().toISOString().slice(0,10)}.xlsx`;
+    XLSX.writeFile(wb, fname);
+  }
+
+  window.RepairReport = window.RepairReport || {};
+  window.RepairReport.exportExcel = exportExcel;
+
   function buildHTML(d) {
     const monthLabel = fmtMonth(d.latestMonth);
     const sevLabel = { critical: '嚴重', warn: '注意', info: '資訊' };

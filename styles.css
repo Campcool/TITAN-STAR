@@ -3273,3 +3273,24 @@ html[data-fontscale] body { zoom: 1; }
     0 8px 20px rgba(56,189,248,.22) !important;
   animation: jelly-pop .38s cubic-bezier(.34,1.56,.64,1) !important;
 }
+
+/* ── A3: prefers-reduced-motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── A4: tbl 第一欄 sticky left（月環比等橫向捲動表格）── */
+.tbl-wrap .tbl th:first-child,
+.tbl-wrap .tbl td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface2);
+}
+.tbl-wrap .tbl td:first-child { background: var(--surface); }
+.tbl-wrap .tbl tr:nth-child(even) td:first-child { background: var(--surface2); }

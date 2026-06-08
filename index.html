@@ -3,6 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#161d28">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TITAN-STAR">
+<link rel="manifest" href="manifest.json">
 <title>TITAN-STAR · 維修分析 & RMA 管理</title>
 <script>
 /* 顯示大小（無障礙）— 在繪製前套用，避免閃爍。預設「大」適合長輩使用者 */
@@ -18,6 +24,9 @@
 <link rel="stylesheet" href="styles-morandi.css" id="morandiThemeLink">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 </head>
 <body>
 
@@ -88,6 +97,7 @@
   </div>
   <div class="mode-bar-r" id="modeBtns">
     <button class="btn topbar-btn" id="modeReportBtn" onclick="App.generateRoleReport()" style="display:none">⤓ 生成報告</button>
+    <button class="btn topbar-btn" id="modeExcelBtn" onclick="App.exportReportExcel()" style="display:none" title="匯出 Excel">⬇ Excel</button>
     <button class="mode-tab" id="modeRma" onclick="switchMode('rma')" style="display:none">
       <span class="mode-tab-ico">◎</span> RMA
       <span class="mode-badge" id="rmaBadge" style="display:none">0</span>
@@ -285,6 +295,7 @@
           <!-- Role Insight Panel -->
           <div class="ri-panel" id="roleInsightPanel"></div>
           <div class="kpi-grid" id="kpiGrid"></div>
+          <div class="card sec" id="comparePanel" style="margin-top:16px"></div>
           <div class="sec" style="margin-top:28px">
             <div class="sec-h">
               <span class="sec-t"><span class="strong">異常警示</span> 本期最新</span>
@@ -465,6 +476,7 @@
             <div class="chart-wrap tall"><canvas id="spcChart"></canvas></div>
             <div id="spcNote" class="spc-note"></div>
           </div>
+          <div class="card sec" id="dqHeatmap"></div>
         </div>
 
         <!-- Manufacture batch analysis -->
@@ -825,5 +837,22 @@ function onAuthSuccess() {
     </div>
   </div>
 </div>
+<script>
+// Service Worker registration (PWA offline support)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        nw.addEventListener('statechange', () => {
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+            console.log('[SW] 已更新，下次開啟生效');
+          }
+        });
+      });
+    }).catch(e => console.warn('[SW] 註冊失敗:', e));
+  });
+}
+</script>
 </body>
 </html>

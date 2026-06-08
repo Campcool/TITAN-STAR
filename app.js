@@ -37,6 +37,9 @@ window.App = (function () {
     Chart.defaults.font.family = "'Inter','Noto Sans TC',sans-serif";
     Chart.defaults.font.size = 14;
     Chart.defaults.borderColor = COLORS.border;
+    // B3: register zoom plugin; C3: register annotation plugin
+    if (window.ChartZoom) Chart.register(window.ChartZoom);
+    if (window['chartjs-plugin-annotation']) Chart.register(window['chartjs-plugin-annotation']);
   }
 
   // ─────────────── Analysis Role Definitions ───────────────
@@ -176,6 +179,16 @@ window.App = (function () {
         if (cloud.costCfg) localStorage.setItem('titan_cost_cfg_v1', JSON.stringify(cloud.costCfg));
         localStorage.setItem(CLOUD_SEEN_KEY, cloud.publishedAt);
         state.cloudJustLoaded = true;
+        // B5: notify if critical anomalies in new data
+        setTimeout(() => {
+          try {
+            const latestMonth = Object.keys(cloud.months || {}).sort().pop();
+            if (latestMonth) {
+              const anom = RepairAnalyzer.detectAnomalies({ months: cloud.months }, latestMonth);
+              notifyNewAnomalies(anom);
+            }
+          } catch(e) {}
+        }, 2000);
       }
       return cloud;
     } catch (e) {
@@ -401,6 +414,7 @@ window.App = (function () {
     if ($('rmaDash')) $('rmaDash').style.display = 'none';
     const mub = $('modeUploadBtn'); if (mub) mub.style.display = '';
     const mrb = $('modeReportBtn'); if (mrb) mrb.style.display = '';
+    const meb = $('modeExcelBtn'); if (meb) meb.style.display = '';
     const rsw = $('roleSelWrap'); if (rsw) rsw.style.display = '';
     const mrma = $('modeRma'); if (mrma) mrma.style.display = '';
     try {
@@ -445,10 +459,14 @@ window.App = (function () {
     state.selectedMonths = Object.keys(state.db.months).sort();
     state.selectedCategory = '全部';
     state.selectedModel = '全部';
+    // B2: restore saved filter from sessionStorage
+    restoreFilterState();
     renderAnalysisRoleBar();
     renderAll();
     syncDisplaySizeButtons();
     window.scrollTo(0, 0);
+    // B5: request notification permission (deferred, non-blocking)
+    setTimeout(() => requestNotificationPermission(), 3000);
     // 設定瀏覽歷史基準頁，作為手機「上一頁」的返回終點
     try { history.replaceState({ __page: state.currentPage }, ''); } catch (e) {}
   }
@@ -465,6 +483,7 @@ window.App = (function () {
     if ($('rmaDash')) $('rmaDash').style.display = 'none';
     const mub = $('modeUploadBtn'); if (mub) mub.style.display = '';
     const mrb = $('modeReportBtn'); if (mrb) mrb.style.display = '';
+    const meb = $('modeExcelBtn'); if (meb) meb.style.display = '';
     const rsw = $('roleSelWrap'); if (rsw) rsw.style.display = '';
     const mrma = $('modeRma'); if (mrma) mrma.style.display = '';
     // Restore subbar collapsed state
@@ -711,6 +730,7 @@ window.App = (function () {
       }
     }
     renderAll();
+    saveFilterState();
     collapseSubbar();
   }
   function setMonthDirect(mk) {
@@ -724,12 +744,14 @@ window.App = (function () {
     state.selectedCategory = c;
     state.selectedModel = '全部';
     renderAll();
+    saveFilterState();
     collapseSubbar();
   }
 
   function setModel(m) {
     state.selectedModel = m;
     renderAll();
+    saveFilterState();
     collapseSubbar();
   }
 
@@ -1888,6 +1910,72 @@ window.App = (function () {
   }
 
   // ─────────────── Overview ───────────────
+  // C4: Month comparison mode
+  function renderComparePanel() {
+    const el = document.getElementById('comparePanel');
+    if (!el || !state.db) return;
+    const allMonths = Object.keys(state.db.months).sort();
+    if (allMonths.length < 2) { el.style.display = 'none'; return; }
+
+    const cmpA = state.compareMonthA || allMonths[allMonths.length - 1];
+    const cmpB = state.compareMonthB || allMonths[allMonths.length - 2];
+    state.compareMonthA = cmpA;
+    state.compareMonthB = cmpB;
+
+    const makeKpis = (mk) => {
+      const recs = RepairAnalyzer.getRecords(state.db, { months: [mk] });
+      const den = RepairAnalyzer.getDenominators(state.db, { months: [mk] });
+      return RepairAnalyzer.computeKPIs(recs, den);
+    };
+    const kA = makeKpis(cmpA);
+    const kB = makeKpis(cmpB);
+
+    const diff = (a, b, pct) => {
+      if (a == null || b == null || b === 0) return '';
+      const delta = a - b;
+      const pctD = b !== 0 ? ((a - b) / b * 100).toFixed(1) : null;
+      const color = delta > 0 ? 'var(--critical)' : delta < 0 ? 'var(--ok)' : 'var(--text3)';
+      const arrow = delta > 0 ? '▲' : delta < 0 ? '▼' : '—';
+      return `<span style="color:${color};font-size:12px;margin-left:6px">${arrow}${pctD != null ? pctD + '%' : ''}</span>`;
+    };
+
+    const row = (label, ka, kb) => `
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:8px 12px;color:var(--text3);font-size:13px">${label}</td>
+        <td style="padding:8px 12px;font-family:var(--mono);font-weight:600;text-align:right">${ka == null ? '—' : typeof ka === 'number' ? ka.toLocaleString() : ka}</td>
+        <td style="padding:8px 12px;font-family:var(--mono);font-weight:600;text-align:right">${kb == null ? '—' : typeof kb === 'number' ? kb.toLocaleString() : kb}${diff(ka, kb)}</td>
+      </tr>`;
+
+    const opts = allMonths.map(m => `<option value="${m}" ${m === cmpA ? 'selected' : ''}>${fmt.monthLabel(m)}</option>`).join('');
+    const optsB = allMonths.map(m => `<option value="${m}" ${m === cmpB ? 'selected' : ''}>${fmt.monthLabel(m)}</option>`).join('');
+
+    el.innerHTML = `
+      <div class="card-h" style="margin-bottom:12px">
+        <div class="card-t">月份對比</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select class="fsc-sel" onchange="App.setCmpA(this.value)" style="padding:4px 8px;border-radius:6px">${opts}</select>
+          <span style="color:var(--text3);font-size:13px">vs</span>
+          <select class="fsc-sel" onchange="App.setCmpB(this.value)" style="padding:4px 8px;border-radius:6px">${optsB}</select>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;min-width:320px">
+        <thead><tr style="border-bottom:2px solid var(--border)">
+          <th style="padding:8px 12px;text-align:left;font-size:12px;color:var(--text3)">指標</th>
+          <th style="padding:8px 12px;text-align:right;font-size:12px;color:var(--accent)">${fmt.monthLabel(cmpA)}</th>
+          <th style="padding:8px 12px;text-align:right;font-size:12px;color:var(--text2)">${fmt.monthLabel(cmpB)} <span style="font-size:11px;color:var(--text3)">(環比)</span></th>
+        </tr></thead>
+        <tbody>
+          ${row('總維修件數', kA.totalRepairs, kB.totalRepairs)}
+          ${row('報廢件數', kA.scrap, kB.scrap)}
+          ${row('報廢率(%)', kA.scrapPct != null ? +kA.scrapPct.toFixed(2) : null, kB.scrapPct != null ? +kB.scrapPct.toFixed(2) : null)}
+          ${row('受檢機種數', kA.models, kB.models)}
+          ${row('重複維修台數', kA.repeatedSerials, kB.repeatedSerials)}
+        </tbody>
+      </table>
+      </div>`;
+  }
+
   function renderOverview() {
     const f = currentFilter();
     const records = RepairAnalyzer.getRecords(state.db, f);
@@ -1938,6 +2026,9 @@ window.App = (function () {
         <div class="kpi-d"><span class="muted">同序號 ≥ 2 次 · 治標未治本</span></div>
       </div>
     `;
+
+    // C4: Month comparison panel
+    renderComparePanel();
 
     // Role-specific insight panel
     const lastMonth = state.selectedMonths.slice().sort().pop();
@@ -2678,7 +2769,10 @@ window.App = (function () {
       },
       options: {
         maintainAspectRatio: false, responsive: true,
-        plugins: { legend: { position: 'top', labels: { color: COLORS.text2 } } },
+        plugins: {
+          legend: { position: 'top', labels: { color: COLORS.text2 } },
+          zoom: { zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }, pan: { enabled: true, mode: 'x' } },
+        },
         scales: {
           x: { ticks: { color: COLORS.text3 }, grid: { display: false } },
           y: { beginAtZero: true, ticks: { color: COLORS.text3 }, grid: { color: COLORS.border } },
@@ -2701,7 +2795,10 @@ window.App = (function () {
       },
       options: {
         maintainAspectRatio: false, responsive: true,
-        plugins: { legend: { position: 'top', labels: { color: COLORS.text2 } } },
+        plugins: {
+          legend: { position: 'top', labels: { color: COLORS.text2 } },
+          zoom: { zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }, pan: { enabled: true, mode: 'x' } },
+        },
         scales: {
           x: { ticks: { color: COLORS.text3 }, grid: { display: false } },
           y: { beginAtZero: true, ticks: { color: COLORS.text3, callback: v => v + '%' }, grid: { color: COLORS.border } },
@@ -2732,7 +2829,10 @@ window.App = (function () {
       data: { labels, datasets },
       options: {
         maintainAspectRatio: false, responsive: true,
-        plugins: { legend: { position: 'bottom', labels: { color: COLORS.text2, boxWidth: 12, font: { size: 11 } } } },
+        plugins: {
+          legend: { position: 'bottom', labels: { color: COLORS.text2, boxWidth: 12, font: { size: 11 } } },
+          zoom: { zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }, pan: { enabled: true, mode: 'x' } },
+        },
         scales: {
           x: { ticks: { color: COLORS.text3 }, grid: { display: false } },
           y: { beginAtZero: true, ticks: { color: COLORS.text3 }, grid: { color: COLORS.border } },
@@ -4117,10 +4217,90 @@ window.App = (function () {
           ],
         },
         options: { responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { position: 'bottom' } },
+          plugins: {
+            legend: { position: 'bottom' },
+            // C3: annotation — mark latest month
+            annotation: {
+              annotations: labels.length ? {
+                latestLine: {
+                  type: 'line', xMin: labels.length - 1, xMax: labels.length - 1,
+                  borderColor: COLORS.accent + '88', borderWidth: 1.5, borderDash: [4, 4],
+                  label: { display: true, content: '最新月', position: 'start', color: COLORS.accent, font: { size: 11 } },
+                },
+                avgLine: {
+                  type: 'line', yMin: spc.mean, yMax: spc.mean,
+                  borderColor: COLORS.text3 + 'aa', borderWidth: 1, borderDash: [2, 4],
+                  label: { display: true, content: `平均 ${spc.mean.toFixed(1)}%`, position: 'end', color: COLORS.text3, font: { size: 10 } },
+                },
+              } : {},
+            },
+          },
           scales: { y: { beginAtZero: true, title: { display: true, text: '故障率 %' } } } },
       });
     }
+
+    // B6: Data quality heatmap
+    renderDQHeatmap();
+  }
+
+  // B6: DQ heatmap — missing data rate per month × field
+  function renderDQHeatmap() {
+    const dqEl = document.getElementById('dqHeatmap');
+    if (!dqEl || !state.db) return;
+    const fields = [
+      { key: 'date', label: '日期' }, { key: 'model', label: '機種' },
+      { key: 'serial', label: '序號' }, { key: 'reason', label: '故障原因' },
+      { key: 'content', label: '故障內容' }, { key: 'part', label: '零件記錄' },
+    ];
+    const monthKeys = Object.keys(state.db.months).sort().slice(-12);
+    if (!monthKeys.length) { dqEl.innerHTML = ''; return; }
+
+    const data = monthKeys.map(mk => {
+      const m = state.db.months[mk];
+      const total = m.records.length;
+      if (!total) return { month: mk, rates: {}, total: 0 };
+      const rates = {};
+      rates.date    = m.records.filter(r => r.date).length / total;
+      rates.model   = m.records.filter(r => r.model && r.model !== '未知').length / total;
+      rates.serial  = m.records.filter(r => r.serial).length / total;
+      rates.reason  = m.records.filter(r => r.reason && r.reason !== '未知').length / total;
+      rates.content = m.records.filter(r => r.content).length / total;
+      rates.part    = m.records.filter(r => r.parts && r.parts.length > 0).length / total;
+      return { month: mk, rates, total };
+    });
+
+    const cell = (rate) => {
+      const pct = Math.round((rate || 0) * 100);
+      const bg = pct >= 95 ? '#22c55e' : pct >= 80 ? '#f59e0b' : pct >= 50 ? '#f97316' : '#ef4444';
+      const fg = pct >= 80 ? '#fff' : '#fff';
+      return `<td title="${pct}% 填寫率" style="padding:5px 8px;text-align:center;background:${bg}${Math.round((rate||0)*0.7*255).toString(16).padStart(2,'0')};color:${fg};font-family:var(--mono);font-size:12px;border-radius:4px">${pct}%</td>`;
+    };
+
+    dqEl.innerHTML = `
+      <div class="card-h" style="margin-bottom:10px"><div class="card-t">資料品質熱圖（近 12 個月欄位填寫率）</div></div>
+      <div style="overflow-x:auto">
+      <table style="border-collapse:separate;border-spacing:4px;width:100%;min-width:420px">
+        <thead><tr>
+          <th style="padding:4px 8px;text-align:left;font-size:12px;color:var(--text3)">月份</th>
+          ${fields.map(f => `<th style="padding:4px 8px;text-align:center;font-size:12px;color:var(--text3)">${f.label}</th>`).join('')}
+          <th style="padding:4px 8px;text-align:right;font-size:12px;color:var(--text3)">筆數</th>
+        </tr></thead>
+        <tbody>
+          ${data.map(d => `<tr>
+            <td style="padding:5px 8px;font-family:var(--mono);font-size:12px;white-space:nowrap;color:var(--text2)">${fmt.monthLabel(d.month)}</td>
+            ${fields.map(f => cell(d.rates[f.key])).join('')}
+            <td style="padding:5px 8px;text-align:right;font-family:var(--mono);font-size:12px;color:var(--text3)">${d.total}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:var(--text3)">
+        <span style="background:#22c55e66;padding:2px 6px;border-radius:3px;margin-right:6px">≥95%</span>
+        <span style="background:#f59e0b66;padding:2px 6px;border-radius:3px;margin-right:6px">80–94%</span>
+        <span style="background:#f9731666;padding:2px 6px;border-radius:3px;margin-right:6px">50–79%</span>
+        <span style="background:#ef444466;padding:2px 6px;border-radius:3px">＜50%</span>
+      </div>
+    `;
   }
 
   // ═══════════════ Risk: FMEA + root cause + forecast ═══════════════
@@ -4864,6 +5044,7 @@ window.App = (function () {
     dismissAlertPulse, dismissCrossMonthPulse,
     generateReport: () => generateRoleReport(),
     generateRoleReport,
+    exportReportExcel: () => { if (state.db) RepairReport.exportExcel(state.db); },
     toggleAlertCol,
     toggleRoleDropdown, closeRoleDropdown,
     toggleSubbar, toggleSidebarMini, showHelpModal,
@@ -4879,6 +5060,11 @@ window.App = (function () {
     exportCostCsv,
     exportDetailCsv,
     exportFmeaUnclassified,
+    // C4
+    setCmpA: (v) => { state.compareMonthA = v; renderComparePanel(); },
+    setCmpB: (v) => { state.compareMonthB = v; renderComparePanel(); },
+    // Navigation helper for keyboard shortcuts
+    navigate: (page) => { state.currentPage = page; renderAll(); },
   };
 })();
 
@@ -5257,6 +5443,7 @@ window.Auth = (function () {
 
   // ─── Bootstrap ───
   async function boot(cloudUsers) {
+    initKeyboardShortcuts(); // C2: keyboard shortcuts
     await initUsers(cloudUsers || null);
     const session = getSession();
     if (session) {
@@ -5271,9 +5458,122 @@ window.Auth = (function () {
     return false;
   }
 
+  // ═══════════════ B2: Filter SessionStorage Memory ═══════════════
+  const FILTER_SESSION_KEY = 'titan_filter_v1';
+
+  function saveFilterState() {
+    try {
+      sessionStorage.setItem(FILTER_SESSION_KEY, JSON.stringify({
+        months: state.selectedMonths,
+        category: state.selectedCategory,
+        model: state.selectedModel,
+        page: state.currentPage,
+      }));
+    } catch(e) {}
+  }
+
+  function restoreFilterState() {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(FILTER_SESSION_KEY) || 'null');
+      if (!saved || !state.db) return false;
+      const allMonths = Object.keys(state.db.months);
+      const validMonths = (saved.months || []).filter(m => allMonths.includes(m));
+      if (validMonths.length) state.selectedMonths = validMonths;
+      if (saved.category) state.selectedCategory = saved.category;
+      if (saved.model) state.selectedModel = saved.model;
+      if (saved.page && saved.page !== 'summary') {
+        state.currentPage = saved.page;
+      }
+      return true;
+    } catch(e) { return false; }
+  }
+
+  // ═══════════════ B5: Push Notifications ═══════════════
+  async function requestNotificationPermission() {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'default') {
+      await Notification.requestPermission();
+    }
+  }
+
+  function notifyNewAnomalies(anomalies) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const critical = (anomalies || []).filter(a => a.severity === 'critical');
+    if (!critical.length) return;
+    try {
+      new Notification('TITAN-STAR 異常警示', {
+        body: `偵測到 ${critical.length} 件嚴重異常，請立即查看`,
+        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="%23161d28"/><text x="32" y="46" font-size="36" text-anchor="middle" fill="%2338bdf8">S</text></svg>',
+        tag: 'titan-critical',
+        requireInteraction: false,
+      });
+    } catch(e) {}
+  }
+
+  // ═══════════════ A5: Lazy Chart Init ═══════════════
+  function lazyChart(canvasId, creator) {
+    const canvas = typeof canvasId === 'string' ? document.getElementById(canvasId) : canvasId;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.top < window.innerHeight + 200) { creator(); return; }
+    const obs = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) { obs.disconnect(); creator(); }
+    }, { rootMargin: '150px' });
+    obs.observe(canvas);
+  }
+
+  // ═══════════════ C2: Keyboard Shortcuts ═══════════════
+  function initKeyboardShortcuts() {
+    document.addEventListener('keydown', e => {
+      // Skip if typing in input/textarea
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+
+      // Esc → close drawer / admin panel
+      if (e.key === 'Escape') {
+        const drawer = document.getElementById('drawer');
+        if (drawer && drawer.classList.contains('open')) {
+          App.closeDrawer ? App.closeDrawer() : (drawer.classList.remove('open'));
+          return;
+        }
+        const ap = document.getElementById('adminPanel');
+        if (ap && ap.style.display !== 'none') { App.closeAdminPanel(); return; }
+      }
+
+      // Alt+1..9 → switch pages
+      if (e.altKey && !e.ctrlKey && !e.metaKey) {
+        const pages = ['summary','overview','alerts','parts','cross','trend','reason','quality','cost'];
+        const idx = parseInt(e.key) - 1;
+        if (idx >= 0 && idx < pages.length && state.db) {
+          e.preventDefault();
+          App.navigate(pages[idx]);
+        }
+        return;
+      }
+
+      // / → focus search (if on detail page)
+      if (e.key === '/' && state.currentPage === 'detail') {
+        e.preventDefault();
+        const s = document.getElementById('detailSearch');
+        if (s) { s.focus(); s.select(); }
+        return;
+      }
+
+      // Ctrl+E → export current page
+      if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+        e.preventDefault();
+        const exportBtns = document.querySelectorAll('[onclick*="export"],[onclick*="Export"]');
+        if (exportBtns.length) exportBtns[0].click();
+        return;
+      }
+    });
+  }
+
   return {
     boot, doLogin, doChangePw, logout,
     openAdminPanel, closeAdminPanel, addUser, resetUserPwd, deleteUser, clearLoginLogs,
     exportUsers, mergeCloudUsers,
+    saveFilterState, restoreFilterState,
+    requestNotificationPermission, notifyNewAnomalies,
+    lazyChart,
   };
 })();
