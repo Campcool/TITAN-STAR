@@ -10,13 +10,6 @@
 <meta name="apple-mobile-web-app-title" content="TITAN-STAR">
 <link rel="manifest" href="manifest.json">
 <title>TITAN-STAR · 維修分析 & RMA 管理</title>
-<script>
-/* 顯示大小（無障礙）— 在繪製前套用，避免閃爍。預設「大」適合長輩使用者 */
-(function(){
-  var s; try { s = localStorage.getItem('titan_display_size'); } catch(e){}
-  document.documentElement.setAttribute('data-fontscale', s || 'md');
-})();
-</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
@@ -105,11 +98,6 @@
     <button class="btn topbar-btn" id="modeUploadBtn" onclick="App.openUpload()" style="display:none" title="上傳報表">⤒</button>
     <span class="mode-bar-user" id="modeBarUser"></span>
     <div class="sys-ctl-group">
-      <select class="fsc-sel" id="fontsizeSel" onchange="App.setDisplaySize(this.value)" title="字型大小">
-        <option value="sm">標準</option>
-        <option value="md">大</option>
-        <option value="lg">特大</option>
-      </select>
       <button class="btn theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="切換色系">🌙</button>
     </div>
     <button class="btn" id="adminPanelBtn" style="display:none" onclick="Auth.openAdminPanel()">⚙ 帳號管理</button>

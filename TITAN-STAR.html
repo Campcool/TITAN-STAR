@@ -10,13 +10,6 @@
 <meta name="apple-mobile-web-app-title" content="TITAN-STAR">
 
 <title>TITAN-STAR · 維修分析 & RMA 管理</title>
-<script>
-/* 顯示大小（無障礙）— 在繪製前套用，避免閃爍。預設「大」適合長輩使用者 */
-(function(){
-  var s; try { s = localStorage.getItem('titan_display_size'); } catch(e){}
-  document.documentElement.setAttribute('data-fontscale', s || 'md');
-})();
-</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
@@ -2298,21 +2291,11 @@ button, input, select { font-family: inherit; }
    無障礙顯示大小（長輩友善）+ 行動裝置導覽 + RWD 強化
    ════════════════════════════════════════════════════════════════════ */
 
-/* 字級縮放：調 html font-size 讓文字放大，同時等比縮放關鍵間距變數 */
-html[data-fontscale="sm"] { font-size: 14px; }
-html[data-fontscale="md"] { font-size: 15.5px; }
-html[data-fontscale="lg"] { font-size: 17px; }
-/* 清除舊 zoom，避免殘留 */
-html[data-fontscale] body { zoom: 1; }
-
-/* 系統控制群組（字級 + 深淺色，放同一組） */
+/* 系統控制群組（深淺色切換） */
 .sys-ctl-group {
   display: inline-flex; align-items: center; gap: 6px;
   background: var(--surface2); border: 1px solid var(--border);
   border-radius: 10px; padding: 3px 8px 3px 4px;
-}
-.sys-ctl-group .fontsize-ctl {
-  background: none; border: none; border-radius: 0; padding: 0;
 }
 .sys-ctl-group .theme-toggle {
   background: none; border: none; box-shadow: none;
@@ -2489,6 +2472,7 @@ html[data-fontscale] body { zoom: 1; }
 .sidebar.mini .snav-l { gap: 0; }
 .sidebar.mini .snav-ico { font-size: 17px; width: auto; }
 .layout.sidebar-mini .sidebar { width: 52px; }
+.layout.sidebar-mini .content { max-width: calc(100vw - 52px); }
 
 /* ─── Font size select ─── */
 .fsc-sel {
@@ -2518,10 +2502,6 @@ html[data-fontscale] body { zoom: 1; }
   background: rgba(0,0,0,.6); align-items: center; justify-content: center;
   padding: 20px;
 }
-/* font-scale on modal mask */
-.help-modal-mask[data-fontscale="sm"] { font-size: 13px; }
-.help-modal-mask[data-fontscale="md"] { font-size: 15px; }
-.help-modal-mask[data-fontscale="lg"] { font-size: 17px; }
 .help-modal {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 14px; width: min(900px, calc(100vw - 40px));
@@ -3915,11 +3895,6 @@ html[data-fontscale] body { zoom: 1; }
     <button class="btn topbar-btn" id="modeUploadBtn" onclick="App.openUpload()" style="display:none" title="上傳報表">⤒</button>
     <span class="mode-bar-user" id="modeBarUser"></span>
     <div class="sys-ctl-group">
-      <select class="fsc-sel" id="fontsizeSel" onchange="App.setDisplaySize(this.value)" title="字型大小">
-        <option value="sm">標準</option>
-        <option value="md">大</option>
-        <option value="lg">特大</option>
-      </select>
       <button class="btn theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="切換色系">🌙</button>
     </div>
     <button class="btn" id="adminPanelBtn" style="display:none" onclick="Auth.openAdminPanel()">⚙ 帳號管理</button>
@@ -6769,34 +6744,6 @@ window.App = (function () {
     document.body.classList.remove('nav-open');
   }
 
-  // ─────────────── Display size (accessibility) ───────────────
-  function setDisplaySize(size) {
-    const valid = ['sm', 'md', 'lg'];
-    if (!valid.includes(size)) size = 'md';
-    document.documentElement.setAttribute('data-fontscale', size);
-    try { localStorage.setItem('titan_display_size', size); } catch (e) { /* ignore */ }
-    // Chart.js 字級同步（zoom 無法放大 canvas 內部字型）
-    const chartFontSize = { sm: 13, md: 15, lg: 17 }[size] || 15;
-    if (typeof Chart !== 'undefined') {
-      Chart.defaults.font.size = chartFontSize;
-      Chart.defaults.plugins.legend.labels.font = { size: chartFontSize };
-      // 強制重繪所有已存在的圖表
-      Object.values(typeof state !== 'undefined' && state.charts ? state.charts : {}).forEach(c => {
-        if (c && typeof c.update === 'function') { c.options.plugins.legend.labels.font = { size: chartFontSize }; c.update(); }
-      });
-    }
-    syncDisplaySizeButtons();
-    // 重繪頁面圖表
-    if (state && state.currentPage) {
-      try { renderPage(); } catch (e) { /* best effort */ }
-    }
-  }
-  function syncDisplaySizeButtons() {
-    const cur = document.documentElement.getAttribute('data-fontscale') || 'md';
-    const sel = document.getElementById('fontsizeSel');
-    if (sel) sel.value = cur;
-  }
-
   // ─────────────── Filter chips ───────────────
   function renderFilters() {
     const months = Object.keys(state.db.months).sort();
@@ -8029,7 +7976,6 @@ window.App = (function () {
     if (!help) return;
     const pageTitleEl = document.querySelector(`#page${pageName.charAt(0).toUpperCase()+pageName.slice(1)} .page-t`);
     const pageTitle = pageTitleEl ? pageTitleEl.textContent.replace('i','').trim() : '使用說明';
-    const fs = document.documentElement.getAttribute('data-fontscale') || 'md';
     let modal = $('helpModal');
     if (!modal) {
       modal = document.createElement('div');
@@ -8038,7 +7984,6 @@ window.App = (function () {
       modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
       document.body.appendChild(modal);
     }
-    modal.setAttribute('data-fontscale', fs);
     modal.innerHTML = `
       <div class="help-modal">
         <div class="help-modal-h">
@@ -11228,7 +11173,7 @@ window.App = (function () {
     handleFiles, removeMonth, clearAll, confirmClear, exportData, importData,
     publishData,
     openDashboard, openDashboardDirect, openUpload, switchPage,
-    toggleNav, closeNav, setDisplaySize,
+    toggleNav, closeNav,
     setMonth, setMonthDirect, setCategory, setModel,
     setAnalysisRole,
     openCapaForm, saveCapaForm, setCapaStatus, deleteCapa,

@@ -576,34 +576,6 @@ window.App = (function () {
     document.body.classList.remove('nav-open');
   }
 
-  // ─────────────── Display size (accessibility) ───────────────
-  function setDisplaySize(size) {
-    const valid = ['sm', 'md', 'lg'];
-    if (!valid.includes(size)) size = 'md';
-    document.documentElement.setAttribute('data-fontscale', size);
-    try { localStorage.setItem('titan_display_size', size); } catch (e) { /* ignore */ }
-    // Chart.js 字級同步（zoom 無法放大 canvas 內部字型）
-    const chartFontSize = { sm: 13, md: 15, lg: 17 }[size] || 15;
-    if (typeof Chart !== 'undefined') {
-      Chart.defaults.font.size = chartFontSize;
-      Chart.defaults.plugins.legend.labels.font = { size: chartFontSize };
-      // 強制重繪所有已存在的圖表
-      Object.values(typeof state !== 'undefined' && state.charts ? state.charts : {}).forEach(c => {
-        if (c && typeof c.update === 'function') { c.options.plugins.legend.labels.font = { size: chartFontSize }; c.update(); }
-      });
-    }
-    syncDisplaySizeButtons();
-    // 重繪頁面圖表
-    if (state && state.currentPage) {
-      try { renderPage(); } catch (e) { /* best effort */ }
-    }
-  }
-  function syncDisplaySizeButtons() {
-    const cur = document.documentElement.getAttribute('data-fontscale') || 'md';
-    const sel = document.getElementById('fontsizeSel');
-    if (sel) sel.value = cur;
-  }
-
   // ─────────────── Filter chips ───────────────
   function renderFilters() {
     const months = Object.keys(state.db.months).sort();
@@ -1836,7 +1808,6 @@ window.App = (function () {
     if (!help) return;
     const pageTitleEl = document.querySelector(`#page${pageName.charAt(0).toUpperCase()+pageName.slice(1)} .page-t`);
     const pageTitle = pageTitleEl ? pageTitleEl.textContent.replace('i','').trim() : '使用說明';
-    const fs = document.documentElement.getAttribute('data-fontscale') || 'md';
     let modal = $('helpModal');
     if (!modal) {
       modal = document.createElement('div');
@@ -1845,7 +1816,6 @@ window.App = (function () {
       modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
       document.body.appendChild(modal);
     }
-    modal.setAttribute('data-fontscale', fs);
     modal.innerHTML = `
       <div class="help-modal">
         <div class="help-modal-h">
@@ -5035,7 +5005,7 @@ window.App = (function () {
     handleFiles, removeMonth, clearAll, confirmClear, exportData, importData,
     publishData,
     openDashboard, openDashboardDirect, openUpload, switchPage,
-    toggleNav, closeNav, setDisplaySize,
+    toggleNav, closeNav,
     setMonth, setMonthDirect, setCategory, setModel,
     setAnalysisRole,
     openCapaForm, saveCapaForm, setCapaStatus, deleteCapa,
