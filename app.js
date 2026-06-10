@@ -471,7 +471,6 @@ window.App = (function () {
           content.prepend(guide);
         }
       }
-      syncDisplaySizeButtons();
       return;
     }
     // 有資料：正常渲染
@@ -482,7 +481,6 @@ window.App = (function () {
     restoreFilterState();
     renderAnalysisRoleBar();
     renderAll();
-    syncDisplaySizeButtons();
     window.scrollTo(0, 0);
     // B5: request notification permission (deferred, non-blocking)
     setTimeout(() => requestNotificationPermission(), 3000);
@@ -529,7 +527,6 @@ window.App = (function () {
     state.selectedModel = '全部';
     renderAnalysisRoleBar();
     renderAll();
-    syncDisplaySizeButtons();
     // Always start at top
     window.scrollTo(0, 0);
   }
