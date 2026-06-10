@@ -426,7 +426,9 @@ window.App = (function () {
   }
 
   // ─────────────── Page switching ───────────────
-  function openDashboardDirect() {
+  async function openDashboardDirect() {
+    // 等雲端資料就緒（避免快速登入時 syncCloud 尚未完成）
+    if (syncCloudPromise) { try { await syncCloudPromise; } catch(e) {} }
     // 登入後直接進主介面，不彈 alert；若無資料則顯示引導畫面
     state.db = RepairDB.load();
     $('uploadZone').style.display = 'none';
@@ -5018,8 +5020,12 @@ window.App = (function () {
   }
 
   // ─────────────── Init ───────────────
+  // syncCloudPromise 讓登入流程等待雲端資料就緒，避免快速登入時讀到空 DB
+  let syncCloudPromise = null;
+
   async function init() {
-    const cloud = await syncCloud();
+    syncCloudPromise = syncCloud();
+    const cloud = await syncCloudPromise;
     state.cloudUsers = (cloud && cloud.users) ? cloud.users : null;
     setupUpload();
     state.db = RepairDB.load();

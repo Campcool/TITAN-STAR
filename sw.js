@@ -1,6 +1,6 @@
-// TITAN-STAR Service Worker — v1
+// TITAN-STAR Service Worker — v2
 // Cache strategy: cache-first for app shell, network-first for data.json
-const CACHE_NAME = 'titan-star-v1';
+const CACHE_NAME = 'titan-star-v2';
 const APP_SHELL = [
   './TITAN-STAR.html',
   './manifest.json',

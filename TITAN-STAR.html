@@ -6604,7 +6604,9 @@ window.App = (function () {
   }
 
   // ─────────────── Page switching ───────────────
-  function openDashboardDirect() {
+  async function openDashboardDirect() {
+    // 等雲端資料就緒（避免快速登入時 syncCloud 尚未完成）
+    if (syncCloudPromise) { try { await syncCloudPromise; } catch(e) {} }
     // 登入後直接進主介面，不彈 alert；若無資料則顯示引導畫面
     state.db = RepairDB.load();
     $('uploadZone').style.display = 'none';
@@ -11196,8 +11198,12 @@ window.App = (function () {
   }
 
   // ─────────────── Init ───────────────
+  // syncCloudPromise 讓登入流程等待雲端資料就緒，避免快速登入時讀到空 DB
+  let syncCloudPromise = null;
+
   async function init() {
-    const cloud = await syncCloud();
+    syncCloudPromise = syncCloud();
+    const cloud = await syncCloudPromise;
     state.cloudUsers = (cloud && cloud.users) ? cloud.users : null;
     setupUpload();
     state.db = RepairDB.load();
@@ -13998,12 +14004,11 @@ function updateRmaBadge() {
   }
 }
 
-// 登入成功後一律進入上傳頁（須上傳報表才進入分析）
-function onAuthSuccess() {
+// 登入成功後直接進入分析主介面（等雲端資料就緒）
+async function onAuthSuccess() {
   try { App.renderUploadList(); } catch(e) {}
   try { updateRmaBadge(); } catch(e) {}
 
-  // 直接進入分析主介面，若無資料則顯示引導上傳
   const modeBar = document.getElementById('modeBar');
   const dash    = document.getElementById('dash');
   const rmaDash = document.getElementById('rmaDash');
@@ -14014,7 +14019,7 @@ function onAuthSuccess() {
   if (rmaDash) rmaDash.style.display = 'none';
   if (dash)    dash.classList.add('active');
 
-  try { App.openDashboardDirect(); } catch(e) {}
+  await App.openDashboardDirect();
 }
 </script>
 
