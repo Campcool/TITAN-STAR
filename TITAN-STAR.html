@@ -6366,11 +6366,13 @@ window.App = (function () {
         publishedBy: cloud.publishedBy || '',
         months: monthCount,
       };
-      if (!monthCount || !cloud.publishedAt) return cloud;
+      if (!monthCount) return cloud;
 
       const seen = localStorage.getItem(CLOUD_SEEN_KEY);
-      if (cloud.publishedAt !== seen) {
-        // Cloud has a newer publish than this browser last loaded → adopt it.
+      const hasLocalData = Object.keys(RepairDB.load().months).length > 0;
+      // 寫入條件：(1) 雲端有新 publish，或 (2) 本機 localStorage 已無資料（被清除/換裝置）
+      if (!cloud.publishedAt || cloud.publishedAt !== seen || !hasLocalData) {
+        // Adopt cloud data into localStorage so every user auto-syncs.
         localStorage.setItem('repair_db_v2', JSON.stringify({ months: cloud.months }));
         if (cloud.capa) localStorage.setItem('titan_capa_v1', JSON.stringify(cloud.capa));
         if (cloud.costCfg) localStorage.setItem('titan_cost_cfg_v1', JSON.stringify(cloud.costCfg));
@@ -8233,13 +8235,15 @@ window.App = (function () {
       `).join('');
 
     // Machine ranking with per-month history (TABLE)
-    const ranks = RepairAnalyzer.modelRank(records, denom, state.db, state.selectedMonths);
-    state.currentRanks = ranks;  // cache for click handlers
-    const maxCount = Math.max(...ranks.map(r => r.count), 1);
-    $('rankMeta').textContent = `${ranks.length} 個機種 · 依本期故障率排序`;
-
+    // 排序依據：最新月份的故障率（本月有資料的優先），歷史月份僅供對照
     const sortedMonths = state.selectedMonths.slice().sort();
     const curMonth = sortedMonths[sortedMonths.length - 1];
+    const curRecords = RepairAnalyzer.getRecords(state.db, { category: f.category, model: f.model, months: [curMonth] });
+    const curDenom   = RepairAnalyzer.getDenominators(state.db, { category: f.category, model: f.model, months: [curMonth] });
+    const ranks = RepairAnalyzer.modelRank(curRecords, curDenom, state.db, sortedMonths);
+    state.currentRanks = ranks;  // cache for click handlers
+    const maxCount = Math.max(...ranks.map(r => r.count), 1);
+    $('rankMeta').textContent = `${ranks.length} 個機種 · 依本月(${fmt.monthLabel(curMonth)})故障率排序`;
     // Reverse for display: newest month first
     const displayMonths = sortedMonths.slice().reverse();
 
