@@ -45,12 +45,14 @@
     const curDenom = RepairAnalyzer.getDenominators(db, { months: [latestMonth] });
     const curKpis = RepairAnalyzer.computeKPIs(curRecords, curDenom);
 
-    // Previous month for delta
-    let prevKpis = null;
+    // Previous month for delta（含機種/零件層級環比）
+    let prevKpis = null, prevRankMap = null, prevPartMap = null;
     if (prevMonth) {
       const prevRecords = RepairAnalyzer.getRecords(db, { months: [prevMonth] });
       const prevDenom = RepairAnalyzer.getDenominators(db, { months: [prevMonth] });
       prevKpis = RepairAnalyzer.computeKPIs(prevRecords, prevDenom);
+      prevRankMap = Object.fromEntries(RepairAnalyzer.modelRank(prevRecords, prevDenom).map(r => [r.model, r]));
+      prevPartMap = Object.fromEntries(RepairAnalyzer.partPareto(prevRecords).map(p => [p.name, p.count]));
     }
 
     // === Anomalies (latest month) ===
@@ -81,7 +83,7 @@
     const fontScale = (function(){ try { return localStorage.getItem('titan_display_size') || 'md'; } catch(e) { return 'md'; } })();
     const html = buildHTML({
       months, latestMonth, prevMonth,
-      curKpis, prevKpis, allKpis, delta,
+      curKpis, prevKpis, allKpis, delta, prevRankMap, prevPartMap,
       anomalies, critical, warn,
       modelRank, topParts, crossMonth, trend,
       reportDate: new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' }),
@@ -266,6 +268,10 @@
   .kpi-d .delta.up { color: #ef4444; background: #fef2f2; }
   .kpi-d .delta.down { color: #059669; background: #f0fdf4; }
   .kpi-d .delta.flat { color: #64748b; background: #f1f5f9; }
+  /* 表格內環比徽章 */
+  .mom-up { color: #dc2626; font-weight: 700; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; }
+  .mom-dn { color: #059669; font-weight: 700; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; }
+  .mom-flat { color: #94a3b8; font-size: 0.85em; }
 
   /* Executive summary box */
   .exec {
@@ -493,42 +499,53 @@
   ` : ''}
 
   <!-- Top models -->
-  <h2 class="sec">機種故障排名 <span class="meta">本月前 10</span></h2>
-  <div class="table-wrap"><table style="min-width:700px">
+  <h2 class="sec">機種故障排名 <span class="meta">本月前 10${d.prevMonth ? ` · 環比 ${fmtMonth(d.prevMonth)}` : ''}</span></h2>
+  <div class="table-wrap"><table style="min-width:780px">
     <thead><tr>
       <th style="width:36px">#</th>
       <th style="min-width:100px">機種</th>
       <th style="min-width:90px">大類</th>
       <th class="right" style="width:70px">件數</th>
+      ${d.prevRankMap ? '<th class="right" style="width:90px">較上月</th>' : ''}
       <th class="right" style="width:80px">整新數</th>
       <th class="right" style="width:90px">故障率</th>
+      ${d.prevRankMap ? '<th class="right" style="width:90px">故障率Δ</th>' : ''}
       <th class="right" style="width:60px">報廢</th>
       <th style="min-width:160px">主要故障內容</th>
     </tr></thead>
     <tbody>
-      ${d.modelRank.map((r, i) => `
+      ${d.modelRank.map((r, i) => {
+        const pr = d.prevRankMap ? d.prevRankMap[r.model] : null;
+        const cntMom = d.prevRankMap ? (pr ? momCell(r.count, pr.count) : '<span class="mom-up" title="上月無維修紀錄">NEW</span>') : '';
+        const rateMom = d.prevRankMap
+          ? ((r.faultRate != null && pr && pr.faultRate != null) ? momCell(r.faultRate * 100, pr.faultRate * 100, true) : '<span class="mom-flat">—</span>')
+          : '';
+        return `
         <tr>
           <td class="num muted">${i + 1}</td>
           <td><strong class="num">${escapeHtml(r.model)}</strong></td>
           <td><span class="tag" style="border-color:${CAT_COLOR[r.category] || '#94a3b8'}33;color:${CAT_COLOR[r.category] || '#475569'}">${r.category}</span></td>
           <td class="right num">${r.count}</td>
+          ${d.prevRankMap ? `<td class="right">${cntMom}</td>` : ''}
           <td class="right num muted">${r.denom || '—'}</td>
           <td class="right">${r.faultRate != null ? `<span class="pill ${r.faultRate >= 0.1 ? 'crit' : r.faultRate >= 0.05 ? 'warn' : 'ok'}">${(r.faultRate * 100).toFixed(1)}%</span>` : '<span class="muted">—</span>'}</td>
+          ${d.prevRankMap ? `<td class="right">${rateMom}</td>` : ''}
           <td class="right num">${r.scrap || '<span class="muted">0</span>'}</td>
           <td class="muted" style="font-size:0.82em">${r.topContents.slice(0, 2).map(c => `${escapeHtml(c.name)} <span class="muted">×${c.count}</span>`).join('・') || '—'}</td>
         </tr>
-      `).join('')}
+      `;}).join('')}
     </tbody>
   </table></div>
 
   <!-- Top parts -->
-  <h2 class="sec">本月最常更換零件 <span class="meta">前 15</span></h2>
+  <h2 class="sec">本月最常更換零件 <span class="meta">前 15${d.prevMonth ? ` · 環比 ${fmtMonth(d.prevMonth)}` : ''}</span></h2>
   <div class="table-wrap"><table>
     <thead><tr>
       <th style="width:32px">#</th>
       <th>零件名稱</th>
       <th>影響機種</th>
       <th class="right">件數</th>
+      ${d.prevPartMap ? '<th class="right" style="width:90px">較上月</th>' : ''}
       <th style="width:160px">佔比</th>
     </tr></thead>
     <tbody>
@@ -541,6 +558,7 @@
             <span style="font-size:0.78em;color:#94a3b8;font-family:'JetBrains Mono',monospace;margin-left:4px">${p.models.slice(0, 3).join(', ')}${p.models.length > 3 ? '…' : ''}</span>
           </td>
           <td class="right num"><strong>${p.count}</strong></td>
+          ${d.prevPartMap ? `<td class="right">${d.prevPartMap[p.name] != null ? momCell(p.count, d.prevPartMap[p.name]) : '<span class="mom-up" title="上月無此零件用量">NEW</span>'}</td>` : ''}
           <td>
             <span class="bar" style="width:${Math.max(8, p.pct * 100 * 2)}px;background:${i < 3 ? '#ef4444' : i < 7 ? '#f59e0b' : '#0ea5e9'}"></span>
             <span class="num" style="font-size:0.80em;color:#475569">${(p.pct * 100).toFixed(1)}%</span>
@@ -572,6 +590,17 @@
         <div class="kpi-v">${typeof value === 'number' ? value.toLocaleString() : value}</div>
         <div class="kpi-d">${detail}${extra ? ` ${extra}` : ''}</div>
       </div>`;
+  }
+
+  // 表格用環比格：上升紅(惡化)、下降綠(改善)；pp=百分點
+  function momCell(cur, prev, pp) {
+    if (cur == null || prev == null || isNaN(cur) || isNaN(prev)) return '<span class="mom-flat">—</span>';
+    const d = cur - prev;
+    if (Math.abs(d) < (pp ? 0.05 : 0.5)) return '<span class="mom-flat">— 持平</span>';
+    const cls = d > 0 ? 'mom-up' : 'mom-dn';
+    const arrow = d > 0 ? '▲' : '▼';
+    const val = pp ? Math.abs(d).toFixed(1) + 'pp' : Math.abs(Math.round(d)).toLocaleString();
+    return `<span class="${cls}">${arrow} ${val}</span>`;
   }
 
   function deltaPill(d, label) {

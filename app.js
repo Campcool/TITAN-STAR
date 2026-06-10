@@ -86,6 +86,25 @@ window.App = (function () {
     },
   };
 
+  // MoM 環比徽章：上升=紅(惡化)、下降=綠(改善)；pp=百分點模式
+  function momBadge(cur, prev, opts = {}) {
+    if (cur == null || prev == null || isNaN(cur) || isNaN(prev)) return '';
+    const d = cur - prev;
+    const isPP = !!opts.pp;
+    if (Math.abs(d) < (isPP ? 0.05 : 0.5)) return `<span class="mom-flat">— 持平</span>`;
+    const cls = d > 0 ? 'mom-up' : 'mom-dn';
+    const arrow = d > 0 ? '▲' : '▼';
+    const val = isPP ? Math.abs(d).toFixed(1) + 'pp' : Math.abs(Math.round(d)).toLocaleString('en');
+    const rel = (!isPP && prev > 0) ? ` (${d > 0 ? '+' : '−'}${Math.abs(d / prev * 100).toFixed(0)}%)` : '';
+    return `<span class="${cls}">${arrow} ${val}${rel}</span>`;
+  }
+  // 取目前選擇範圍最新月份的「上一個月」(從全部資料找，不限選擇範圍)
+  function prevMonthOf(curMk) {
+    const all = Object.keys(state.db.months).sort();
+    const i = all.indexOf(curMk);
+    return i > 0 ? all[i - 1] : null;
+  }
+
   function showLoad(msg, sub = '') {
     $('loadM').textContent = msg;
     $('loadS').textContent = sub;
@@ -1964,6 +1983,21 @@ window.App = (function () {
     const scrapClass = kpis.scrapPct >= 10 ? 'bad' : kpis.scrapPct >= 5 ? 'warn' : 'good';
     const denomClass = kpis.denomPct >= 5 ? 'bad' : kpis.denomPct >= 2 ? 'warn' : 'good';
 
+    // MoM：以選擇範圍最新月份 vs 它的上一個月（同篩選條件）
+    const kpiCurMk = state.selectedMonths.slice().sort().pop();
+    const kpiPrevMk = prevMonthOf(kpiCurMk);
+    let momK = null, momCurK = null;
+    if (kpiPrevMk) {
+      const mf = { category: f.category, model: f.model };
+      const curR = RepairAnalyzer.getRecords(state.db, { ...mf, months: [kpiCurMk] });
+      const prevR = RepairAnalyzer.getRecords(state.db, { ...mf, months: [kpiPrevMk] });
+      momCurK = RepairAnalyzer.computeKPIs(curR, RepairAnalyzer.getDenominators(state.db, { ...mf, months: [kpiCurMk] }));
+      momK = RepairAnalyzer.computeKPIs(prevR, RepairAnalyzer.getDenominators(state.db, { ...mf, months: [kpiPrevMk] }));
+    }
+    const momLbl = kpiPrevMk ? `${fmt.monthLabel(kpiCurMk)} vs ${fmt.monthLabel(kpiPrevMk)}` : '';
+    const momRow = (badge) => (momK && badge)
+      ? `<div class="kpi-mom" title="${momLbl}">${badge}<span class="muted" style="margin-left:5px">vs 上月</span></div>` : '';
+
     $('kpiGrid').innerHTML = `
       <div class="kpi k-blue" onclick="App.openKpiDrawer('total')" role="button" tabindex="0">
         <div class="kpi-arrow">→</div>
@@ -1973,12 +2007,14 @@ window.App = (function () {
           佔整新數 <span class="pct ${denomClass}">${fmt.pct(kpis.denomPct)}</span>
           <span class="muted">/ ${fmt.int(kpis.denomTotal)}</span>
         </div>
+        ${momRow(momK ? momBadge(momCurK.totalRepairs, momK.totalRepairs) : '')}
       </div>
       <div class="kpi k-info" onclick="App.openKpiDrawer('models')" role="button" tabindex="0">
         <div class="kpi-arrow">→</div>
         <div class="kpi-h"><div class="kpi-l">受檢機種</div><div class="kpi-ico">#</div></div>
         <div class="kpi-v">${fmt.int(kpis.models)}</div>
         <div class="kpi-d"><span class="muted">機種數 · ${state.selectedCategory === '全部' ? '全分類' : state.selectedCategory}</span></div>
+        ${momRow(momK ? momBadge(momCurK.models, momK.models) : '')}
       </div>
       <div class="kpi k-red" onclick="App.openKpiDrawer('scrap')" role="button" tabindex="0">
         <div class="kpi-arrow">→</div>
@@ -1988,12 +2024,14 @@ window.App = (function () {
           報廢率 <span class="pct ${scrapClass}">${fmt.pct(kpis.scrapPct)}</span>
           <span class="muted">/ 總維修</span>
         </div>
+        ${momRow(momK ? momBadge(momCurK.scrap, momK.scrap) : '')}
       </div>
       <div class="kpi k-warn" onclick="App.openKpiDrawer('repeated')" role="button" tabindex="0">
         <div class="kpi-arrow">→</div>
         <div class="kpi-h"><div class="kpi-l">重複維修</div><div class="kpi-ico">♺</div></div>
         <div class="kpi-v">${fmt.int(kpis.repeatedSerials)}</div>
         <div class="kpi-d"><span class="muted">同序號 ≥ 2 次 · 治標未治本</span></div>
+        ${momRow(momK ? momBadge(momCurK.repeatedSerials, momK.repeatedSerials) : '')}
       </div>
     `;
 
@@ -2039,26 +2077,37 @@ window.App = (function () {
       const hist = r.history || [];
       const histByMonth = Object.fromEntries(hist.map(h => [h.month, h]));
 
-      // Build month cells
+      // Build month cells（本月格附帶環比變化，一眼看出惡化/改善）
+      const rankPrevMk = sortedMonths.length >= 2 ? sortedMonths[sortedMonths.length - 2] : null;
+      const prevH = rankPrevMk ? histByMonth[rankPrevMk] : null;
       const monthCells = displayMonths.map(mk => {
         const isCurrent = mk === curMonth;
         const h = histByMonth[mk];
         const clickAttr = `onclick="event.stopPropagation();App.openModelDrawer('${escapeAttr(r.model)}','${mk}')"`;
+        let momHtml = '';
+        if (isCurrent && prevH) {
+          const curRate = h && h.faultRate != null ? h.faultRate * 100 : null;
+          const prevRate = prevH.faultRate != null ? prevH.faultRate * 100 : null;
+          const badge = (curRate != null && prevRate != null)
+            ? momBadge(curRate, prevRate, { pp: true })
+            : momBadge(h ? h.count : 0, prevH.count);
+          if (badge) momHtml = `<div class="mc-mom" title="vs ${fmt.monthLabel(rankPrevMk)}">${badge}</div>`;
+        }
         if (!h || h.count === 0) {
           return `<td class="month-cell empty ${isCurrent ? 'current' : ''}" ${clickAttr} style="cursor:pointer">
-            <div class="mc-pct empty">—</div>
+            <div class="mc-pct empty">—</div>${momHtml}
           </td>`;
         }
         if (h.denom === 0 || h.faultRate == null) {
           return `<td class="month-cell no-denom ${isCurrent ? 'current' : ''}" ${clickAttr} style="cursor:pointer">
             <div class="mc-pct">${h.count}<span class="unit">件</span></div>
-            <div class="mc-ratio"><span class="no-denom-mark" title="此機種此月份無整新數資料">無分母</span></div>
+            <div class="mc-ratio"><span class="no-denom-mark" title="此機種此月份無整新數資料">無分母</span></div>${momHtml}
           </td>`;
         }
         const pCls = h.faultRate >= 0.1 ? 'bad' : h.faultRate >= 0.05 ? 'warn' : 'good';
         return `<td class="month-cell ${isCurrent ? 'current' : ''}" ${clickAttr} style="cursor:pointer">
           <div class="mc-pct ${pCls}">${(h.faultRate * 100).toFixed(1)}%</div>
-          <div class="mc-ratio"><span class="num">${h.count}</span> <span class="denom">/ ${h.denom}</span></div>
+          <div class="mc-ratio"><span class="num">${h.count}</span> <span class="denom">/ ${h.denom}</span></div>${momHtml}
         </td>`;
       }).join('');
 
@@ -2576,12 +2625,26 @@ window.App = (function () {
       },
     });
 
-    // Table
+    // Table — 較上月：最新月 vs 上一月（同篩選條件）件數環比
+    const partCurMk = state.selectedMonths.slice().sort().pop();
+    const partPrevMk = prevMonthOf(partCurMk);
+    let curPartMap = null, prevPartMap = null;
+    if (partPrevMk) {
+      const pf = { category: f.category, model: f.model };
+      curPartMap = Object.fromEntries(RepairAnalyzer.partPareto(RepairAnalyzer.getRecords(state.db, { ...pf, months: [partCurMk] })).map(p => [p.name, p.count]));
+      prevPartMap = Object.fromEntries(RepairAnalyzer.partPareto(RepairAnalyzer.getRecords(state.db, { ...pf, months: [partPrevMk] })).map(p => [p.name, p.count]));
+    }
     const allMonthCount = Object.keys(state.db.months).length || 1;
     const tbody = $('paretoBody');
     tbody.innerHTML = pareto.slice(0, 200).map((p, i) => {
       const monthlyAvg = p.count / allMonthCount;
       const suggestQty = Math.max(1, Math.ceil(monthlyAvg * 2));
+      let momCell = '<span class="muted">—</span>';
+      if (prevPartMap) {
+        const c = curPartMap[p.name] || 0, pv = prevPartMap[p.name];
+        if (pv == null && c > 0) momCell = `<span class="mom-up" title="上月無此零件用量">NEW</span>`;
+        else if (pv != null) momCell = momBadge(c, pv) || '<span class="mom-flat">— 持平</span>';
+      }
       return `
       <tr>
         <td class="num muted">${i + 1}</td>
@@ -2591,6 +2654,7 @@ window.App = (function () {
           <div class="muted" style="font-size:10.5px;font-family:var(--mono);margin-top:3px">${p.models.slice(0, 4).join(', ')}${p.models.length > 4 ? '…' : ''}</div>
         </td>
         <td class="num" style="text-align:right;font-weight:700">${p.count}</td>
+        <td class="num" style="text-align:right;font-size:11.5px" title="本月 vs 上月用量">${momCell}</td>
         <td>
           <div class="pwrap">
             <div class="ptrack"><div style="width:${(p.pct * 100).toFixed(1)}%"></div></div>
