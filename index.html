@@ -240,6 +240,9 @@
         <button class="snav-item" data-page="detail" onclick="App.switchPage('detail')" title="明細資料">
           <div class="snav-l"><span class="snav-ico">≡</span><span class="snav-lbl"> 明細資料</span></div>
         </button>
+        <button class="snav-item" data-page="partsdb" onclick="App.switchPage('partsdb')" title="料件資料庫">
+          <div class="snav-l"><span class="snav-ico">⛁</span><span class="snav-lbl"> 料件資料庫</span></div>
+        </button>
       </div>
     </nav>
 
@@ -597,6 +600,61 @@
               </thead>
               <tbody id="detailBody"></tbody>
             </table>
+          </div>
+        </div>
+
+        <!-- ═══ 料件資料庫 ═══ -->
+        <div class="page" id="pagePartsdb">
+          <div class="page-h">
+            <div>
+              <div class="page-t">料件資料庫</div>
+              <div class="page-d">品號主檔 · 群組歸類管理 · 讓非內部人員也看得懂零件</div>
+            </div>
+            <div class="page-meta" id="partsdbMeta"></div>
+          </div>
+          <div class="page-usage"><span class="pu-ico">💡</span><span><b>使用時機：</b>查詢料件的白話類別（如電容、電阻），或維護品號歸類。報表各處的零件會自動標上這裡的類別標籤。</span></div>
+          <div class="card" style="margin-bottom:16px">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+              <input class="ls-input" type="text" id="pdbSearch" placeholder="🔍 品號 / 品名 / 規格…" oninput="App.pdbSearch()" style="flex:1;min-width:200px">
+              <select class="fsc-sel" id="pdbCatSel" onchange="App.pdbSearch()" style="min-width:140px"></select>
+              <button class="btn primary" onclick="App.pdbOpenEdit()">＋ 新增料件</button>
+            </div>
+          </div>
+          <div class="tbl-wrap">
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th style="width:110px">品號</th>
+                  <th>品名</th>
+                  <th>規格</th>
+                  <th style="width:130px">群組(大類)</th>
+                  <th style="width:110px">操作</th>
+                </tr>
+              </thead>
+              <tbody id="pdbBody"></tbody>
+            </table>
+          </div>
+          <div class="muted" id="pdbMore" style="margin-top:10px;font-size:12px"></div>
+        </div>
+
+        <!-- 料件編輯 modal -->
+        <div id="pdbModal" class="ap-overlay" style="display:none" onclick="if(event.target===this)App.pdbCloseEdit()">
+          <div class="ap-box" style="max-width:460px">
+            <div class="ap-hdr">
+              <div class="ap-title" id="pdbModalTitle">編輯料件</div>
+              <button class="ap-close" onclick="App.pdbCloseEdit()">✕</button>
+            </div>
+            <div class="ap-body" style="display:flex;flex-direction:column;gap:10px">
+              <input class="ls-input" id="pdbFpno" placeholder="品號（如 1050001）">
+              <input class="ls-input" id="pdbFname" placeholder="品名（如 電解電容）">
+              <input class="ls-input" id="pdbFspec" placeholder="規格（如 100µF 25V）">
+              <select class="ls-input" id="pdbFcat"></select>
+              <div style="display:flex;gap:8px;justify-content:flex-end">
+                <button class="btn" onclick="App.pdbCloseEdit()">取消</button>
+                <button class="btn primary" onclick="App.pdbSaveEdit()">儲存</button>
+              </div>
+              <div class="muted" style="font-size:11.5px">變更儲存在本機；管理員「發布」後全員同步。</div>
+            </div>
           </div>
         </div>
 

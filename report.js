@@ -543,6 +543,7 @@
     <thead><tr>
       <th style="width:32px">#</th>
       <th>零件名稱</th>
+      <th style="width:90px">類別</th>
       <th>影響機種</th>
       <th class="right">件數</th>
       ${d.prevPartMap ? '<th class="right" style="width:90px">較上月</th>' : ''}
@@ -553,6 +554,7 @@
         <tr>
           <td class="num muted">${i + 1}</td>
           <td><strong>${escapeHtml(p.name)}</strong></td>
+          <td>${(() => { const g = (window.PartsDB && window.PartsDB.groupOf(p.name)) || null; return g ? `<span class="tag">${escapeHtml(g)}</span>` : '<span class="muted">—</span>'; })()}</td>
           <td>
             <span class="tag">${p.models.length} 機種</span>
             <span style="font-size:0.78em;color:#94a3b8;font-family:'JetBrains Mono',monospace;margin-left:4px">${p.models.slice(0, 3).join(', ')}${p.models.length > 3 ? '…' : ''}</span>

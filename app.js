@@ -196,6 +196,7 @@ window.App = (function () {
       if (!cloud.publishedAt || cloud.publishedAt !== seen || !hasLocalData) {
         // Adopt cloud data into localStorage so every user auto-syncs.
         localStorage.setItem('repair_db_v2', JSON.stringify({ months: cloud.months }));
+        if (cloud.partsMaster) { try { localStorage.setItem('titan_partsmaster_v1', JSON.stringify(cloud.partsMaster)); } catch(e) {} }
         if (cloud.capa) localStorage.setItem('titan_capa_v1', JSON.stringify(cloud.capa));
         if (cloud.costCfg) localStorage.setItem('titan_cost_cfg_v1', JSON.stringify(cloud.costCfg));
         localStorage.setItem(CLOUD_SEEN_KEY, cloud.publishedAt);
@@ -210,6 +211,10 @@ window.App = (function () {
             }
           } catch(e) {}
         }, 2000);
+      }
+      // partsMaster 補寫：即使 months 未變，本機缺料件主檔時也要補上
+      if (cloud.partsMaster && !localStorage.getItem('titan_partsmaster_v1')) {
+        try { localStorage.setItem('titan_partsmaster_v1', JSON.stringify(cloud.partsMaster)); } catch(e) {}
       }
       return cloud;
     } catch (e) {
@@ -240,6 +245,7 @@ window.App = (function () {
         users: rawUsers,
         capa: JSON.parse(localStorage.getItem('titan_capa_v1') || '[]'),
         costCfg: JSON.parse(localStorage.getItem('titan_cost_cfg_v1') || 'null'),
+        partsMaster: pdbMergedMaster(),
         publishedAt: new Date().toISOString(),
         publishedBy: '',
       };
@@ -1896,6 +1902,7 @@ window.App = (function () {
       case 'risk':     renderRisk(); break;
       case 'capa':     renderCapa(); break;
       case 'cost':     renderCost(); break;
+      case 'partsdb':  renderPartsdb(); break;
     }
   }
 
@@ -2159,7 +2166,7 @@ window.App = (function () {
                 <div class="barlist">
                   ${r.topParts.map(p => `
                     <div class="barlist-row" style="cursor:pointer" onclick="App.openPartDrawer('${escapeAttr(p.name)}')">
-                      <div class="barlist-name">${escapeHtml(p.name)}</div>
+                      <div class="barlist-name">${escapeHtml(p.name)} ${pdbTag(p.name)}</div>
                       <div class="barlist-track"><div style="width:${(p.count / r.topParts[0].count * 100).toFixed(0)}%"></div></div>
                       <div class="barlist-n">${p.count}</div>
                     </div>`).join('') || '<div class="muted" style="font-size:12px">—</div>'}
@@ -2651,7 +2658,7 @@ window.App = (function () {
       return `
       <tr>
         <td class="num muted">${i + 1}</td>
-        <td>${escapeHtml(p.name)}</td>
+        <td>${escapeHtml(p.name)} ${pdbTag(p.name)}</td>
         <td>
           <span class="tag">${p.models.length} 機種</span>
           <div class="muted" style="font-size:10.5px;font-family:var(--mono);margin-top:3px">${p.models.slice(0, 4).join(', ')}${p.models.length > 4 ? '…' : ''}</div>
@@ -5019,6 +5026,155 @@ window.App = (function () {
     URL.revokeObjectURL(url);
   }
 
+  // ─────────────── 料件資料庫 (Parts Master DB) ───────────────
+  // 主檔來自 data.json partsMaster（[品號,品名,規格,大類代碼]），
+  // 本機編輯存 titan_partsmaster_edits_v1，發布後全員同步。
+  const PDB_EDITS_KEY = 'titan_partsmaster_edits_v1';
+  let pdbCache = null;       // merged rows
+  let pdbGroupCache = null;  // partText(upper) -> group name
+
+  function pdbCatName(code) {
+    const m = (window.RepairParser && RepairParser.PART_CATEGORY) || {};
+    return m[String(code)] || String(code || '—');
+  }
+  function pdbLoadEdits() {
+    try { return JSON.parse(localStorage.getItem(PDB_EDITS_KEY) || '{"add":[],"mod":{},"del":[]}'); }
+    catch(e) { return { add: [], mod: {}, del: [] }; }
+  }
+  function pdbSaveEdits(ed) { try { localStorage.setItem(PDB_EDITS_KEY, JSON.stringify(ed)); } catch(e) {} }
+  function pdbRows() {
+    if (pdbCache) return pdbCache;
+    let base = [];
+    try { base = JSON.parse(localStorage.getItem('titan_partsmaster_v1') || '[]'); } catch(e) {}
+    const ed = pdbLoadEdits();
+    const del = new Set(ed.del || []);
+    const rows = [];
+    for (const r of base) {
+      const pno = String(r[0]).trim();
+      if (del.has(pno)) continue;
+      const m = ed.mod && ed.mod[pno];
+      rows.push(m ? [pno, m[0], m[1], m[2]] : [pno, r[1], r[2], r[3]]);
+    }
+    for (const a of (ed.add || [])) rows.push(a);
+    pdbCache = rows;
+    return rows;
+  }
+  function pdbInvalidate() { pdbCache = null; pdbGroupCache = null; }
+
+  // 模糊比對：維修記錄的零件文字 → 群組名稱（電容/電阻/IC…）
+  function pdbGroupOf(partText) {
+    if (!partText) return null;
+    if (!pdbGroupCache) {
+      pdbGroupCache = new Map();
+      const idx = { spec: new Map(), name: new Map() };
+      for (const [pno, name, spec, cat] of pdbRows()) {
+        const g = pdbCatName(cat);
+        if (spec && spec.length >= 4) idx.spec.set(spec.toUpperCase(), g);
+        if (name && name.length >= 3) idx.name.set(name.toUpperCase(), g);
+      }
+      pdbGroupCache.__idx = idx;
+    }
+    const key = String(partText).trim().toUpperCase();
+    if (pdbGroupCache.has(key)) return pdbGroupCache.get(key);
+    const idx = pdbGroupCache.__idx;
+    let g = idx.spec.get(key) || idx.name.get(key) || null;
+    if (!g) {
+      // 規格包含於零件文字（如 "LT-0371-41 LED 3MM..." 內含主檔規格）
+      for (const [spec, grp] of idx.spec) {
+        if (spec.length >= 6 && (key.includes(spec) || spec.includes(key))) { g = grp; break; }
+      }
+    }
+    pdbGroupCache.set(key, g);
+    return g;
+  }
+  // 報表顯示用：零件名稱旁的類別小標籤
+  function pdbTag(partText) {
+    const g = pdbGroupOf(partText);
+    return g ? `<span class="tag pdb-tag" title="料件群組（料件資料庫）">${escapeHtml(g)}</span>` : '';
+  }
+
+  let pdbEditingPno = null;  // null=新增, 字串=編輯中品號
+  function renderPartsdb() {
+    const rows = pdbRows();
+    $('partsdbMeta').textContent = `${rows.length.toLocaleString()} 筆料件`;
+    // 群組下拉（含全部）
+    const cats = [...new Set(rows.map(r => pdbCatName(r[3])))].sort();
+    const sel = $('pdbCatSel');
+    const cur = sel.value;
+    sel.innerHTML = `<option value="">全部群組</option>` + cats.map(c => `<option value="${escapeAttr(c)}">${escapeHtml(c)}</option>`).join('');
+    if (cur) sel.value = cur;
+    const fsel = $('pdbFcat');
+    if (fsel && !fsel.options.length) {
+      const codes = Object.entries((window.RepairParser && RepairParser.PART_CATEGORY) || {});
+      fsel.innerHTML = codes.map(([code, nm]) => `<option value="${code}">${code} · ${escapeHtml(nm)}</option>`).join('');
+    }
+    pdbSearchRender();
+  }
+  function pdbSearchRender() {
+    const q = ($('pdbSearch').value || '').trim().toUpperCase();
+    const cat = $('pdbCatSel').value;
+    let rows = pdbRows();
+    if (cat) rows = rows.filter(r => pdbCatName(r[3]) === cat);
+    if (q) rows = rows.filter(r =>
+      String(r[0]).toUpperCase().includes(q) ||
+      String(r[1]).toUpperCase().includes(q) ||
+      String(r[2]).toUpperCase().includes(q));
+    const LIMIT = 300;
+    $('pdbBody').innerHTML = rows.slice(0, LIMIT).map(r => `
+      <tr>
+        <td class="num">${escapeHtml(r[0])}</td>
+        <td>${escapeHtml(r[1])}</td>
+        <td class="muted">${escapeHtml(r[2])}</td>
+        <td><span class="tag">${escapeHtml(pdbCatName(r[3]))}</span></td>
+        <td>
+          <button class="btn sm" onclick="App.pdbOpenEdit('${escapeAttr(r[0])}')">編輯</button>
+          <button class="btn sm danger" onclick="App.pdbDelete('${escapeAttr(r[0])}')">刪</button>
+        </td>
+      </tr>`).join('') || `<tr><td colspan="5" class="muted" style="text-align:center;padding:20px">找不到符合的料件</td></tr>`;
+    $('pdbMore').textContent = rows.length > LIMIT ? `僅顯示前 ${LIMIT} 筆（共 ${rows.length.toLocaleString()} 筆），請用搜尋縮小範圍` : '';
+  }
+  function pdbOpenEdit(pno) {
+    pdbEditingPno = pno || null;
+    $('pdbModalTitle').textContent = pno ? '編輯料件' : '新增料件';
+    const r = pno ? pdbRows().find(x => x[0] === pno) : null;
+    $('pdbFpno').value = r ? r[0] : '';
+    $('pdbFpno').disabled = !!pno;
+    $('pdbFname').value = r ? r[1] : '';
+    $('pdbFspec').value = r ? r[2] : '';
+    if (r) $('pdbFcat').value = String(r[3]);
+    $('pdbModal').style.display = 'flex';
+  }
+  function pdbCloseEdit() { $('pdbModal').style.display = 'none'; pdbEditingPno = null; }
+  function pdbSaveEdit() {
+    const pno = $('pdbFpno').value.trim();
+    const name = $('pdbFname').value.trim();
+    const spec = $('pdbFspec').value.trim();
+    const cat = $('pdbFcat').value;
+    if (!pno || !name) { alert('品號與品名為必填'); return; }
+    const ed = pdbLoadEdits();
+    if (pdbEditingPno) {
+      const inAdd = (ed.add || []).find(a => a[0] === pdbEditingPno);
+      if (inAdd) { inAdd[1] = name; inAdd[2] = spec; inAdd[3] = cat; }
+      else ed.mod[pdbEditingPno] = [name, spec, cat];
+    } else {
+      if (pdbRows().some(r => r[0] === pno)) { alert('品號已存在'); return; }
+      ed.add = ed.add || []; ed.add.push([pno, name, spec, cat]);
+      ed.del = (ed.del || []).filter(d => d !== pno);
+    }
+    pdbSaveEdits(ed); pdbInvalidate(); pdbCloseEdit(); renderPartsdb();
+  }
+  function pdbDelete(pno) {
+    if (!confirm(`確定刪除料件 ${pno}？`)) return;
+    const ed = pdbLoadEdits();
+    ed.add = (ed.add || []).filter(a => a[0] !== pno);
+    delete ed.mod[pno];
+    if (!ed.del.includes(pno)) ed.del.push(pno);
+    pdbSaveEdits(ed); pdbInvalidate(); renderPartsdb();
+  }
+  // 取得合併後主檔（發布用）
+  function pdbMergedMaster() { return pdbRows(); }
+  window.PartsDB = { groupOf: pdbGroupOf, tag: pdbTag };
+
   // ─────────────── Init ───────────────
   // syncCloudPromise 讓登入流程等待雲端資料就緒，避免快速登入時讀到空 DB
   let syncCloudPromise = null;
@@ -5077,6 +5233,7 @@ window.App = (function () {
     publishData,
     openDashboard, openDashboardDirect, openUpload, switchPage,
     toggleNav, closeNav,
+    pdbSearch: pdbSearchRender, pdbOpenEdit, pdbCloseEdit, pdbSaveEdit, pdbDelete,
     setMonth, setMonthDirect, setCategory, setModel,
     setAnalysisRole,
     openCapaForm, saveCapaForm, setCapaStatus, deleteCapa,

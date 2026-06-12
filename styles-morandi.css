@@ -443,3 +443,10 @@ input:focus, select:focus, textarea:focus {
     0 8px 20px rgba(91,130,166,.18) !important;
   animation: jelly-pop .38s cubic-bezier(.34,1.56,.64,1) !important;
 }
+
+/* 料件資料庫類別標籤（莫蘭迪暖藍） */
+.pdb-tag {
+  background: rgba(91,130,166,.10) !important;
+  border-color: rgba(91,130,166,.32) !important;
+  color: #5B82A6 !important;
+}

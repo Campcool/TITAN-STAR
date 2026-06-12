@@ -901,6 +901,12 @@ button, input, select { font-family: inherit; }
 }
 /* 機種排名「本月」格的環比徽章 */
 .mc-mom { font-size: 10.5px; margin-top: 2px; line-height: 1.2; }
+/* 料件資料庫類別標籤 — 讓非內部人員一眼看懂零件 */
+.pdb-tag {
+  font-size: 10px; padding: 1px 6px; margin-left: 4px;
+  background: rgba(56,189,248,.10); border: 1px solid rgba(56,189,248,.30);
+  color: var(--accent); border-radius: 4px; white-space: nowrap; vertical-align: middle;
+}
 .section-title { font-size: 14px; font-weight: 700; color: var(--text2); margin-bottom: 10px; letter-spacing: .03em; text-transform: uppercase; }
 .txt-mono { font-family: var(--mono); }
 

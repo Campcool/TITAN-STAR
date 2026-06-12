@@ -916,6 +916,12 @@ button, input, select { font-family: inherit; }
 }
 /* 機種排名「本月」格的環比徽章 */
 .mc-mom { font-size: 10.5px; margin-top: 2px; line-height: 1.2; }
+/* 料件資料庫類別標籤 — 讓非內部人員一眼看懂零件 */
+.pdb-tag {
+  font-size: 10px; padding: 1px 6px; margin-left: 4px;
+  background: rgba(56,189,248,.10); border: 1px solid rgba(56,189,248,.30);
+  color: var(--accent); border-radius: 4px; white-space: nowrap; vertical-align: middle;
+}
 .section-title { font-size: 14px; font-weight: 700; color: var(--text2); margin-bottom: 10px; letter-spacing: .03em; text-transform: uppercase; }
 .txt-mono { font-family: var(--mono); }
 
@@ -4046,6 +4052,9 @@ button, input, select { font-family: inherit; }
         <button class="snav-item" data-page="detail" onclick="App.switchPage('detail')" title="明細資料">
           <div class="snav-l"><span class="snav-ico">≡</span><span class="snav-lbl"> 明細資料</span></div>
         </button>
+        <button class="snav-item" data-page="partsdb" onclick="App.switchPage('partsdb')" title="料件資料庫">
+          <div class="snav-l"><span class="snav-ico">⛁</span><span class="snav-lbl"> 料件資料庫</span></div>
+        </button>
       </div>
     </nav>
 
@@ -4403,6 +4412,61 @@ button, input, select { font-family: inherit; }
               </thead>
               <tbody id="detailBody"></tbody>
             </table>
+          </div>
+        </div>
+
+        <!-- ═══ 料件資料庫 ═══ -->
+        <div class="page" id="pagePartsdb">
+          <div class="page-h">
+            <div>
+              <div class="page-t">料件資料庫</div>
+              <div class="page-d">品號主檔 · 群組歸類管理 · 讓非內部人員也看得懂零件</div>
+            </div>
+            <div class="page-meta" id="partsdbMeta"></div>
+          </div>
+          <div class="page-usage"><span class="pu-ico">💡</span><span><b>使用時機：</b>查詢料件的白話類別（如電容、電阻），或維護品號歸類。報表各處的零件會自動標上這裡的類別標籤。</span></div>
+          <div class="card" style="margin-bottom:16px">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+              <input class="ls-input" type="text" id="pdbSearch" placeholder="🔍 品號 / 品名 / 規格…" oninput="App.pdbSearch()" style="flex:1;min-width:200px">
+              <select class="fsc-sel" id="pdbCatSel" onchange="App.pdbSearch()" style="min-width:140px"></select>
+              <button class="btn primary" onclick="App.pdbOpenEdit()">＋ 新增料件</button>
+            </div>
+          </div>
+          <div class="tbl-wrap">
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th style="width:110px">品號</th>
+                  <th>品名</th>
+                  <th>規格</th>
+                  <th style="width:130px">群組(大類)</th>
+                  <th style="width:110px">操作</th>
+                </tr>
+              </thead>
+              <tbody id="pdbBody"></tbody>
+            </table>
+          </div>
+          <div class="muted" id="pdbMore" style="margin-top:10px;font-size:12px"></div>
+        </div>
+
+        <!-- 料件編輯 modal -->
+        <div id="pdbModal" class="ap-overlay" style="display:none" onclick="if(event.target===this)App.pdbCloseEdit()">
+          <div class="ap-box" style="max-width:460px">
+            <div class="ap-hdr">
+              <div class="ap-title" id="pdbModalTitle">編輯料件</div>
+              <button class="ap-close" onclick="App.pdbCloseEdit()">✕</button>
+            </div>
+            <div class="ap-body" style="display:flex;flex-direction:column;gap:10px">
+              <input class="ls-input" id="pdbFpno" placeholder="品號（如 1050001）">
+              <input class="ls-input" id="pdbFname" placeholder="品名（如 電解電容）">
+              <input class="ls-input" id="pdbFspec" placeholder="規格（如 100µF 25V）">
+              <select class="ls-input" id="pdbFcat"></select>
+              <div style="display:flex;gap:8px;justify-content:flex-end">
+                <button class="btn" onclick="App.pdbCloseEdit()">取消</button>
+                <button class="btn primary" onclick="App.pdbSaveEdit()">儲存</button>
+              </div>
+              <div class="muted" style="font-size:11.5px">變更儲存在本機；管理員「發布」後全員同步。</div>
+            </div>
           </div>
         </div>
 
@@ -6374,6 +6438,7 @@ window.App = (function () {
       if (!cloud.publishedAt || cloud.publishedAt !== seen || !hasLocalData) {
         // Adopt cloud data into localStorage so every user auto-syncs.
         localStorage.setItem('repair_db_v2', JSON.stringify({ months: cloud.months }));
+        if (cloud.partsMaster) { try { localStorage.setItem('titan_partsmaster_v1', JSON.stringify(cloud.partsMaster)); } catch(e) {} }
         if (cloud.capa) localStorage.setItem('titan_capa_v1', JSON.stringify(cloud.capa));
         if (cloud.costCfg) localStorage.setItem('titan_cost_cfg_v1', JSON.stringify(cloud.costCfg));
         localStorage.setItem(CLOUD_SEEN_KEY, cloud.publishedAt);
@@ -6388,6 +6453,10 @@ window.App = (function () {
             }
           } catch(e) {}
         }, 2000);
+      }
+      // partsMaster 補寫：即使 months 未變，本機缺料件主檔時也要補上
+      if (cloud.partsMaster && !localStorage.getItem('titan_partsmaster_v1')) {
+        try { localStorage.setItem('titan_partsmaster_v1', JSON.stringify(cloud.partsMaster)); } catch(e) {}
       }
       return cloud;
     } catch (e) {
@@ -6418,6 +6487,7 @@ window.App = (function () {
         users: rawUsers,
         capa: JSON.parse(localStorage.getItem('titan_capa_v1') || '[]'),
         costCfg: JSON.parse(localStorage.getItem('titan_cost_cfg_v1') || 'null'),
+        partsMaster: pdbMergedMaster(),
         publishedAt: new Date().toISOString(),
         publishedBy: '',
       };
@@ -8074,6 +8144,7 @@ window.App = (function () {
       case 'risk':     renderRisk(); break;
       case 'capa':     renderCapa(); break;
       case 'cost':     renderCost(); break;
+      case 'partsdb':  renderPartsdb(); break;
     }
   }
 
@@ -8337,7 +8408,7 @@ window.App = (function () {
                 <div class="barlist">
                   ${r.topParts.map(p => `
                     <div class="barlist-row" style="cursor:pointer" onclick="App.openPartDrawer('${escapeAttr(p.name)}')">
-                      <div class="barlist-name">${escapeHtml(p.name)}</div>
+                      <div class="barlist-name">${escapeHtml(p.name)} ${pdbTag(p.name)}</div>
                       <div class="barlist-track"><div style="width:${(p.count / r.topParts[0].count * 100).toFixed(0)}%"></div></div>
                       <div class="barlist-n">${p.count}</div>
                     </div>`).join('') || '<div class="muted" style="font-size:12px">—</div>'}
@@ -8829,7 +8900,7 @@ window.App = (function () {
       return `
       <tr>
         <td class="num muted">${i + 1}</td>
-        <td>${escapeHtml(p.name)}</td>
+        <td>${escapeHtml(p.name)} ${pdbTag(p.name)}</td>
         <td>
           <span class="tag">${p.models.length} 機種</span>
           <div class="muted" style="font-size:10.5px;font-family:var(--mono);margin-top:3px">${p.models.slice(0, 4).join(', ')}${p.models.length > 4 ? '…' : ''}</div>
@@ -11197,6 +11268,155 @@ window.App = (function () {
     URL.revokeObjectURL(url);
   }
 
+  // ─────────────── 料件資料庫 (Parts Master DB) ───────────────
+  // 主檔來自 data.json partsMaster（[品號,品名,規格,大類代碼]），
+  // 本機編輯存 titan_partsmaster_edits_v1，發布後全員同步。
+  const PDB_EDITS_KEY = 'titan_partsmaster_edits_v1';
+  let pdbCache = null;       // merged rows
+  let pdbGroupCache = null;  // partText(upper) -> group name
+
+  function pdbCatName(code) {
+    const m = (window.RepairParser && RepairParser.PART_CATEGORY) || {};
+    return m[String(code)] || String(code || '—');
+  }
+  function pdbLoadEdits() {
+    try { return JSON.parse(localStorage.getItem(PDB_EDITS_KEY) || '{"add":[],"mod":{},"del":[]}'); }
+    catch(e) { return { add: [], mod: {}, del: [] }; }
+  }
+  function pdbSaveEdits(ed) { try { localStorage.setItem(PDB_EDITS_KEY, JSON.stringify(ed)); } catch(e) {} }
+  function pdbRows() {
+    if (pdbCache) return pdbCache;
+    let base = [];
+    try { base = JSON.parse(localStorage.getItem('titan_partsmaster_v1') || '[]'); } catch(e) {}
+    const ed = pdbLoadEdits();
+    const del = new Set(ed.del || []);
+    const rows = [];
+    for (const r of base) {
+      const pno = String(r[0]).trim();
+      if (del.has(pno)) continue;
+      const m = ed.mod && ed.mod[pno];
+      rows.push(m ? [pno, m[0], m[1], m[2]] : [pno, r[1], r[2], r[3]]);
+    }
+    for (const a of (ed.add || [])) rows.push(a);
+    pdbCache = rows;
+    return rows;
+  }
+  function pdbInvalidate() { pdbCache = null; pdbGroupCache = null; }
+
+  // 模糊比對：維修記錄的零件文字 → 群組名稱（電容/電阻/IC…）
+  function pdbGroupOf(partText) {
+    if (!partText) return null;
+    if (!pdbGroupCache) {
+      pdbGroupCache = new Map();
+      const idx = { spec: new Map(), name: new Map() };
+      for (const [pno, name, spec, cat] of pdbRows()) {
+        const g = pdbCatName(cat);
+        if (spec && spec.length >= 4) idx.spec.set(spec.toUpperCase(), g);
+        if (name && name.length >= 3) idx.name.set(name.toUpperCase(), g);
+      }
+      pdbGroupCache.__idx = idx;
+    }
+    const key = String(partText).trim().toUpperCase();
+    if (pdbGroupCache.has(key)) return pdbGroupCache.get(key);
+    const idx = pdbGroupCache.__idx;
+    let g = idx.spec.get(key) || idx.name.get(key) || null;
+    if (!g) {
+      // 規格包含於零件文字（如 "LT-0371-41 LED 3MM..." 內含主檔規格）
+      for (const [spec, grp] of idx.spec) {
+        if (spec.length >= 6 && (key.includes(spec) || spec.includes(key))) { g = grp; break; }
+      }
+    }
+    pdbGroupCache.set(key, g);
+    return g;
+  }
+  // 報表顯示用：零件名稱旁的類別小標籤
+  function pdbTag(partText) {
+    const g = pdbGroupOf(partText);
+    return g ? `<span class="tag pdb-tag" title="料件群組（料件資料庫）">${escapeHtml(g)}</span>` : '';
+  }
+
+  let pdbEditingPno = null;  // null=新增, 字串=編輯中品號
+  function renderPartsdb() {
+    const rows = pdbRows();
+    $('partsdbMeta').textContent = `${rows.length.toLocaleString()} 筆料件`;
+    // 群組下拉（含全部）
+    const cats = [...new Set(rows.map(r => pdbCatName(r[3])))].sort();
+    const sel = $('pdbCatSel');
+    const cur = sel.value;
+    sel.innerHTML = `<option value="">全部群組</option>` + cats.map(c => `<option value="${escapeAttr(c)}">${escapeHtml(c)}</option>`).join('');
+    if (cur) sel.value = cur;
+    const fsel = $('pdbFcat');
+    if (fsel && !fsel.options.length) {
+      const codes = Object.entries((window.RepairParser && RepairParser.PART_CATEGORY) || {});
+      fsel.innerHTML = codes.map(([code, nm]) => `<option value="${code}">${code} · ${escapeHtml(nm)}</option>`).join('');
+    }
+    pdbSearchRender();
+  }
+  function pdbSearchRender() {
+    const q = ($('pdbSearch').value || '').trim().toUpperCase();
+    const cat = $('pdbCatSel').value;
+    let rows = pdbRows();
+    if (cat) rows = rows.filter(r => pdbCatName(r[3]) === cat);
+    if (q) rows = rows.filter(r =>
+      String(r[0]).toUpperCase().includes(q) ||
+      String(r[1]).toUpperCase().includes(q) ||
+      String(r[2]).toUpperCase().includes(q));
+    const LIMIT = 300;
+    $('pdbBody').innerHTML = rows.slice(0, LIMIT).map(r => `
+      <tr>
+        <td class="num">${escapeHtml(r[0])}</td>
+        <td>${escapeHtml(r[1])}</td>
+        <td class="muted">${escapeHtml(r[2])}</td>
+        <td><span class="tag">${escapeHtml(pdbCatName(r[3]))}</span></td>
+        <td>
+          <button class="btn sm" onclick="App.pdbOpenEdit('${escapeAttr(r[0])}')">編輯</button>
+          <button class="btn sm danger" onclick="App.pdbDelete('${escapeAttr(r[0])}')">刪</button>
+        </td>
+      </tr>`).join('') || `<tr><td colspan="5" class="muted" style="text-align:center;padding:20px">找不到符合的料件</td></tr>`;
+    $('pdbMore').textContent = rows.length > LIMIT ? `僅顯示前 ${LIMIT} 筆（共 ${rows.length.toLocaleString()} 筆），請用搜尋縮小範圍` : '';
+  }
+  function pdbOpenEdit(pno) {
+    pdbEditingPno = pno || null;
+    $('pdbModalTitle').textContent = pno ? '編輯料件' : '新增料件';
+    const r = pno ? pdbRows().find(x => x[0] === pno) : null;
+    $('pdbFpno').value = r ? r[0] : '';
+    $('pdbFpno').disabled = !!pno;
+    $('pdbFname').value = r ? r[1] : '';
+    $('pdbFspec').value = r ? r[2] : '';
+    if (r) $('pdbFcat').value = String(r[3]);
+    $('pdbModal').style.display = 'flex';
+  }
+  function pdbCloseEdit() { $('pdbModal').style.display = 'none'; pdbEditingPno = null; }
+  function pdbSaveEdit() {
+    const pno = $('pdbFpno').value.trim();
+    const name = $('pdbFname').value.trim();
+    const spec = $('pdbFspec').value.trim();
+    const cat = $('pdbFcat').value;
+    if (!pno || !name) { alert('品號與品名為必填'); return; }
+    const ed = pdbLoadEdits();
+    if (pdbEditingPno) {
+      const inAdd = (ed.add || []).find(a => a[0] === pdbEditingPno);
+      if (inAdd) { inAdd[1] = name; inAdd[2] = spec; inAdd[3] = cat; }
+      else ed.mod[pdbEditingPno] = [name, spec, cat];
+    } else {
+      if (pdbRows().some(r => r[0] === pno)) { alert('品號已存在'); return; }
+      ed.add = ed.add || []; ed.add.push([pno, name, spec, cat]);
+      ed.del = (ed.del || []).filter(d => d !== pno);
+    }
+    pdbSaveEdits(ed); pdbInvalidate(); pdbCloseEdit(); renderPartsdb();
+  }
+  function pdbDelete(pno) {
+    if (!confirm(`確定刪除料件 ${pno}？`)) return;
+    const ed = pdbLoadEdits();
+    ed.add = (ed.add || []).filter(a => a[0] !== pno);
+    delete ed.mod[pno];
+    if (!ed.del.includes(pno)) ed.del.push(pno);
+    pdbSaveEdits(ed); pdbInvalidate(); renderPartsdb();
+  }
+  // 取得合併後主檔（發布用）
+  function pdbMergedMaster() { return pdbRows(); }
+  window.PartsDB = { groupOf: pdbGroupOf, tag: pdbTag };
+
   // ─────────────── Init ───────────────
   // syncCloudPromise 讓登入流程等待雲端資料就緒，避免快速登入時讀到空 DB
   let syncCloudPromise = null;
@@ -11255,6 +11475,7 @@ window.App = (function () {
     publishData,
     openDashboard, openDashboardDirect, openUpload, switchPage,
     toggleNav, closeNav,
+    pdbSearch: pdbSearchRender, pdbOpenEdit, pdbCloseEdit, pdbSaveEdit, pdbDelete,
     setMonth, setMonthDirect, setCategory, setModel,
     setAnalysisRole,
     openCapaForm, saveCapaForm, setCapaStatus, deleteCapa,
@@ -12344,6 +12565,7 @@ window.Auth = (function () {
     <thead><tr>
       <th style="width:32px">#</th>
       <th>零件名稱</th>
+      <th style="width:90px">類別</th>
       <th>影響機種</th>
       <th class="right">件數</th>
       ${d.prevPartMap ? '<th class="right" style="width:90px">較上月</th>' : ''}
@@ -12354,6 +12576,7 @@ window.Auth = (function () {
         <tr>
           <td class="num muted">${i + 1}</td>
           <td><strong>${escapeHtml(p.name)}</strong></td>
+          <td>${(() => { const g = (window.PartsDB && window.PartsDB.groupOf(p.name)) || null; return g ? `<span class="tag">${escapeHtml(g)}</span>` : '<span class="muted">—</span>'; })()}</td>
           <td>
             <span class="tag">${p.models.length} 機種</span>
             <span style="font-size:0.78em;color:#94a3b8;font-family:'JetBrains Mono',monospace;margin-left:4px">${p.models.slice(0, 3).join(', ')}${p.models.length > 3 ? '…' : ''}</span>
@@ -12523,7 +12746,7 @@ window.Auth = (function () {
 
 </script>
 <script>
-window.__morandiCSS__ = "/* ════════════════════════════════════════════════════════════════════\n   TITAN-STAR — 莫蘭迪/大地色系主題\n   疊加在 styles.css 之後；只覆蓋 :root 色彩變數，其餘 UI 結構不變\n   ════════════════════════════════════════════════════════════════════ */\n\n/* Morandi primary 呼吸光 keyframe（霧藍，淺底適用） */\n@keyframes glow-pulse-morandi {\n  0%,100% { box-shadow: 0 0 0 0 rgba(91,130,166,0),\n                        inset 0 1px 0 rgba(255,255,255,.55),\n                        0 4px 14px rgba(91,130,166,.20); }\n  50%      { box-shadow: 0 0 0 5px rgba(91,130,166,.14),\n                        inset 0 1px 0 rgba(255,255,255,.65),\n                        0 8px 24px rgba(91,130,166,.36); }\n}\n\n:root {\n  /* ── 底色系：溫潤米白，護眼不刺眼 ── */\n  --bg:       #EDECEA;   /* 大地米白底 */\n  --surface:  #F8F7F5;   /* 卡片近白 */\n  --surface2: #EEECEA;   /* 次表面淺米 */\n  --surface3: #E2E0DC;   /* 三級灰 */\n  --hover:    rgba(0,0,0,0.04);\n\n  /* ── 邊框：柔和陰影邊 ── */\n  --border:  rgba(0,0,0,0.09);\n  --border2: rgba(0,0,0,0.16);\n\n  /* ── 文字：暖灰黑層次 ── */\n  --text:      #28241F;  /* 深暖黑，主要文字 */\n  --text2:     #514D47;  /* 中暖灰，次要文字 */\n  --text3:     #857F77;  /* 輕灰棕，標籤/輔助 */\n  --text-mute: #ADA89F;  /* 最淡，placeholder */\n\n  /* ── 強調色：霧霾藍（主要互動/連結/高亮） ── */\n  --accent:        #5B82A6;\n  --accent-soft:   rgba(91,130,166,0.10);\n  --accent-strong: rgba(91,130,166,0.22);\n\n  /* ── 嚴重警示：柔和磚紅 ── */\n  --critical:        #C26360;\n  --critical-soft:   rgba(194,99,96,0.10);\n  --critical-strong: rgba(194,99,96,0.20);\n\n  /* ── 警告：暖琥珀褐 ── */\n  --warn:        #B8833A;\n  --warn-soft:   rgba(184,131,58,0.10);\n  --warn-strong: rgba(184,131,58,0.20);\n\n  /* ── 達標/正常：鼠尾草綠 ── */\n  --ok:      #6E9C68;\n  --ok-soft: rgba(110,156,104,0.12);\n\n  /* ── 資訊/中性：暖灰褐 ── */\n  --info:      #8C8275;\n  --info-soft: rgba(140,130,117,0.12);\n}\n\n/* ──────────────────────────────────────────────────────────────────\n   深色主題中寫死的白色系元素，在淺色主題需要反轉\n   ────────────────────────────────────────────────────────────────── */\n\n/* 整體底色已由 :root --bg 控制，body 跟著走 */\nbody {\n  background: var(--bg);\n  color: var(--text);\n}\n\n/* ── 頂部 Logo 漸層 → 改為品牌藍方向 ── */\n.uz-logo, .logo-badge {\n  background: linear-gradient(135deg, var(--accent), #7A9EBF) !important;\n  color: #fff !important;\n}\n\n/* ── 主 nav sidebar ── */\n#sidebar {\n  background: var(--surface) !important;\n  border-right: 1px solid var(--border) !important;\n}\n.nav-item { color: var(--text2) !important; }\n.nav-item:hover { background: var(--surface2) !important; color: var(--text) !important; }\n.nav-item.active {\n  background: var(--accent-soft) !important;\n  color: var(--accent) !important;\n  border-left-color: var(--accent) !important;\n}\n\n/* ── 頁面 header ── */\n#pageHeader {\n  background: var(--surface) !important;\n  border-bottom: 1px solid var(--border) !important;\n}\n.page-title { color: var(--text) !important; }\n\n/* ── 卡片 ── */\n.card, .sum-card, .kpi-card, .trend-card {\n  background: var(--surface) !important;\n  border-color: var(--border) !important;\n  box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;\n}\n\n/* ── KPI 數字：保留語意色，不改 ── */\n\n/* ── 表格 ── */\ntable thead th {\n  background: var(--surface2) !important;\n  color: var(--text2) !important;\n  border-color: var(--border2) !important;\n}\ntable tbody tr { border-bottom: 1px solid var(--border) !important; }\ntable tbody tr:nth-child(even) { background: rgba(0,0,0,0.025) !important; }\ntable tbody tr:hover { background: var(--accent-soft) !important; }\ntable td, table th { border-color: var(--border) !important; }\ntable td { border-bottom: 1px solid var(--border) !important; }\n\n/* ── 機種排名 mrank cards ── */\n.mrank-row {\n  border: 1px solid var(--border2) !important;\n  box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;\n}\n.mrank-row + .mrank-row { margin-top: 6px; }\n.mrank-top:hover { background: rgba(91,130,166,.08) !important; }\n\n/* ── 按鈕 ── */\n.btn-primary, .sum-card-go {\n  background: var(--accent) !important;\n  color: #fff !important;\n}\n.btn-primary:hover, .sum-card-go:hover {\n  background: #4A6F93 !important;\n}\n.btn-outline, .sum-card-capa {\n  border-color: var(--accent) !important;\n  color: var(--accent) !important;\n  background: transparent !important;\n}\n.btn-outline:hover, .sum-card-capa:hover {\n  background: var(--accent-soft) !important;\n}\n\n/* ── 輸入框 ── */\ninput, select, textarea {\n  background: var(--surface) !important;\n  color: var(--text) !important;\n  border-color: var(--border2) !important;\n}\ninput:focus, select:focus, textarea:focus {\n  border-color: var(--accent) !important;\n  outline: none !important;\n  box-shadow: 0 0 0 2px var(--accent-soft) !important;\n}\n\n/* ── 抽屜/Modal ── */\n#drawer, .modal-panel {\n  background: var(--surface) !important;\n  border-left: 1px solid var(--border) !important;\n}\n\n/* ── 搜尋列 ── */\n.search-bar, #detailSearch {\n  background: var(--surface2) !important;\n  border-color: var(--border) !important;\n  color: var(--text) !important;\n}\n\n/* ── 標籤 Chip ── */\n.chip, .tag, .badge {\n  background: linear-gradient(135deg, rgba(91,130,166,.22) 0%, rgba(91,130,166,.09) 100%) !important;\n  backdrop-filter: blur(10px) saturate(1.4) !important;\n  -webkit-backdrop-filter: blur(10px) saturate(1.4) !important;\n  color: var(--text2) !important;\n  border-color: rgba(91,130,166,.45) !important;\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 1px 6px rgba(91,130,166,.12) !important;\n}\n\n/* ── COPQ onboarding 步驟 ── */\n.ob-step { background: var(--surface2) !important; color: var(--text3) !important; }\n.ob-step.ob-active { background: var(--accent-soft) !important; color: var(--accent) !important; }\n.ob-num { background: var(--surface3) !important; color: var(--text2) !important; }\n.ob-step.ob-active .ob-num { background: var(--accent) !important; color: #fff !important; }\n\n/* ── CEO 摘要框 ── */\n.exec-brief {\n  background: var(--accent-soft) !important;\n  border-left: 4px solid var(--accent) !important;\n}\n.eb-label { color: var(--accent) !important; }\n.eb-text  { color: var(--text) !important; }\n\n/* ── CAPA 表單 ── */\n.capa-row { border-bottom-color: var(--border) !important; }\n.capa-id  { color: var(--text3) !important; }\n\n/* ── data quality panel ── */\n.dq-item { background: var(--surface2) !important; }\n.dq-ok   { color: var(--ok) !important; }\n.dq-warn { color: var(--warn) !important; }\n.dq-bad  { color: var(--critical) !important; }\n\n/* ── 上傳區 ── */\n.uz-card { background: var(--surface) !important; border-color: var(--border2) !important; }\n.uz-card.drag { border-color: var(--accent) !important; background: var(--accent-soft) !important; }\n\n/* ── 分頁/子選單列 ── */\n.sub-nav, .tab-bar {\n  background: var(--surface2) !important;\n  border-bottom-color: var(--border) !important;\n}\n.sub-nav-item.active, .tab-item.active {\n  color: var(--accent) !important;\n  border-bottom-color: var(--accent) !important;\n}\n\n/* ── 月份卡片 ── */\n.uz-month-card {\n  background: var(--surface) !important;\n  border-color: var(--border) !important;\n}\n.uz-month-card:hover { border-color: var(--border2) !important; }\n\n/* ── scroll bar（Webkit） ── */\n::-webkit-scrollbar { width: 6px; height: 6px; }\n::-webkit-scrollbar-track { background: var(--surface2); }\n::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }\n::-webkit-scrollbar-thumb:hover { background: var(--text-mute); }\n\n/* ─── New UI elements ─── */\n.fsc-sel { background: var(--surface2); color: var(--text); border-color: var(--border); }\n.sidebar-mini-toggle { border-color: var(--border); color: var(--text3); }\n.ph-icon-btn { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-strong); }\n.help-modal { background: var(--surface); border-color: var(--border); }\n.help-modal-h { border-color: var(--border); }\n\n/* ── 頂部 mode-bar 與 subbar ── */\n.mode-bar {\n  background: rgba(237,236,234,.92) !important;\n  border-bottom: 1px solid var(--border) !important;\n}\n.mode-tab { color: var(--text2) !important; background: linear-gradient(135deg, rgba(91,130,166,.10) 0%, rgba(91,130,166,.03) 100%) !important; backdrop-filter: blur(8px) !important; -webkit-backdrop-filter: blur(8px) !important; border: 1px solid rgba(91,130,166,.22) !important; }\n.mode-tab:hover { color: var(--accent) !important; background: rgba(91,130,166,.10) !important; animation: jelly-pop .35s cubic-bezier(.34,1.56,.64,1) !important; }\n.mode-tab.active {\n  color: var(--accent) !important;\n  background: linear-gradient(135deg, rgba(122,162,196,.20), rgba(122,162,196,.04)) !important;\n  border: 1px solid rgba(122,162,196,.5) !important;\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.4) !important;\n}\n.mode-bar-r .btn { color: var(--text2) !important; border-color: var(--border) !important; background: rgba(91,130,166,.06) !important; }\n.mode-bar-r .btn:hover { color: var(--text) !important; background: rgba(91,130,166,.12) !important; }\n.topbar-btn {\n  background: linear-gradient(135deg, rgba(122,162,196,.20), rgba(122,162,196,.04)) !important;\n  color: var(--accent) !important;\n  border: 1px solid rgba(122,162,196,.5) !important;\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.4) !important;\n}\n.topbar-btn:hover {\n  background: linear-gradient(135deg, rgba(122,162,196,.28), rgba(122,162,196,.08)) !important;\n  border-color: rgba(122,162,196,.75) !important;\n}\n.s-icon { background: linear-gradient(180deg, var(--accent) 0%, #6E9C68 100%) !important; }\n.mode-bar-user { color: var(--text3) !important; }\n.subbar {\n  background: var(--surface) !important;\n  border-bottom: 1px solid var(--border) !important;\n}\n.chip { background: linear-gradient(135deg, rgba(91,130,166,.14) 0%, rgba(91,130,166,.05) 100%) !important; backdrop-filter: blur(10px) saturate(1.4) !important; -webkit-backdrop-filter: blur(10px) saturate(1.4) !important; color: var(--text2) !important; border-color: rgba(91,130,166,.35) !important; }\n/* 多巴胺玻璃擬態：淺藍漸層透明底 + 藍框，不填滿 */\n.chip.active {\n  background: linear-gradient(135deg, rgba(122,162,196,.24), rgba(122,162,196,.05)) !important;\n  -webkit-backdrop-filter: blur(8px) saturate(1.4); backdrop-filter: blur(8px) saturate(1.4);\n  color: var(--accent) !important;\n  border-color: rgba(122,162,196,.6) !important;\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 2px 10px rgba(122,162,196,.2) !important;\n}\n.subbar-toggle { color: var(--text2) !important; }\n.sb-label { color: var(--text3) !important; }\n.snav-item { color: var(--text2) !important; }\n.snav-item:hover { background: rgba(91,130,166,.08) !important; color: var(--text) !important; }\n.snav-item.active {\n  background: linear-gradient(135deg, rgba(122,162,196,.22), rgba(122,162,196,.04)) !important;\n  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);\n  color: var(--accent) !important;\n  border: 1px solid rgba(122,162,196,.5) !important;\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 2px 8px rgba(122,162,196,.16) !important;\n}\n.snav-item.active .snav-ico { filter: drop-shadow(0 0 4px rgba(122,162,196,.6)); opacity: 1 !important; }\n.snav-h, .snav-sep { border-color: var(--border) !important; color: var(--text3) !important; }\n\n/* ── 異常偵測卡片：淺色主題下標籤文字加深（亮色配淡底對比過低）── */\n.amini { background: var(--surface) !important; border-color: var(--border) !important; }\n.amini-type { color: var(--text) !important; }\n.matrix-cell { color: var(--text) !important; }\n.amini-subject { color: var(--text) !important; }\n.amini-msg { color: var(--text2) !important; }\n\n/* ── Morandi QQ 果凍：暖霧藍系發光（取代亮青 #38bdf8）── */\n/* accent = #5B82A6（霧霾藍），用 rgba(91,130,166,…) */\n\n.btn:hover, .btn:active {\n  border-color: rgba(91,130,166,.60) !important;\n  box-shadow:\n    inset 0 1.5px 0 rgba(255,255,255,.55),\n    0 0 0 3px rgba(91,130,166,.12),\n    0 6px 20px rgba(91,130,166,.22) !important;\n}\n.btn.primary {\n  background: linear-gradient(145deg,\n    rgba(91,130,166,.22) 0%,\n    rgba(122,162,196,.10) 55%,\n    rgba(91,130,166,.04) 100%) !important;\n  border: 1px solid rgba(91,130,166,.55) !important;\n  box-shadow:\n    inset 0 1.5px 0 rgba(255,255,255,.55),\n    0 0 10px rgba(91,130,166,.16),\n    0 4px 14px rgba(91,130,166,.14) !important;\n}\n.btn.primary:hover {\n  border-color: rgba(91,130,166,.85) !important;\n  box-shadow:\n    inset 0 1.5px 0 rgba(255,255,255,.65),\n    0 0 0 4px rgba(91,130,166,.14),\n    0 8px 24px rgba(91,130,166,.30) !important;\n  animation: jelly-pop .42s cubic-bezier(.34,1.56,.64,1),\n             glow-pulse-morandi 1.2s ease infinite !important;\n}\n.chip:hover:not(.active), .chip:active:not(.active) {\n  border-color: rgba(91,130,166,.45) !important;\n  box-shadow: 0 0 0 3px rgba(91,130,166,.10), 0 4px 12px rgba(91,130,166,.16) !important;\n}\n.snav-item:not(.active):hover, .snav-item:not(.active):active {\n  background: rgba(91,130,166,.08) !important;\n  box-shadow: inset 3px 0 0 rgba(91,130,166,.55),\n              0 2px 10px rgba(91,130,166,.12) !important;\n  animation: jelly-pop .38s cubic-bezier(.34,1.56,.64,1) !important;\n}\n.topbar-btn:hover {\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.55),\n    0 0 0 3px rgba(91,130,166,.14),\n    0 6px 18px rgba(91,130,166,.24) !important;\n}\n.amini:hover {\n  box-shadow: 0 0 0 2px rgba(91,130,166,.22),\n              0 8px 24px rgba(91,130,166,.16) !important;\n  border-color: rgba(91,130,166,.45) !important;\n  background: var(--surface2) !important;\n}\n.matrix tbody td:not(.empty):hover .matrix-cell {\n  box-shadow: 0 0 0 3px rgba(91,130,166,.25),\n              0 4px 14px rgba(91,130,166,.24) !important;\n}\n.kpi:hover {\n  box-shadow: 0 0 0 2px rgba(91,130,166,.16),\n              0 8px 24px rgba(91,130,166,.14) !important;\n}\n.mrank-top:hover, .mrank-top:active {\n  box-shadow: inset 3px 0 0 rgba(91,130,166,.55),\n              0 2px 12px rgba(91,130,166,.12) !important;\n  animation: jelly-wiggle .5s ease !important;\n}\n.sum-card-go:hover, .sum-card-capa:hover {\n  box-shadow: 0 0 0 3px rgba(91,130,166,.14),\n              0 6px 16px rgba(91,130,166,.20) !important;\n}\n\n/* ══════════════════════════════════════════════\n   莫蘭迪：全站可點擊元素 QQ 玻璃基底\n   ══════════════════════════════════════════════ */\n.kpi,\n.alert,\n.anom-card,\n.amini,\n.mrank-top,\n.uz-month-card,\n.ri-card-clickable {\n  background: linear-gradient(145deg,\n    rgba(91,130,166,.18) 0%,\n    rgba(91,130,166,.06) 100%) !important;\n  backdrop-filter: blur(12px) saturate(1.3) !important;\n  -webkit-backdrop-filter: blur(12px) saturate(1.3) !important;\n  border-color: rgba(91,130,166,.32) !important;\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.42),\n    0 2px 8px rgba(91,130,166,.10) !important;\n}\n\n/* 左邊框語義色 */\n.alert.critical, .anom-card.critical, .amini.critical { border-left-color: var(--critical) !important; }\n.alert.warn,     .anom-card.warn,     .amini.warn     { border-left-color: var(--warn) !important; }\n.alert.info,     .anom-card.info,     .amini.info     { border-left-color: var(--info) !important; }\n\n/* Hover & Active */\n.kpi:hover, .kpi:active {\n  transform: translateY(-4px) scale(1.022) !important;\n  border-color: rgba(91,130,166,.60) !important;\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.55),\n    0 0 0 2px rgba(91,130,166,.20),\n    0 10px 28px rgba(91,130,166,.22) !important;\n  animation: jelly-pop .42s cubic-bezier(.34,1.56,.64,1) !important;\n}\n.alert:hover, .alert:active,\n.anom-card:hover, .anom-card:active {\n  transform: translateY(-3px) scale(1.012) !important;\n  border-color: rgba(91,130,166,.60) !important;\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.55),\n    0 0 0 2px rgba(91,130,166,.18),\n    0 8px 22px rgba(91,130,166,.18) !important;\n  animation: jelly-pop .40s cubic-bezier(.34,1.56,.64,1) !important;\n}\n.amini:hover, .amini:active {\n  transform: translateY(-3px) scale(1.015) !important;\n  border-color: rgba(91,130,166,.60) !important;\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.55),\n    0 0 0 2px rgba(91,130,166,.20),\n    0 8px 24px rgba(91,130,166,.20) !important;\n  animation: jelly-pop .40s cubic-bezier(.34,1.56,.64,1) !important;\n}\n.mrank-top:hover, .mrank-top:active {\n  background: rgba(91,130,166,.12) !important;\n  border-color: rgba(91,130,166,.50) !important;\n  transform: translateX(5px) !important;\n  box-shadow:\n    inset 3px 0 0 rgba(91,130,166,.65),\n    0 2px 14px rgba(91,130,166,.16) !important;\n  animation: jelly-wiggle .46s ease !important;\n}\n.uz-month-card:hover, .uz-month-card:active {\n  transform: translateY(-3px) scale(1.018) !important;\n  border-color: rgba(91,130,166,.60) !important;\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.55),\n    0 0 0 2px rgba(91,130,166,.18),\n    0 8px 22px rgba(91,130,166,.18) !important;\n  animation: jelly-pop .40s cubic-bezier(.34,1.56,.64,1) !important;\n}\n.ri-card-clickable:hover, .ri-card-clickable:active {\n  transform: translateY(-3px) scale(1.012) !important;\n  border-color: rgba(91,130,166,.55) !important;\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.50),\n    0 0 0 2px rgba(91,130,166,.16),\n    0 8px 20px rgba(91,130,166,.18) !important;\n  animation: jelly-pop .38s cubic-bezier(.34,1.56,.64,1) !important;\n}\n";
+window.__morandiCSS__ = "/* ════════════════════════════════════════════════════════════════════\n   TITAN-STAR — 莫蘭迪/大地色系主題\n   疊加在 styles.css 之後；只覆蓋 :root 色彩變數，其餘 UI 結構不變\n   ════════════════════════════════════════════════════════════════════ */\n\n/* Morandi primary 呼吸光 keyframe（霧藍，淺底適用） */\n@keyframes glow-pulse-morandi {\n  0%,100% { box-shadow: 0 0 0 0 rgba(91,130,166,0),\n                        inset 0 1px 0 rgba(255,255,255,.55),\n                        0 4px 14px rgba(91,130,166,.20); }\n  50%      { box-shadow: 0 0 0 5px rgba(91,130,166,.14),\n                        inset 0 1px 0 rgba(255,255,255,.65),\n                        0 8px 24px rgba(91,130,166,.36); }\n}\n\n:root {\n  /* ── 底色系：溫潤米白，護眼不刺眼 ── */\n  --bg:       #EDECEA;   /* 大地米白底 */\n  --surface:  #F8F7F5;   /* 卡片近白 */\n  --surface2: #EEECEA;   /* 次表面淺米 */\n  --surface3: #E2E0DC;   /* 三級灰 */\n  --hover:    rgba(0,0,0,0.04);\n\n  /* ── 邊框：柔和陰影邊 ── */\n  --border:  rgba(0,0,0,0.09);\n  --border2: rgba(0,0,0,0.16);\n\n  /* ── 文字：暖灰黑層次 ── */\n  --text:      #28241F;  /* 深暖黑，主要文字 */\n  --text2:     #514D47;  /* 中暖灰，次要文字 */\n  --text3:     #857F77;  /* 輕灰棕，標籤/輔助 */\n  --text-mute: #ADA89F;  /* 最淡，placeholder */\n\n  /* ── 強調色：霧霾藍（主要互動/連結/高亮） ── */\n  --accent:        #5B82A6;\n  --accent-soft:   rgba(91,130,166,0.10);\n  --accent-strong: rgba(91,130,166,0.22);\n\n  /* ── 嚴重警示：柔和磚紅 ── */\n  --critical:        #C26360;\n  --critical-soft:   rgba(194,99,96,0.10);\n  --critical-strong: rgba(194,99,96,0.20);\n\n  /* ── 警告：暖琥珀褐 ── */\n  --warn:        #B8833A;\n  --warn-soft:   rgba(184,131,58,0.10);\n  --warn-strong: rgba(184,131,58,0.20);\n\n  /* ── 達標/正常：鼠尾草綠 ── */\n  --ok:      #6E9C68;\n  --ok-soft: rgba(110,156,104,0.12);\n\n  /* ── 資訊/中性：暖灰褐 ── */\n  --info:      #8C8275;\n  --info-soft: rgba(140,130,117,0.12);\n}\n\n/* ──────────────────────────────────────────────────────────────────\n   深色主題中寫死的白色系元素，在淺色主題需要反轉\n   ────────────────────────────────────────────────────────────────── */\n\n/* 整體底色已由 :root --bg 控制，body 跟著走 */\nbody {\n  background: var(--bg);\n  color: var(--text);\n}\n\n/* ── 頂部 Logo 漸層 → 改為品牌藍方向 ── */\n.uz-logo, .logo-badge {\n  background: linear-gradient(135deg, var(--accent), #7A9EBF) !important;\n  color: #fff !important;\n}\n\n/* ── 主 nav sidebar ── */\n#sidebar {\n  background: var(--surface) !important;\n  border-right: 1px solid var(--border) !important;\n}\n.nav-item { color: var(--text2) !important; }\n.nav-item:hover { background: var(--surface2) !important; color: var(--text) !important; }\n.nav-item.active {\n  background: var(--accent-soft) !important;\n  color: var(--accent) !important;\n  border-left-color: var(--accent) !important;\n}\n\n/* ── 頁面 header ── */\n#pageHeader {\n  background: var(--surface) !important;\n  border-bottom: 1px solid var(--border) !important;\n}\n.page-title { color: var(--text) !important; }\n\n/* ── 卡片 ── */\n.card, .sum-card, .kpi-card, .trend-card {\n  background: var(--surface) !important;\n  border-color: var(--border) !important;\n  box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;\n}\n\n/* ── KPI 數字：保留語意色，不改 ── */\n\n/* ── 表格 ── */\ntable thead th {\n  background: var(--surface2) !important;\n  color: var(--text2) !important;\n  border-color: var(--border2) !important;\n}\ntable tbody tr { border-bottom: 1px solid var(--border) !important; }\ntable tbody tr:nth-child(even) { background: rgba(0,0,0,0.025) !important; }\ntable tbody tr:hover { background: var(--accent-soft) !important; }\ntable td, table th { border-color: var(--border) !important; }\ntable td { border-bottom: 1px solid var(--border) !important; }\n\n/* ── 機種排名 mrank cards ── */\n.mrank-row {\n  border: 1px solid var(--border2) !important;\n  box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;\n}\n.mrank-row + .mrank-row { margin-top: 6px; }\n.mrank-top:hover { background: rgba(91,130,166,.08) !important; }\n\n/* ── 按鈕 ── */\n.btn-primary, .sum-card-go {\n  background: var(--accent) !important;\n  color: #fff !important;\n}\n.btn-primary:hover, .sum-card-go:hover {\n  background: #4A6F93 !important;\n}\n.btn-outline, .sum-card-capa {\n  border-color: var(--accent) !important;\n  color: var(--accent) !important;\n  background: transparent !important;\n}\n.btn-outline:hover, .sum-card-capa:hover {\n  background: var(--accent-soft) !important;\n}\n\n/* ── 輸入框 ── */\ninput, select, textarea {\n  background: var(--surface) !important;\n  color: var(--text) !important;\n  border-color: var(--border2) !important;\n}\ninput:focus, select:focus, textarea:focus {\n  border-color: var(--accent) !important;\n  outline: none !important;\n  box-shadow: 0 0 0 2px var(--accent-soft) !important;\n}\n\n/* ── 抽屜/Modal ── */\n#drawer, .modal-panel {\n  background: var(--surface) !important;\n  border-left: 1px solid var(--border) !important;\n}\n\n/* ── 搜尋列 ── */\n.search-bar, #detailSearch {\n  background: var(--surface2) !important;\n  border-color: var(--border) !important;\n  color: var(--text) !important;\n}\n\n/* ── 標籤 Chip ── */\n.chip, .tag, .badge {\n  background: linear-gradient(135deg, rgba(91,130,166,.22) 0%, rgba(91,130,166,.09) 100%) !important;\n  backdrop-filter: blur(10px) saturate(1.4) !important;\n  -webkit-backdrop-filter: blur(10px) saturate(1.4) !important;\n  color: var(--text2) !important;\n  border-color: rgba(91,130,166,.45) !important;\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 1px 6px rgba(91,130,166,.12) !important;\n}\n\n/* ── COPQ onboarding 步驟 ── */\n.ob-step { background: var(--surface2) !important; color: var(--text3) !important; }\n.ob-step.ob-active { background: var(--accent-soft) !important; color: var(--accent) !important; }\n.ob-num { background: var(--surface3) !important; color: var(--text2) !important; }\n.ob-step.ob-active .ob-num { background: var(--accent) !important; color: #fff !important; }\n\n/* ── CEO 摘要框 ── */\n.exec-brief {\n  background: var(--accent-soft) !important;\n  border-left: 4px solid var(--accent) !important;\n}\n.eb-label { color: var(--accent) !important; }\n.eb-text  { color: var(--text) !important; }\n\n/* ── CAPA 表單 ── */\n.capa-row { border-bottom-color: var(--border) !important; }\n.capa-id  { color: var(--text3) !important; }\n\n/* ── data quality panel ── */\n.dq-item { background: var(--surface2) !important; }\n.dq-ok   { color: var(--ok) !important; }\n.dq-warn { color: var(--warn) !important; }\n.dq-bad  { color: var(--critical) !important; }\n\n/* ── 上傳區 ── */\n.uz-card { background: var(--surface) !important; border-color: var(--border2) !important; }\n.uz-card.drag { border-color: var(--accent) !important; background: var(--accent-soft) !important; }\n\n/* ── 分頁/子選單列 ── */\n.sub-nav, .tab-bar {\n  background: var(--surface2) !important;\n  border-bottom-color: var(--border) !important;\n}\n.sub-nav-item.active, .tab-item.active {\n  color: var(--accent) !important;\n  border-bottom-color: var(--accent) !important;\n}\n\n/* ── 月份卡片 ── */\n.uz-month-card {\n  background: var(--surface) !important;\n  border-color: var(--border) !important;\n}\n.uz-month-card:hover { border-color: var(--border2) !important; }\n\n/* ── scroll bar（Webkit） ── */\n::-webkit-scrollbar { width: 6px; height: 6px; }\n::-webkit-scrollbar-track { background: var(--surface2); }\n::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }\n::-webkit-scrollbar-thumb:hover { background: var(--text-mute); }\n\n/* ─── New UI elements ─── */\n.fsc-sel { background: var(--surface2); color: var(--text); border-color: var(--border); }\n.sidebar-mini-toggle { border-color: var(--border); color: var(--text3); }\n.ph-icon-btn { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-strong); }\n.help-modal { background: var(--surface); border-color: var(--border); }\n.help-modal-h { border-color: var(--border); }\n\n/* ── 頂部 mode-bar 與 subbar ── */\n.mode-bar {\n  background: rgba(237,236,234,.92) !important;\n  border-bottom: 1px solid var(--border) !important;\n}\n.mode-tab { color: var(--text2) !important; background: linear-gradient(135deg, rgba(91,130,166,.10) 0%, rgba(91,130,166,.03) 100%) !important; backdrop-filter: blur(8px) !important; -webkit-backdrop-filter: blur(8px) !important; border: 1px solid rgba(91,130,166,.22) !important; }\n.mode-tab:hover { color: var(--accent) !important; background: rgba(91,130,166,.10) !important; animation: jelly-pop .35s cubic-bezier(.34,1.56,.64,1) !important; }\n.mode-tab.active {\n  color: var(--accent) !important;\n  background: linear-gradient(135deg, rgba(122,162,196,.20), rgba(122,162,196,.04)) !important;\n  border: 1px solid rgba(122,162,196,.5) !important;\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.4) !important;\n}\n.mode-bar-r .btn { color: var(--text2) !important; border-color: var(--border) !important; background: rgba(91,130,166,.06) !important; }\n.mode-bar-r .btn:hover { color: var(--text) !important; background: rgba(91,130,166,.12) !important; }\n.topbar-btn {\n  background: linear-gradient(135deg, rgba(122,162,196,.20), rgba(122,162,196,.04)) !important;\n  color: var(--accent) !important;\n  border: 1px solid rgba(122,162,196,.5) !important;\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.4) !important;\n}\n.topbar-btn:hover {\n  background: linear-gradient(135deg, rgba(122,162,196,.28), rgba(122,162,196,.08)) !important;\n  border-color: rgba(122,162,196,.75) !important;\n}\n.s-icon { background: linear-gradient(180deg, var(--accent) 0%, #6E9C68 100%) !important; }\n.mode-bar-user { color: var(--text3) !important; }\n.subbar {\n  background: var(--surface) !important;\n  border-bottom: 1px solid var(--border) !important;\n}\n.chip { background: linear-gradient(135deg, rgba(91,130,166,.14) 0%, rgba(91,130,166,.05) 100%) !important; backdrop-filter: blur(10px) saturate(1.4) !important; -webkit-backdrop-filter: blur(10px) saturate(1.4) !important; color: var(--text2) !important; border-color: rgba(91,130,166,.35) !important; }\n/* 多巴胺玻璃擬態：淺藍漸層透明底 + 藍框，不填滿 */\n.chip.active {\n  background: linear-gradient(135deg, rgba(122,162,196,.24), rgba(122,162,196,.05)) !important;\n  -webkit-backdrop-filter: blur(8px) saturate(1.4); backdrop-filter: blur(8px) saturate(1.4);\n  color: var(--accent) !important;\n  border-color: rgba(122,162,196,.6) !important;\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 2px 10px rgba(122,162,196,.2) !important;\n}\n.subbar-toggle { color: var(--text2) !important; }\n.sb-label { color: var(--text3) !important; }\n.snav-item { color: var(--text2) !important; }\n.snav-item:hover { background: rgba(91,130,166,.08) !important; color: var(--text) !important; }\n.snav-item.active {\n  background: linear-gradient(135deg, rgba(122,162,196,.22), rgba(122,162,196,.04)) !important;\n  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);\n  color: var(--accent) !important;\n  border: 1px solid rgba(122,162,196,.5) !important;\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 2px 8px rgba(122,162,196,.16) !important;\n}\n.snav-item.active .snav-ico { filter: drop-shadow(0 0 4px rgba(122,162,196,.6)); opacity: 1 !important; }\n.snav-h, .snav-sep { border-color: var(--border) !important; color: var(--text3) !important; }\n\n/* ── 異常偵測卡片：淺色主題下標籤文字加深（亮色配淡底對比過低）── */\n.amini { background: var(--surface) !important; border-color: var(--border) !important; }\n.amini-type { color: var(--text) !important; }\n.matrix-cell { color: var(--text) !important; }\n.amini-subject { color: var(--text) !important; }\n.amini-msg { color: var(--text2) !important; }\n\n/* ── Morandi QQ 果凍：暖霧藍系發光（取代亮青 #38bdf8）── */\n/* accent = #5B82A6（霧霾藍），用 rgba(91,130,166,…) */\n\n.btn:hover, .btn:active {\n  border-color: rgba(91,130,166,.60) !important;\n  box-shadow:\n    inset 0 1.5px 0 rgba(255,255,255,.55),\n    0 0 0 3px rgba(91,130,166,.12),\n    0 6px 20px rgba(91,130,166,.22) !important;\n}\n.btn.primary {\n  background: linear-gradient(145deg,\n    rgba(91,130,166,.22) 0%,\n    rgba(122,162,196,.10) 55%,\n    rgba(91,130,166,.04) 100%) !important;\n  border: 1px solid rgba(91,130,166,.55) !important;\n  box-shadow:\n    inset 0 1.5px 0 rgba(255,255,255,.55),\n    0 0 10px rgba(91,130,166,.16),\n    0 4px 14px rgba(91,130,166,.14) !important;\n}\n.btn.primary:hover {\n  border-color: rgba(91,130,166,.85) !important;\n  box-shadow:\n    inset 0 1.5px 0 rgba(255,255,255,.65),\n    0 0 0 4px rgba(91,130,166,.14),\n    0 8px 24px rgba(91,130,166,.30) !important;\n  animation: jelly-pop .42s cubic-bezier(.34,1.56,.64,1),\n             glow-pulse-morandi 1.2s ease infinite !important;\n}\n.chip:hover:not(.active), .chip:active:not(.active) {\n  border-color: rgba(91,130,166,.45) !important;\n  box-shadow: 0 0 0 3px rgba(91,130,166,.10), 0 4px 12px rgba(91,130,166,.16) !important;\n}\n.snav-item:not(.active):hover, .snav-item:not(.active):active {\n  background: rgba(91,130,166,.08) !important;\n  box-shadow: inset 3px 0 0 rgba(91,130,166,.55),\n              0 2px 10px rgba(91,130,166,.12) !important;\n  animation: jelly-pop .38s cubic-bezier(.34,1.56,.64,1) !important;\n}\n.topbar-btn:hover {\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.55),\n    0 0 0 3px rgba(91,130,166,.14),\n    0 6px 18px rgba(91,130,166,.24) !important;\n}\n.amini:hover {\n  box-shadow: 0 0 0 2px rgba(91,130,166,.22),\n              0 8px 24px rgba(91,130,166,.16) !important;\n  border-color: rgba(91,130,166,.45) !important;\n  background: var(--surface2) !important;\n}\n.matrix tbody td:not(.empty):hover .matrix-cell {\n  box-shadow: 0 0 0 3px rgba(91,130,166,.25),\n              0 4px 14px rgba(91,130,166,.24) !important;\n}\n.kpi:hover {\n  box-shadow: 0 0 0 2px rgba(91,130,166,.16),\n              0 8px 24px rgba(91,130,166,.14) !important;\n}\n.mrank-top:hover, .mrank-top:active {\n  box-shadow: inset 3px 0 0 rgba(91,130,166,.55),\n              0 2px 12px rgba(91,130,166,.12) !important;\n  animation: jelly-wiggle .5s ease !important;\n}\n.sum-card-go:hover, .sum-card-capa:hover {\n  box-shadow: 0 0 0 3px rgba(91,130,166,.14),\n              0 6px 16px rgba(91,130,166,.20) !important;\n}\n\n/* ══════════════════════════════════════════════\n   莫蘭迪：全站可點擊元素 QQ 玻璃基底\n   ══════════════════════════════════════════════ */\n.kpi,\n.alert,\n.anom-card,\n.amini,\n.mrank-top,\n.uz-month-card,\n.ri-card-clickable {\n  background: linear-gradient(145deg,\n    rgba(91,130,166,.18) 0%,\n    rgba(91,130,166,.06) 100%) !important;\n  backdrop-filter: blur(12px) saturate(1.3) !important;\n  -webkit-backdrop-filter: blur(12px) saturate(1.3) !important;\n  border-color: rgba(91,130,166,.32) !important;\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.42),\n    0 2px 8px rgba(91,130,166,.10) !important;\n}\n\n/* 左邊框語義色 */\n.alert.critical, .anom-card.critical, .amini.critical { border-left-color: var(--critical) !important; }\n.alert.warn,     .anom-card.warn,     .amini.warn     { border-left-color: var(--warn) !important; }\n.alert.info,     .anom-card.info,     .amini.info     { border-left-color: var(--info) !important; }\n\n/* Hover & Active */\n.kpi:hover, .kpi:active {\n  transform: translateY(-4px) scale(1.022) !important;\n  border-color: rgba(91,130,166,.60) !important;\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.55),\n    0 0 0 2px rgba(91,130,166,.20),\n    0 10px 28px rgba(91,130,166,.22) !important;\n  animation: jelly-pop .42s cubic-bezier(.34,1.56,.64,1) !important;\n}\n.alert:hover, .alert:active,\n.anom-card:hover, .anom-card:active {\n  transform: translateY(-3px) scale(1.012) !important;\n  border-color: rgba(91,130,166,.60) !important;\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.55),\n    0 0 0 2px rgba(91,130,166,.18),\n    0 8px 22px rgba(91,130,166,.18) !important;\n  animation: jelly-pop .40s cubic-bezier(.34,1.56,.64,1) !important;\n}\n.amini:hover, .amini:active {\n  transform: translateY(-3px) scale(1.015) !important;\n  border-color: rgba(91,130,166,.60) !important;\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.55),\n    0 0 0 2px rgba(91,130,166,.20),\n    0 8px 24px rgba(91,130,166,.20) !important;\n  animation: jelly-pop .40s cubic-bezier(.34,1.56,.64,1) !important;\n}\n.mrank-top:hover, .mrank-top:active {\n  background: rgba(91,130,166,.12) !important;\n  border-color: rgba(91,130,166,.50) !important;\n  transform: translateX(5px) !important;\n  box-shadow:\n    inset 3px 0 0 rgba(91,130,166,.65),\n    0 2px 14px rgba(91,130,166,.16) !important;\n  animation: jelly-wiggle .46s ease !important;\n}\n.uz-month-card:hover, .uz-month-card:active {\n  transform: translateY(-3px) scale(1.018) !important;\n  border-color: rgba(91,130,166,.60) !important;\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.55),\n    0 0 0 2px rgba(91,130,166,.18),\n    0 8px 22px rgba(91,130,166,.18) !important;\n  animation: jelly-pop .40s cubic-bezier(.34,1.56,.64,1) !important;\n}\n.ri-card-clickable:hover, .ri-card-clickable:active {\n  transform: translateY(-3px) scale(1.012) !important;\n  border-color: rgba(91,130,166,.55) !important;\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.50),\n    0 0 0 2px rgba(91,130,166,.16),\n    0 8px 20px rgba(91,130,166,.18) !important;\n  animation: jelly-pop .38s cubic-bezier(.34,1.56,.64,1) !important;\n}\n\n/* 料件資料庫類別標籤（莫蘭迪暖藍） */\n.pdb-tag {\n  background: rgba(91,130,166,.10) !important;\n  border-color: rgba(91,130,166,.32) !important;\n  color: #5B82A6 !important;\n}\n";
 </script>
 <script>
 // ════════════════════════════════════════════════════════════════════
