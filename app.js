@@ -2166,7 +2166,7 @@ window.App = (function () {
                 <div class="barlist">
                   ${r.topParts.map(p => `
                     <div class="barlist-row" style="cursor:pointer" onclick="App.openPartDrawer('${escapeAttr(p.name)}')">
-                      <div class="barlist-name">${escapeHtml(p.name)} ${pdbTag(p.name)}</div>
+                      <div class="barlist-name">${pdbLabel(p.name)} ${pdbTag(p.name)}</div>
                       <div class="barlist-track"><div style="width:${(p.count / r.topParts[0].count * 100).toFixed(0)}%"></div></div>
                       <div class="barlist-n">${p.count}</div>
                     </div>`).join('') || '<div class="muted" style="font-size:12px">—</div>'}
@@ -2266,7 +2266,7 @@ window.App = (function () {
       <div class="barlist-row" style="cursor:pointer" onclick="App.openPartDrawer('${escapeAttr(p.name)}')">
         <div class="barlist-name" title="${escapeHtml(p.name)}">
           <span class="muted" style="font-family:var(--mono);font-size:11px;margin-right:6px">${String(i + 1).padStart(2, '0')}</span>
-          ${escapeHtml(p.name)}
+          ${pdbLabel(p.name)}
           ${p.models.length > 1 ? `<span class="tag" style="margin-left:6px">⇄ ${p.models.length}機種</span>` : ''}
         </div>
         <div class="barlist-track"><div style="width:${(p.count / top1 * 100).toFixed(0)}%"></div></div>
@@ -2457,7 +2457,7 @@ window.App = (function () {
           <span class="comp-cat-name">${escapeHtml(c.name)}</span>
           <span class="comp-cat-val">${c.count} 件 · ${(c.pct * 100).toFixed(1)}%</span>
         </div>
-        <div class="comp-cat-parts">${c.topParts.map(p => `${escapeHtml(p.name)}<span class="ccp-n">×${p.count}</span>`).join(' · ')}</div>
+        <div class="comp-cat-parts">${c.topParts.map(p => `${pdbLabel(p.name)}<span class="ccp-n">×${p.count}</span>`).join(' · ')}</div>
         <div class="comp-cat-stock">📦 建議安全備料 <b>${suggest}</b> 個/月　<span class="muted">（近 ${monthsN} 月月均 ${perMonth.toFixed(1)} 件 × 1.5 安全係數）</span></div>
       </div>`;
     }).join('') + (cc.uncategorized ? `<div class="comp-cat-foot">未能歸類 ${cc.uncategorized} 件（品號不在料號表）</div>` : '');
@@ -2658,7 +2658,7 @@ window.App = (function () {
       return `
       <tr>
         <td class="num muted">${i + 1}</td>
-        <td>${escapeHtml(p.name)} ${pdbTag(p.name)}</td>
+        <td>${pdbLabel(p.name)} ${pdbTag(p.name)}</td>
         <td>
           <span class="tag">${p.models.length} 機種</span>
           <div class="muted" style="font-size:10.5px;font-family:var(--mono);margin-top:3px">${p.models.slice(0, 4).join(', ')}${p.models.length > 4 ? '…' : ''}</div>
@@ -2726,7 +2726,7 @@ window.App = (function () {
         return `<td onclick="App.openMatrixPartDrawer('${escapeAttr(p.name)}')"><span class="matrix-cell" style="background:${color}${Math.round(intensity * 255).toString(16).padStart(2,'0')}">${v}</span></td>`;
       }).join('');
       return `<tr>
-        <th scope="row" title="${escapeAttr(p.name)}" onclick="App.openMatrixPartDrawer('${escapeAttr(p.name)}')">${escapeHtml(p.name)}<span class="spec">${p.models.length} 機種</span></th>
+        <th scope="row" title="${escapeAttr(p.name)}" onclick="App.openMatrixPartDrawer('${escapeAttr(p.name)}')">${pdbLabel(p.name)}<span class="spec">${p.models.length} 機種</span></th>
         ${totalCell}
         ${cells}
       </tr>`;
@@ -3150,7 +3150,7 @@ window.App = (function () {
         <td>${r.isScrap ? `<span style="color:var(--critical);font-weight:600">${escapeHtml(r.reason || '報廢')}</span>` : escapeHtml(r.reason || '—')}</td>
         <td>${escapeHtml(r.content || '—')}</td>
         <td>
-          ${[[r.part1, r.qty1], [r.part2, r.qty2], [r.part3, r.qty3]].filter(([p]) => p).map(([p, q]) => `<span class="tag">${escapeHtml(p)} <span class="muted">×${q}</span></span>`).join(' ')}
+          ${[[r.part1, r.qty1], [r.part2, r.qty2], [r.part3, r.qty3]].filter(([p]) => p).map(([p, q]) => `<span class="tag">${pdbLabel(p)} <span class="muted">×${q}</span></span>`).join(' ')}
         </td>
       </tr>
     `).join('') || `<tr><td colspan="7" class="empty">無紀錄</td></tr>`;
@@ -3655,7 +3655,7 @@ window.App = (function () {
           <div class="barlist">
             ${shownParts.map(p => `
               <div class="barlist-row" style="cursor:pointer" onclick="App.openPartDrawer('${escapeAttr(p.name)}')">
-                <div class="barlist-name">${escapeHtml(p.name)}</div>
+                <div class="barlist-name">${pdbLabel(p.name)}</div>
                 <div class="barlist-track"><div style="width:${(p.count / max * 100).toFixed(0)}%"></div></div>
                 <div class="barlist-n">${p.count}</div>
               </div>`).join('')}
@@ -3718,7 +3718,7 @@ window.App = (function () {
           <div class="barlist">
             ${sortedParts.slice(0, 8).map(([p, c]) => `
               <div class="barlist-row" style="cursor:pointer" onclick="App.openPartDrawer('${escapeAttr(p)}')">
-                <div class="barlist-name">${escapeHtml(p)}</div>
+                <div class="barlist-name">${pdbLabel(p)}</div>
                 <div class="barlist-track"><div style="width:${(c / sortedParts[0][1] * 100).toFixed(0)}%;background:var(--warn)"></div></div>
                 <div class="barlist-n">${c}</div>
               </div>`).join('')}
@@ -4122,10 +4122,11 @@ window.App = (function () {
   }
 
   function openPartDrawer(partNorm) {
+    const pdbInfo = pdbInfoOf(partNorm);
     openDrawer({
       severity: 'info', icon: '▤',
-      overline: '零件深入分析',
-      title: partNorm,
+      overline: '零件深入分析' + (pdbInfo ? ` · ${pdbInfo.group}` : ''),
+      title: (pdbInfo && pdbInfo.name && pdbInfo.name !== partNorm) ? `${pdbInfo.name}（${partNorm}）` : partNorm,
       bodyHtml: partLens(partNorm) + partDrillContent(partNorm),
     });
   }
@@ -5061,36 +5062,47 @@ window.App = (function () {
   }
   function pdbInvalidate() { pdbCache = null; pdbGroupCache = null; }
 
-  // 模糊比對：維修記錄的零件文字 → 群組名稱（電容/電阻/IC…）
-  function pdbGroupOf(partText) {
+  // 模糊比對：維修記錄的零件文字 → 主檔資訊 {name:品名, group:群組}
+  function pdbInfoOf(partText) {
     if (!partText) return null;
     if (!pdbGroupCache) {
       pdbGroupCache = new Map();
       const idx = { spec: new Map(), name: new Map() };
       for (const [pno, name, spec, cat] of pdbRows()) {
-        const g = pdbCatName(cat);
-        if (spec && spec.length >= 4) idx.spec.set(spec.toUpperCase(), g);
-        if (name && name.length >= 3) idx.name.set(name.toUpperCase(), g);
+        const info = { name, group: pdbCatName(cat) };
+        if (spec && spec.length >= 4) idx.spec.set(spec.toUpperCase(), info);
+        if (name && name.length >= 3) idx.name.set(name.toUpperCase(), info);
       }
       pdbGroupCache.__idx = idx;
     }
     const key = String(partText).trim().toUpperCase();
     if (pdbGroupCache.has(key)) return pdbGroupCache.get(key);
     const idx = pdbGroupCache.__idx;
-    let g = idx.spec.get(key) || idx.name.get(key) || null;
-    if (!g) {
+    let info = idx.spec.get(key) || idx.name.get(key) || null;
+    if (!info) {
       // 規格包含於零件文字（如 "LT-0371-41 LED 3MM..." 內含主檔規格）
-      for (const [spec, grp] of idx.spec) {
-        if (spec.length >= 6 && (key.includes(spec) || spec.includes(key))) { g = grp; break; }
+      for (const [spec, inf] of idx.spec) {
+        if (spec.length >= 6 && (key.includes(spec) || spec.includes(key))) { info = inf; break; }
       }
     }
-    pdbGroupCache.set(key, g);
-    return g;
+    pdbGroupCache.set(key, info);
+    return info;
+  }
+  function pdbGroupOf(partText) {
+    const info = pdbInfoOf(partText);
+    return info ? info.group : null;
   }
   // 報表顯示用：零件名稱旁的類別小標籤
   function pdbTag(partText) {
     const g = pdbGroupOf(partText);
     return g ? `<span class="tag pdb-tag" title="料件群組（料件資料庫）">${escapeHtml(g)}</span>` : '';
+  }
+  // 報表顯示用：「品名（原文規格）」— 原文是純規格時換成人看得懂的品名
+  function pdbLabel(partText) {
+    const info = pdbInfoOf(partText);
+    const raw = String(partText || '');
+    if (!info || !info.name || info.name.trim().toUpperCase() === raw.trim().toUpperCase()) return escapeHtml(raw);
+    return `${escapeHtml(info.name)} <span class="pdb-spec">(${escapeHtml(raw)})</span>`;
   }
 
   let pdbEditingPno = null;  // null=新增, 字串=編輯中品號
@@ -5173,7 +5185,7 @@ window.App = (function () {
   }
   // 取得合併後主檔（發布用）
   function pdbMergedMaster() { return pdbRows(); }
-  window.PartsDB = { groupOf: pdbGroupOf, tag: pdbTag };
+  window.PartsDB = { groupOf: pdbGroupOf, infoOf: pdbInfoOf, tag: pdbTag, label: pdbLabel };
 
   // ─────────────── Init ───────────────
   // syncCloudPromise 讓登入流程等待雲端資料就緒，避免快速登入時讀到空 DB

@@ -907,6 +907,8 @@ button, input, select { font-family: inherit; }
   background: rgba(56,189,248,.10); border: 1px solid rgba(56,189,248,.30);
   color: var(--accent); border-radius: 4px; white-space: nowrap; vertical-align: middle;
 }
+/* 「品名（原文規格）」的規格部分 — 縮小淡化 */
+.pdb-spec { color: var(--text3); font-size: .85em; font-family: var(--mono); }
 .section-title { font-size: 14px; font-weight: 700; color: var(--text2); margin-bottom: 10px; letter-spacing: .03em; text-transform: uppercase; }
 .txt-mono { font-family: var(--mono); }
 

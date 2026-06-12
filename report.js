@@ -553,7 +553,12 @@
       ${d.topParts.map((p, i) => `
         <tr>
           <td class="num muted">${i + 1}</td>
-          <td><strong>${escapeHtml(p.name)}</strong></td>
+          <td>${(() => {
+            const info = (window.PartsDB && window.PartsDB.infoOf(p.name)) || null;
+            if (info && info.name && info.name.trim().toUpperCase() !== p.name.trim().toUpperCase())
+              return `<strong>${escapeHtml(info.name)}</strong> <span class="muted" style="font-size:0.85em">(${escapeHtml(p.name)})</span>`;
+            return `<strong>${escapeHtml(p.name)}</strong>`;
+          })()}</td>
           <td>${(() => { const g = (window.PartsDB && window.PartsDB.groupOf(p.name)) || null; return g ? `<span class="tag">${escapeHtml(g)}</span>` : '<span class="muted">—</span>'; })()}</td>
           <td>
             <span class="tag">${p.models.length} 機種</span>
