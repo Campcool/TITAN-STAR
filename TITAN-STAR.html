@@ -7282,15 +7282,60 @@ window.App = (function () {
   }
 
   // ─────────────── Render orchestration ───────────────
+  function safeRenderStep(name, fn) {
+    try {
+      fn();
+      return true;
+    } catch (e) {
+      console.error(`[render] ${name} failed:`, e);
+      return false;
+    }
+  }
+
+  function renderFallbackDashboard(error) {
+    const months = Object.keys((state.db && state.db.months) || {}).sort();
+    const rows = countDbRecords(state.db);
+    const meta = $('summaryMeta');
+    if (meta) meta.textContent = `${months.length} 個月 · ${rows.toLocaleString()} 筆`;
+
+    const kpi = $('sumKpi');
+    if (kpi) {
+      kpi.innerHTML = `
+        <div class="kpi k-blue"><div class="kpi-h"><div class="kpi-l">資料月份</div><div class="kpi-ico">#</div></div>
+          <div class="kpi-v">${months.length}</div><div class="kpi-d"><span class="muted">${months.map(fmt.monthLabel).join(' / ')}</span></div></div>
+        <div class="kpi k-info"><div class="kpi-h"><div class="kpi-l">維修筆數</div><div class="kpi-ico">≡</div></div>
+          <div class="kpi-v">${rows.toLocaleString()}</div><div class="kpi-d"><span class="muted">已成功載入資料</span></div></div>`;
+    }
+
+    const body = $('sumBody') || document.querySelector('.page.active');
+    if (body) {
+      body.innerHTML = `
+        <div class="card render-fallback">
+          <div class="empty">
+            <div class="empty-ico">i</div>
+            <div class="empty-t">資料已載入，但摘要頁有一段顯示失敗</div>
+            <div class="empty-d">可以先按「總覽」查看完整資料；系統已避免卡在空白頁。</div>
+            <div style="margin-top:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+              <button class="btn primary" onclick="App.switchPage('overview')">看總覽</button>
+              <button class="btn" onclick="App.switchPage('alerts')">看異常</button>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    if (error) console.error('[render] fallback shown:', error);
+  }
+
   function renderAll() {
     // 資料庫摘要在 subbar 第二列，hdrSub 不再使用
 
-    renderFilters();
-    renderAnalysisRoleBar();
-    updateAlertBadge();
-    updateSummaryBadge();
-    renderPage();
-    updateSubbarSummary();
+    safeRenderStep('filters', renderFilters);
+    safeRenderStep('role bar', renderAnalysisRoleBar);
+    safeRenderStep('alert badge', updateAlertBadge);
+    safeRenderStep('summary badge', updateSummaryBadge);
+    const pageOk = safeRenderStep('page', renderPage);
+    if (!pageOk) renderFallbackDashboard();
+    safeRenderStep('subbar summary', updateSubbarSummary);
   }
 
   // What each role should focus on — shown in the global banner on every page.

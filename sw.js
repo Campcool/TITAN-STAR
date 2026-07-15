@@ -1,50 +1,60 @@
-// TITAN-STAR Service Worker — v2
-// Cache strategy: cache-first for app shell, network-first for data.json
-const CACHE_NAME = 'titan-star-v2';
+// TITAN-STAR Service Worker - v20260715-3
+// Runtime files must stay fresh. Older cache-first behavior could keep mobile
+// browsers on stale app.js/data.json after a deployment.
+const CACHE_NAME = 'titan-star-v20260715-3';
 const APP_SHELL = [
-  './TITAN-STAR.html',
   './manifest.json',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap',
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js',
   'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
 ];
 
-self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then(cache =>
-      cache.addAll(APP_SHELL).catch(err => console.warn('[SW] shell cache partial fail:', err))
-    ).then(() => self.skipWaiting())
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(APP_SHELL).catch(err => console.warn('[SW] shell cache partial fail:', err)))
+      .then(() => self.skipWaiting())
   );
 });
 
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))))
+      .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
+      .then(clients => Promise.all(clients.map(client => client.navigate(client.url).catch(() => null))))
   );
 });
 
-self.addEventListener('fetch', e => {
-  const url = new URL(e.request.url);
+self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
+  const isRuntimeFile =
+    url.origin === self.location.origin &&
+    (url.pathname.endsWith('/') ||
+      url.pathname.endsWith('.html') ||
+      url.pathname.endsWith('.js') ||
+      url.pathname.endsWith('.css') ||
+      url.pathname.endsWith('.json'));
 
-  // data.json — network-first (最新資料優先)
-  if (url.pathname.endsWith('data.json')) {
-    e.respondWith(
-      fetch(e.request, { cache: 'no-store' })
-        .then(r => { caches.open(CACHE_NAME).then(c => c.put(e.request, r.clone())); return r; })
-        .catch(() => caches.match(e.request))
+  if (isRuntimeFile) {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-store' })
+        .then(response => {
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, response.clone()));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
     );
     return;
   }
 
-  // App shell / CDN — cache-first
-  e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request).then(r => {
-      if (r.ok && (url.origin === self.location.origin || url.hostname.includes('jsdelivr') || url.hostname.includes('googleapis'))) {
-        caches.open(CACHE_NAME).then(c => c.put(e.request, r.clone()));
+  event.respondWith(
+    caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
+      if (response.ok && (url.hostname.includes('jsdelivr') || url.hostname.includes('googleapis'))) {
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, response.clone()));
       }
-      return r;
+      return response;
     }))
   );
 });
