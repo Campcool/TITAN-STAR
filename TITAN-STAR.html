@@ -3403,27 +3403,46 @@ button, input, select { font-family: inherit; }
 }
 
 @media (max-width: 820px) {
+  :root {
+    --mobile-screen: 100vw;
+  }
+
+  @supports (width: 100dvw) {
+    :root {
+      --mobile-screen: 100dvw;
+    }
+  }
+
   html,
   body {
-    width: 100%;
-    max-width: 100%;
+    width: var(--mobile-screen);
+    max-width: var(--mobile-screen);
     overflow-x: hidden;
   }
 
   .mode-bar,
   .dash,
+  .subbar,
   .layout,
-  .content,
+  .content {
+    width: var(--mobile-screen) !important;
+    max-width: var(--mobile-screen) !important;
+  }
+
   .content-inner,
-  .page.active,
+  #pageSummary,
+  #sumBody,
   .sum-banner,
+  #sumBanner,
+  .sum-sec,
+  .sum-cards,
   .sum-banner-inner,
   .page-simple-help,
   .exec-brief,
   .card,
   .sum-card {
-    width: 100%;
-    max-width: 100%;
+    width: 100% !important;
+    max-width: none !important;
   }
 
   .content {
@@ -3438,7 +3457,8 @@ button, input, select { font-family: inherit; }
   }
 
   .sum-cards {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) !important;
+    justify-items: stretch;
   }
 
   .sum-banner-inner {
