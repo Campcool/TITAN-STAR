@@ -180,9 +180,8 @@ window.App = (function () {
   }
 
   function setTopbarDataControls() {
-    const isMaintainer = canMaintainData();
     const uploadBtn = $('modeUploadBtn');
-    if (uploadBtn) uploadBtn.style.display = isMaintainer ? '' : 'none';
+    if (uploadBtn) uploadBtn.style.display = 'none';
     const reportBtn = $('modeReportBtn');
     if (reportBtn) reportBtn.style.display = '';
     const excelBtn = $('modeExcelBtn');
@@ -623,26 +622,20 @@ window.App = (function () {
           const guide = document.createElement('div');
           guide.id = 'noDataGuide';
           guide.className = 'no-data-guide';
-          const isMaintainer = canMaintainData();
-          guide.innerHTML = isMaintainer ? `
-            <div class="ndg-ico">📂</div>
-            <div class="ndg-t">尚未載入報表資料</div>
-            <div class="ndg-d">點擊右上角 ⤒ 按鈕上傳 Excel 報表，或點下方按鈕開始</div>
-            <button class="btn primary ndg-btn" onclick="App.openUpload()">⤒ 上傳報表</button>` : `
+          guide.innerHTML = `
             <div class="ndg-ico">☁</div>
             <div class="ndg-t">尚未同步報表資料</div>
-            <div class="ndg-d">請聯絡管理員將每月維修資料發布到 GitHub，重新登入後會自動載入結果。</div>`;
+            <div class="ndg-d">請確認每月維修資料已放到 GitHub 指定資料夾；重新整理或下次登入後會自動載入結果。</div>`;
           content.prepend(guide);
         }
       }
       return;
     }
-    // 有資料：正常渲染
+    // 有資料：登入後直接回到乾淨的主管摘要，不沿用可能卡住的舊篩選。
+    state.currentPage = 'summary';
     state.selectedMonths = Object.keys(state.db.months).sort();
     state.selectedCategory = '全部';
     state.selectedModel = '全部';
-    // B2: restore saved filter from sessionStorage
-    restoreFilterState();
     renderAnalysisRoleBar();
     renderAll();
     window.scrollTo(0, 0);
@@ -692,18 +685,7 @@ window.App = (function () {
   }
 
   function openUpload() {
-    if (!canMaintainData()) {
-      alert('資料已由管理員每月發布到 GitHub；一般使用者登入後直接查看結果即可。');
-      openDashboardDirect();
-      return;
-    }
-    $('dash').classList.remove('active');
-    $('uploadZone').style.display = 'flex';
-    state.db = RepairDB.load();
-    renderUploadList();
-    // Ensure upload zone is visible after login
-    const rmaDash = $('rmaDash');
-    if (rmaDash) rmaDash.style.display = 'none';
+    openDashboardDirect();
   }
 
   // 純切換頁面 DOM（不動瀏覽歷史）
@@ -5600,8 +5582,8 @@ window.App = (function () {
     try {
       await Auth.boot(state.cloudUsers);
     } catch(e) {
-      // Fallback if Auth module fails
-      document.getElementById('uploadZone').style.display = 'flex';
+      console.error('[auth] boot failed:', e);
+      await openDashboardDirect();
     }
   }
   document.addEventListener('DOMContentLoaded', init);
@@ -5813,11 +5795,10 @@ window.Auth = (function () {
     if (adminBtn) adminBtn.style.display = session.isAdmin ? '' : 'none';
     // Trigger app restore (defined in index.html inline script)
     try {
-      if (typeof onAuthSuccess === 'function') onAuthSuccess();
+      const boot = (typeof onAuthSuccess === 'function') ? onAuthSuccess() : null;
+      if (boot && typeof boot.catch === 'function') boot.catch(() => window.App && App.openDashboardDirect && App.openDashboardDirect());
     } catch(e) {
-      // Fallback: show upload zone if onAuthSuccess fails
-      const uz = document.getElementById('uploadZone');
-      if (uz) uz.style.display = 'flex';
+      if (window.App && App.openDashboardDirect) App.openDashboardDirect();
     }
   }
 
