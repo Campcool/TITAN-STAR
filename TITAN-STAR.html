@@ -3383,6 +3383,69 @@ button, input, select { font-family: inherit; }
 .tbl-wrap .tbl td:first-child { background: var(--surface); }
 .tbl-wrap .tbl tr:nth-child(even) td:first-child { background: var(--surface2); }
 
+/* Final mobile shell cleanup: the app is now read-only analysis first. */
+#modeAnalysis,
+#modeReportBtn,
+#modeExcelBtn {
+  display: none !important;
+}
+
+.s-icon.app-home {
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  letter-spacing: 0;
+}
+.s-icon.app-home:hover,
+.s-icon.app-home:focus-visible {
+  box-shadow: 0 0 0 3px rgba(56,189,248,.22);
+  outline: none;
+}
+
+@media (max-width: 820px) {
+  html,
+  body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .mode-bar,
+  .dash,
+  .layout,
+  .content,
+  .content-inner,
+  .page.active,
+  .sum-banner,
+  .sum-banner-inner,
+  .page-simple-help,
+  .exec-brief,
+  .card,
+  .sum-card {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .content {
+    flex: 1 1 auto;
+    margin: 0;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .content-inner {
+    margin: 0;
+  }
+
+  .sum-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sum-banner-inner {
+    align-items: flex-start;
+  }
+}
+
 </style>
 <style>
 /* ════════════════════════════════════════════════════════════════════
@@ -3951,10 +4014,10 @@ button, input, select { font-family: inherit; }
 <!-- ═══════════════ Mode Switcher Header ═══════════════ -->
 <div class="mode-bar" id="modeBar" style="display:none">
   <div class="mode-bar-l">
-    <div class="s-icon">S</div>
+    <button class="s-icon app-home" type="button" onclick="App.switchPage('summary')" title="回到首頁">S</button>
   </div>
   <div class="mode-tabs">
-    <button class="mode-tab active" id="modeAnalysis" onclick="switchMode('analysis')">
+    <button class="mode-tab active mode-analysis-tab" id="modeAnalysis" onclick="switchMode('analysis')" style="display:none">
       <span class="mode-tab-ico">◈</span> 維修分析
     </button>
     <!-- Role selector embedded next to analysis tab -->
@@ -6519,9 +6582,9 @@ window.App = (function () {
     const uploadBtn = $('modeUploadBtn');
     if (uploadBtn) uploadBtn.style.display = 'none';
     const reportBtn = $('modeReportBtn');
-    if (reportBtn) reportBtn.style.display = '';
+    if (reportBtn) reportBtn.style.display = 'none';
     const excelBtn = $('modeExcelBtn');
-    if (excelBtn) excelBtn.style.display = '';
+    if (excelBtn) excelBtn.style.display = 'none';
     const roleSel = $('roleSelWrap');
     if (roleSel) roleSel.style.display = '';
     const rmaBtn = $('modeRma');
@@ -6569,45 +6632,52 @@ window.App = (function () {
     return countDbRecords(RepairDB.load()) > 0;
   }
 
-  function shouldCheckCloud() {
-    if (!hasUsableLocalData()) return true;
-    if (!isMonthlySyncDay()) return false;
-    const mk = currentMonthKey();
-    return localStorage.getItem(CLOUD_CHECK_KEY) !== mk;
+  function dbStats(db) {
+    const months = Object.keys((db && db.months) || {}).sort();
+    return {
+      months,
+      monthCount: months.length,
+      records: countDbRecords(db),
+      latestMonth: months[months.length - 1] || '',
+    };
   }
 
-  // Fetch shared data.json; if it is newer than what this browser last saw,
-  // load it into localStorage so every user auto-syncs the maintainer's publish.
+  function shouldAdoptCloudData(cloud, localDb, seen) {
+    const cloudStats = dbStats(cloud);
+    const localStats = dbStats(localDb);
+    if (!cloudStats.monthCount) return false;
+    if (!localStats.records) return true;
+    if (cloudStats.latestMonth > localStats.latestMonth) return true;
+    if (cloudStats.monthCount > localStats.monthCount) return true;
+    if (cloudStats.records > localStats.records) return true;
+    if (cloud.publishedAt && cloud.publishedAt !== seen) return true;
+    return false;
+  }
+
+  // Fetch shared data.json on boot; monthly Excel parsing still runs only on day 1.
+  // If GitHub has newer/more records than this browser, adopt it automatically.
   async function syncCloud() {
     try {
-      if (!shouldCheckCloud()) {
-        const seen = localStorage.getItem(CLOUD_SEEN_KEY);
-        const localDb = RepairDB.load();
-        state.cloudMeta = {
-          publishedAt: seen || null,
-          publishedBy: '',
-          months: Object.keys(localDb.months || {}).length,
-          skipped: true,
-        };
-        return null;
-      }
       const res = await fetch(CLOUD_URL, { cache: 'no-store' });
       if (!res.ok) return null;
       localStorage.setItem(CLOUD_CHECK_KEY, currentMonthKey());
       const cloud = await res.json();
       if (!cloud || !cloud.months) return null;
-      const monthCount = Object.keys(cloud.months).length;
+      const cloudStats = dbStats(cloud);
+      const localDb = RepairDB.load();
+      const localStats = dbStats(localDb);
       state.cloudMeta = {
         publishedAt: cloud.publishedAt || null,
         publishedBy: cloud.publishedBy || '',
-        months: monthCount,
+        months: cloudStats.monthCount,
+        records: cloudStats.records,
+        localMonths: localStats.monthCount,
+        localRecords: localStats.records,
       };
-      if (!monthCount) return cloud;
+      if (!cloudStats.monthCount) return cloud;
 
       const seen = localStorage.getItem(CLOUD_SEEN_KEY);
-      const hasLocalData = hasUsableLocalData();
-      // 寫入條件：(1) 雲端有新 publish，或 (2) 本機 localStorage 已無資料（被清除/換裝置）
-      if (!cloud.publishedAt || cloud.publishedAt !== seen || !hasLocalData) {
+      if (shouldAdoptCloudData(cloud, localDb, seen)) {
         // Adopt cloud data into localStorage so every user auto-syncs.
         localStorage.setItem('repair_db_v2', JSON.stringify({ months: cloud.months }));
         if (cloud.partsMaster) { try { localStorage.setItem('titan_partsmaster_v1', JSON.stringify(cloud.partsMaster)); } catch(e) {} }
@@ -14657,7 +14727,8 @@ function openRmaMode() {
 function switchMode(mode) {
   if (mode === 'rma') mode = 'analysis';
   currentMode = mode;
-  document.getElementById('modeAnalysis').classList.toggle('active', mode === 'analysis');
+  const modeAnalysis = document.getElementById('modeAnalysis');
+  if (modeAnalysis) modeAnalysis.classList.toggle('active', mode === 'analysis');
   const modeRma = document.getElementById('modeRma');
   if (modeRma) {
     modeRma.classList.toggle('active', false);
@@ -14685,7 +14756,7 @@ function switchMode(mode) {
       dash.classList.add('active');
       rmaDash.style.display = 'none';
       modeBar.style.display = 'flex';
-      ['modeReportBtn','roleSelWrap'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
+      ['roleSelWrap'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
       const uploadBtn = document.getElementById('modeUploadBtn');
       if (uploadBtn) uploadBtn.style.display = 'none';
     } else {

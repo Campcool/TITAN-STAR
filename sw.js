@@ -1,7 +1,7 @@
-// TITAN-STAR Service Worker - v20260715-4
+// TITAN-STAR Service Worker - v20260715-5
 // Runtime files must stay fresh. Older cache-first behavior could keep mobile
 // browsers on stale app.js/data.json after a deployment.
-const CACHE_NAME = 'titan-star-v20260715-4';
+const CACHE_NAME = 'titan-star-v20260715-5';
 const APP_SHELL = [
   './manifest.json',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap',

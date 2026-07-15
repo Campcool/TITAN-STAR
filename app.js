@@ -183,9 +183,9 @@ window.App = (function () {
     const uploadBtn = $('modeUploadBtn');
     if (uploadBtn) uploadBtn.style.display = 'none';
     const reportBtn = $('modeReportBtn');
-    if (reportBtn) reportBtn.style.display = '';
+    if (reportBtn) reportBtn.style.display = 'none';
     const excelBtn = $('modeExcelBtn');
-    if (excelBtn) excelBtn.style.display = '';
+    if (excelBtn) excelBtn.style.display = 'none';
     const roleSel = $('roleSelWrap');
     if (roleSel) roleSel.style.display = '';
     const rmaBtn = $('modeRma');
@@ -233,45 +233,52 @@ window.App = (function () {
     return countDbRecords(RepairDB.load()) > 0;
   }
 
-  function shouldCheckCloud() {
-    if (!hasUsableLocalData()) return true;
-    if (!isMonthlySyncDay()) return false;
-    const mk = currentMonthKey();
-    return localStorage.getItem(CLOUD_CHECK_KEY) !== mk;
+  function dbStats(db) {
+    const months = Object.keys((db && db.months) || {}).sort();
+    return {
+      months,
+      monthCount: months.length,
+      records: countDbRecords(db),
+      latestMonth: months[months.length - 1] || '',
+    };
   }
 
-  // Fetch shared data.json; if it is newer than what this browser last saw,
-  // load it into localStorage so every user auto-syncs the maintainer's publish.
+  function shouldAdoptCloudData(cloud, localDb, seen) {
+    const cloudStats = dbStats(cloud);
+    const localStats = dbStats(localDb);
+    if (!cloudStats.monthCount) return false;
+    if (!localStats.records) return true;
+    if (cloudStats.latestMonth > localStats.latestMonth) return true;
+    if (cloudStats.monthCount > localStats.monthCount) return true;
+    if (cloudStats.records > localStats.records) return true;
+    if (cloud.publishedAt && cloud.publishedAt !== seen) return true;
+    return false;
+  }
+
+  // Fetch shared data.json on boot; monthly Excel parsing still runs only on day 1.
+  // If GitHub has newer/more records than this browser, adopt it automatically.
   async function syncCloud() {
     try {
-      if (!shouldCheckCloud()) {
-        const seen = localStorage.getItem(CLOUD_SEEN_KEY);
-        const localDb = RepairDB.load();
-        state.cloudMeta = {
-          publishedAt: seen || null,
-          publishedBy: '',
-          months: Object.keys(localDb.months || {}).length,
-          skipped: true,
-        };
-        return null;
-      }
       const res = await fetch(CLOUD_URL, { cache: 'no-store' });
       if (!res.ok) return null;
       localStorage.setItem(CLOUD_CHECK_KEY, currentMonthKey());
       const cloud = await res.json();
       if (!cloud || !cloud.months) return null;
-      const monthCount = Object.keys(cloud.months).length;
+      const cloudStats = dbStats(cloud);
+      const localDb = RepairDB.load();
+      const localStats = dbStats(localDb);
       state.cloudMeta = {
         publishedAt: cloud.publishedAt || null,
         publishedBy: cloud.publishedBy || '',
-        months: monthCount,
+        months: cloudStats.monthCount,
+        records: cloudStats.records,
+        localMonths: localStats.monthCount,
+        localRecords: localStats.records,
       };
-      if (!monthCount) return cloud;
+      if (!cloudStats.monthCount) return cloud;
 
       const seen = localStorage.getItem(CLOUD_SEEN_KEY);
-      const hasLocalData = hasUsableLocalData();
-      // 寫入條件：(1) 雲端有新 publish，或 (2) 本機 localStorage 已無資料（被清除/換裝置）
-      if (!cloud.publishedAt || cloud.publishedAt !== seen || !hasLocalData) {
+      if (shouldAdoptCloudData(cloud, localDb, seen)) {
         // Adopt cloud data into localStorage so every user auto-syncs.
         localStorage.setItem('repair_db_v2', JSON.stringify({ months: cloud.months }));
         if (cloud.partsMaster) { try { localStorage.setItem('titan_partsmaster_v1', JSON.stringify(cloud.partsMaster)); } catch(e) {} }
