@@ -342,6 +342,28 @@ button, input, select { font-family: inherit; }
   letter-spacing: .12em; text-transform: uppercase; font-weight: 600;
   min-width: 64px;
 }
+.model-lookup-row { flex-wrap: nowrap; }
+.model-lookup-input {
+  width: min(360px, 100%);
+  min-height: 34px;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  padding: 7px 11px;
+  font: 600 14px var(--mono);
+}
+.model-lookup-input::placeholder {
+  color: var(--text3);
+  font-family: 'Inter','Noto Sans TC',sans-serif;
+  font-weight: 500;
+}
+.model-lookup-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(56,189,248,.18);
+}
 
 .chip {
   background: var(--surface2);
@@ -489,7 +511,7 @@ button, input, select { font-family: inherit; }
   font-size: 24px; font-weight: 700; letter-spacing: -.02em;
   line-height: 1.2;
 }
-.page-d { color: var(--text3); font-size: 15.5px; margin-top: 4px; line-height: 1.5; max-width: 560px; }
+.page-d { display: none; }
 .page-usage {
   display: flex; gap: 10px; align-items: flex-start;
   background: var(--info-soft, rgba(56,189,248,.1));
@@ -502,6 +524,34 @@ button, input, select { font-family: inherit; }
 .page-usage .pu-ico { flex-shrink: 0; font-size: 15px; line-height: 1.6; }
 .page-usage b { color: var(--text); font-weight: 700; }
 @media (max-width: 600px) { .page-usage { font-size: 15px; } }
+.page-usage { display: none !important; }
+.page-simple-help {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin: -10px 0 22px; padding: 12px 14px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-left: 4px solid var(--accent); border-radius: 8px;
+}
+.page-simple-help-copy {
+  display: flex; align-items: baseline; flex-wrap: wrap;
+  gap: 8px; min-width: 0;
+}
+.page-simple-help-label {
+  font-size: 12px; color: var(--text3); font-weight: 700;
+  letter-spacing: .08em;
+}
+.page-simple-help-text {
+  color: var(--text); font-size: 15px; line-height: 1.55;
+}
+.page-simple-help-btn {
+  flex-shrink: 0; border: 1px solid var(--border); border-radius: 8px;
+  padding: 7px 10px; background: var(--surface2); color: var(--text);
+  font: inherit; font-size: 13px; cursor: pointer;
+}
+.page-simple-help-btn:hover { border-color: var(--accent); color: var(--accent); }
+@media (max-width: 700px) {
+  .page-simple-help { align-items: stretch; flex-direction: column; margin-top: -6px; }
+  .page-simple-help-btn { width: 100%; }
+}
 .page-meta {
   font-family: var(--mono); font-size: 14.5px; color: var(--text3);
   padding: 6px 12px; background: var(--surface); border-radius: 16px;
@@ -1530,6 +1580,8 @@ button, input, select { font-family: inherit; }
   .hdr-r { flex-wrap: wrap; gap: 6px; }
   .hdr-r .btn { font-size: 14px; padding: 8px 12px; }
   .subbar { padding: 10px 14px; }
+  .model-lookup-row { flex-wrap: wrap; }
+  .model-lookup-input { width: 100%; }
   .kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
   .kpi { padding: 16px 16px; }
   .kpi-v { font-size: 34px; }
@@ -2533,6 +2585,23 @@ button, input, select { font-family: inherit; }
   display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
 }
 @media (max-width: 700px) { .help-modal-body { grid-template-columns: 1fr; } }
+.help-modal-body.help-modal-simple { gap: 14px; }
+.help-flow-block {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 14px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.help-flow-wide { grid-column: 1 / -1; }
+.help-flow-label {
+  font-size: 12px; color: var(--text3); font-weight: 700;
+  letter-spacing: .08em;
+}
+.help-flow-text { color: var(--text); line-height: 1.7; font-size: 15px; }
+.help-flow-steps {
+  margin: 0; padding-left: 22px; color: var(--text);
+  line-height: 1.8; font-size: 15px;
+}
+.help-flow-steps li { padding-left: 2px; }
 .ph-item { display: flex; flex-direction: column; gap: 6px; }
 .ph-item.ph-item-full { grid-column: 1 / -1; }
 .ph-k { font-size: 0.82em; font-weight: 700; color: var(--text3); letter-spacing: .04em; }

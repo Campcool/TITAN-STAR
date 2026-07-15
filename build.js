@@ -26,27 +26,27 @@ const morandiCssEscaped = JSON.stringify(morandiCss);
 const themeLoaderJs = `window.__morandiCSS__ = ${morandiCssEscaped};`;
 
 let html = indexHTML;
-html = html.replace('<link rel="stylesheet" href="styles.css">',     inlineStyle(stylesCss));
-html = html.replace('<link rel="stylesheet" href="rma-styles.css">', inlineStyle(rmaStylesCss));
+html = html.replace(/<link rel="stylesheet" href="styles\.css(?:\?[^"]*)?">/,     inlineStyle(stylesCss));
+html = html.replace(/<link rel="stylesheet" href="rma-styles\.css(?:\?[^"]*)?">/, inlineStyle(rmaStylesCss));
 // 莫蘭迪改用 JS 注入（window.__morandiCSS__），移除外部 link 避免 404
-html = html.replace('<link rel="stylesheet" href="styles-morandi.css" id="morandiThemeLink">', '');
+html = html.replace(/<link rel="stylesheet" href="styles-morandi\.css(?:\?[^"]*)?" id="morandiThemeLink">/, '');
 // 單檔版不使用 manifest / SW（需要獨立檔案才能運作），移除相關 link
 html = html.replace('<link rel="manifest" href="manifest.json">', '');
-html = html.replace('<script src="parser.js"></script>',   inlineScript(parserJs));
-html = html.replace('<script src="analyzer.js"></script>', inlineScript(analyzerJs));
-html = html.replace('<script src="report.js"></script>',   inlineScript(reportJs));
+html = html.replace(/<script src="parser\.js(?:\?[^"]*)?"><\/script>/,   inlineScript(parserJs));
+html = html.replace(/<script src="analyzer\.js(?:\?[^"]*)?"><\/script>/, inlineScript(analyzerJs));
+html = html.replace(/<script src="report\.js(?:\?[^"]*)?"><\/script>/,   inlineScript(reportJs));
 // 在 rma.js 前注入莫蘭迪 CSS 字串（rma.js 之後 index.html inline script 才初始化主題）
-html = html.replace('<script src="rma.js"></script>',
+html = html.replace(/<script src="rma\.js(?:\?[^"]*)?"><\/script>/,
   `<script>\n${themeLoaderJs}\n<\/script>\n` +
   inlineScript(rmaJs)()
 );
-html = html.replace('<script src="app.js"></script>',      inlineScript(appJs));
+html = html.replace(/<script src="app\.js(?:\?[^"]*)?"><\/script>/,      inlineScript(appJs));
 
 fs.writeFileSync('TITAN-STAR.html', html, 'utf8');
 
 // ── 驗證 ──
-const leftoverCss = ['styles.css', 'rma-styles.css'].filter(f => html.includes('href="' + f + '"'));
-const leftoverJs  = ['parser.js','analyzer.js','report.js','rma.js','app.js'].filter(f => html.includes('src="' + f + '"'));
+const leftoverCss = ['styles.css', 'rma-styles.css'].filter(f => new RegExp(`href="${f.replace('.', '\\.')}(?:\\?|")`).test(html));
+const leftoverJs  = ['parser.js','analyzer.js','report.js','rma.js','app.js'].filter(f => new RegExp(`src="${f.replace('.', '\\.')}(?:\\?|")`).test(html));
 if (leftoverCss.length || leftoverJs.length) {
   console.error('✗ 未內嵌：', [...leftoverCss, ...leftoverJs].join(', '));
   process.exit(1);

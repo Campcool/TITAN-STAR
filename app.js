@@ -65,7 +65,7 @@ window.App = (function () {
     selectedMonths: [],       // [] = all
     selectedCategory: '全部',
     selectedModel: '全部',
-    currentPage: 'overview',
+    currentPage: 'summary',
     analysisRole: 'all',
     charts: {},               // chart instance refs
     detailSearch: '',
@@ -170,16 +170,95 @@ window.App = (function () {
     } catch { return 0; }
   }
 
+  function canMaintainData() {
+    try {
+      const session = JSON.parse(sessionStorage.getItem('titan_session') || 'null');
+      return !!(session && session.isAdmin);
+    } catch {
+      return false;
+    }
+  }
+
+  function setTopbarDataControls() {
+    const isMaintainer = canMaintainData();
+    const uploadBtn = $('modeUploadBtn');
+    if (uploadBtn) uploadBtn.style.display = isMaintainer ? '' : 'none';
+    const reportBtn = $('modeReportBtn');
+    if (reportBtn) reportBtn.style.display = '';
+    const excelBtn = $('modeExcelBtn');
+    if (excelBtn) excelBtn.style.display = '';
+    const roleSel = $('roleSelWrap');
+    if (roleSel) roleSel.style.display = '';
+    const rmaBtn = $('modeRma');
+    if (rmaBtn) rmaBtn.style.display = 'none';
+  }
+
   // ─────────────── Cloud sync (read-only shared data via repo data.json) ───────────────
   const CLOUD_URL = './data.json';
   const CLOUD_SEEN_KEY = 'repair_cloud_seen';
+  const CLOUD_CHECK_KEY = 'repair_cloud_checked_month';
+  const AUTO_REPORT_DIR = './monthly-reports/';
+  const AUTO_REPORT_CHECK_KEY = 'repair_auto_report_checked_month';
+
+  function currentMonthKey(d = new Date()) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  function isMonthlySyncDay(d = new Date()) {
+    return d.getDate() === 1;
+  }
+
+  function previousMonthReportInfo(d = new Date()) {
+    const prev = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+    const y = prev.getFullYear();
+    const m = String(prev.getMonth() + 1).padStart(2, '0');
+    const roc = y - 1911;
+    const fileName = `${roc}年 ${m} 月維修報表.xlsx`;
+    return {
+      monthLabel: `${y}-${m}`,
+      fileName,
+      url: AUTO_REPORT_DIR + encodeURIComponent(fileName),
+    };
+  }
+
+  function countDbRecords(db) {
+    try {
+      return Object.values((db && db.months) || {})
+        .reduce((sum, month) => sum + ((month && month.records) ? month.records.length : 0), 0);
+    } catch {
+      return 0;
+    }
+  }
+
+  function hasUsableLocalData() {
+    return countDbRecords(RepairDB.load()) > 0;
+  }
+
+  function shouldCheckCloud() {
+    if (!hasUsableLocalData()) return true;
+    if (!isMonthlySyncDay()) return false;
+    const mk = currentMonthKey();
+    return localStorage.getItem(CLOUD_CHECK_KEY) !== mk;
+  }
 
   // Fetch shared data.json; if it is newer than what this browser last saw,
   // load it into localStorage so every user auto-syncs the maintainer's publish.
   async function syncCloud() {
     try {
+      if (!shouldCheckCloud()) {
+        const seen = localStorage.getItem(CLOUD_SEEN_KEY);
+        const localDb = RepairDB.load();
+        state.cloudMeta = {
+          publishedAt: seen || null,
+          publishedBy: '',
+          months: Object.keys(localDb.months || {}).length,
+          skipped: true,
+        };
+        return null;
+      }
       const res = await fetch(CLOUD_URL, { cache: 'no-store' });
       if (!res.ok) return null;
+      localStorage.setItem(CLOUD_CHECK_KEY, currentMonthKey());
       const cloud = await res.json();
       if (!cloud || !cloud.months) return null;
       const monthCount = Object.keys(cloud.months).length;
@@ -191,7 +270,7 @@ window.App = (function () {
       if (!monthCount) return cloud;
 
       const seen = localStorage.getItem(CLOUD_SEEN_KEY);
-      const hasLocalData = Object.keys(RepairDB.load().months).length > 0;
+      const hasLocalData = hasUsableLocalData();
       // 寫入條件：(1) 雲端有新 publish，或 (2) 本機 localStorage 已無資料（被清除/換裝置）
       if (!cloud.publishedAt || cloud.publishedAt !== seen || !hasLocalData) {
         // Adopt cloud data into localStorage so every user auto-syncs.
@@ -223,9 +302,60 @@ window.App = (function () {
     }
   }
 
+  async function syncMonthlyWorkbook() {
+    try {
+      if (!isMonthlySyncDay()) return null;
+      const checkedMonth = currentMonthKey();
+      if (localStorage.getItem(AUTO_REPORT_CHECK_KEY) === checkedMonth) return null;
+
+      const report = previousMonthReportInfo();
+      const db = RepairDB.load();
+      if (db.months && db.months[report.monthLabel]) {
+        localStorage.setItem(AUTO_REPORT_CHECK_KEY, checkedMonth);
+        state.autoReportMeta = { skipped: true, reason: 'already-imported', ...report };
+        return null;
+      }
+      if (!window.XLSX || !RepairParser || !RepairParser.parseWorkbook) {
+        state.autoReportMeta = { skipped: true, reason: 'xlsx-not-ready', ...report };
+        return null;
+      }
+
+      const res = await fetch(report.url, { cache: 'no-store' });
+      localStorage.setItem(AUTO_REPORT_CHECK_KEY, checkedMonth);
+      if (!res.ok) {
+        state.autoReportMeta = { skipped: true, reason: 'not-found', status: res.status, ...report };
+        return null;
+      }
+
+      const buf = await res.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+      const monthData = RepairParser.parseWorkbook(wb, report.fileName);
+      if (!monthData || !monthData.monthLabel || !(monthData.records || []).length) {
+        state.autoReportMeta = { skipped: true, reason: 'empty-parse', ...report };
+        return null;
+      }
+
+      const nextDb = RepairDB.load();
+      nextDb.months[monthData.monthLabel] = monthData;
+      RepairDB.save(nextDb);
+      state.autoReportMeta = {
+        imported: true,
+        monthLabel: monthData.monthLabel,
+        fileName: report.fileName,
+        records: monthData.records.length,
+      };
+      return monthData;
+    } catch (e) {
+      state.autoReportMeta = { skipped: true, reason: e.message };
+      console.warn('Monthly workbook sync skipped:', e.message);
+      return null;
+    }
+  }
+
   // Maintainer action: produce a data.json to commit to the repo.
   function publishData() {
     try {
+      if (!canMaintainData()) { alert('只有管理員可以發布共用資料'); return; }
       const raw = localStorage.getItem('repair_db_v2');
       const db = raw ? JSON.parse(raw) : { months: {} };
       if (!Object.keys(db.months || {}).length) { alert('目前沒有資料可發布,請先上傳報表'); return; }
@@ -266,12 +396,31 @@ window.App = (function () {
 
   function cloudStatusHtml() {
     const m = state.cloudMeta;
+    const auto = state.autoReportMeta;
+    const autoHtml = (() => {
+      if (!auto) {
+        if (!isMonthlySyncDay()) return `<div class="uz-cloud-bar ok">📁 自動月報：僅每月 1 號檢查 GitHub monthly-reports/</div>`;
+        return '';
+      }
+      if (auto.imported) {
+        return `<div class="uz-cloud-bar ok">📁 自動月報已匯入：${auto.monthLabel} · ${auto.records.toLocaleString()} 筆 · ${auto.fileName}</div>`;
+      }
+      const reasonMap = {
+        'already-imported': `已存在 ${auto.monthLabel}，本月不重複匯入`,
+        'not-found': `找不到 ${auto.fileName}，請確認已放到 monthly-reports/`,
+        'empty-parse': `${auto.fileName} 沒有解析到維修資料`,
+        'xlsx-not-ready': 'Excel 解析器尚未載入',
+      };
+      const msg = reasonMap[auto.reason] || auto.reason || '未執行';
+      return `<div class="uz-cloud-bar none">📁 自動月報：${msg}</div>`;
+    })();
     if (!m || !m.publishedAt) {
-      return `<div class="uz-cloud-bar none">☁ 雲端尚無共用資料 — 上傳後按「發布到雲端」即可讓所有人同步</div>`;
+      return `<div class="uz-cloud-bar none">☁ 雲端尚無共用資料 — 上傳後按「發布到雲端」即可讓所有人同步</div>${autoHtml}`;
     }
     const d = new Date(m.publishedAt);
     const ds = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-    return `<div class="uz-cloud-bar ok">☁ 已連動雲端共用資料 · ${m.months} 個月份 · 發布於 ${ds}${state.cloudJustLoaded ? ' <strong>(已載入最新版)</strong>' : ''}</div>`;
+    const syncNote = m.skipped ? ' · 本次未讀取 GitHub' : '';
+    return `<div class="uz-cloud-bar ok">☁ 已連動雲端共用資料 · ${m.months} 個月份 · 發布於 ${ds}${state.cloudJustLoaded ? ' <strong>(已載入最新版)</strong>' : ''}${syncNote}</div>${autoHtml}`;
   }
 
   function renderUploadList() {
@@ -374,6 +523,7 @@ window.App = (function () {
   }
 
   function exportData() {
+    if (!canMaintainData()) { alert('只有管理員可以備份資料'); return; }
     try {
       const raw = localStorage.getItem('repair_db_v2');
       if (!raw) { alert('目前沒有資料可備份'); return; }
@@ -392,6 +542,7 @@ window.App = (function () {
   }
 
   function importData(input) {
+    if (!canMaintainData()) { alert('只有管理員可以還原資料'); if (input) input.value = ''; return; }
     const file = input.files[0];
     if (!file) return;
     const reader = new FileReader();
@@ -413,6 +564,7 @@ window.App = (function () {
   }
 
   function removeMonth(mk) {
+    if (!canMaintainData()) { alert('只有管理員可以移除月份資料'); return; }
     if (!confirm(`確定移除 ${fmt.monthLabel(mk)} 的資料？`)) return;
     RepairDB.removeMonth(mk);
     state.db = RepairDB.load();
@@ -420,12 +572,14 @@ window.App = (function () {
   }
 
   function clearAll() {
+    if (!canMaintainData()) { alert('只有管理員可以清除資料'); return; }
     if (!confirm('確定清除所有累積資料？此操作無法復原。')) return;
     state.db = RepairDB.clear();
     renderUploadList();
   }
 
   function confirmClear() {
+    if (!canMaintainData()) { alert('只有管理員可以清除資料'); return; }
     if (!confirm('確定清除所有累積資料？此操作無法復原。')) return;
     state.db = RepairDB.clear();
     openUpload();
@@ -441,11 +595,7 @@ window.App = (function () {
     $('dash').classList.add('active');
     if ($('modeBar')) $('modeBar').style.display = 'flex';
     if ($('rmaDash')) $('rmaDash').style.display = 'none';
-    const mub = $('modeUploadBtn'); if (mub) mub.style.display = '';
-    const mrb = $('modeReportBtn'); if (mrb) mrb.style.display = '';
-    const meb = $('modeExcelBtn'); if (meb) meb.style.display = '';
-    const rsw = $('roleSelWrap'); if (rsw) rsw.style.display = '';
-    const mrma = $('modeRma'); if (mrma) mrma.style.display = '';
+    setTopbarDataControls();
     try {
       const c = localStorage.getItem('titan_subbar_collapsed');
       const sb = $('subbar');
@@ -473,11 +623,15 @@ window.App = (function () {
           const guide = document.createElement('div');
           guide.id = 'noDataGuide';
           guide.className = 'no-data-guide';
-          guide.innerHTML = `
+          const isMaintainer = canMaintainData();
+          guide.innerHTML = isMaintainer ? `
             <div class="ndg-ico">📂</div>
             <div class="ndg-t">尚未載入報表資料</div>
             <div class="ndg-d">點擊右上角 ⤒ 按鈕上傳 Excel 報表，或點下方按鈕開始</div>
-            <button class="btn primary ndg-btn" onclick="App.openUpload()">⤒ 上傳報表</button>`;
+            <button class="btn primary ndg-btn" onclick="App.openUpload()">⤒ 上傳報表</button>` : `
+            <div class="ndg-ico">☁</div>
+            <div class="ndg-t">尚未同步報表資料</div>
+            <div class="ndg-d">請聯絡管理員將每月維修資料發布到 GitHub，重新登入後會自動載入結果。</div>`;
           content.prepend(guide);
         }
       }
@@ -508,11 +662,7 @@ window.App = (function () {
     $('dash').classList.add('active');
     if ($('modeBar')) $('modeBar').style.display = 'flex';
     if ($('rmaDash')) $('rmaDash').style.display = 'none';
-    const mub = $('modeUploadBtn'); if (mub) mub.style.display = '';
-    const mrb = $('modeReportBtn'); if (mrb) mrb.style.display = '';
-    const meb = $('modeExcelBtn'); if (meb) meb.style.display = '';
-    const rsw = $('roleSelWrap'); if (rsw) rsw.style.display = '';
-    const mrma = $('modeRma'); if (mrma) mrma.style.display = '';
+    setTopbarDataControls();
     // Restore subbar collapsed state
     try {
       const c = localStorage.getItem('titan_subbar_collapsed');
@@ -542,6 +692,11 @@ window.App = (function () {
   }
 
   function openUpload() {
+    if (!canMaintainData()) {
+      alert('資料已由管理員每月發布到 GitHub；一般使用者登入後直接查看結果即可。');
+      openDashboardDirect();
+      return;
+    }
     $('dash').classList.remove('active');
     $('uploadZone').style.display = 'flex';
     state.db = RepairDB.load();
@@ -673,6 +828,18 @@ window.App = (function () {
       cs.value = state.selectedCategory;
     }
 
+    const allModelCounts = {};
+    for (const r of records) allModelCounts[r.model] = (allModelCounts[r.model] || 0) + 1;
+    const allModels = Object.entries(allModelCounts).sort((a, b) => b[1] - a[1]).map(([m]) => m);
+    const modelList = $('modelLookupList');
+    if (modelList) {
+      modelList.innerHTML = allModels.map(m => `<option value="${m}">${allModelCounts[m]} 筆</option>`).join('');
+    }
+    const modelInput = $('modelQuickSearch');
+    if (modelInput && document.activeElement !== modelInput) {
+      modelInput.value = state.selectedModel === '全部' ? '' : state.selectedModel;
+    }
+
     // Model chips (only when a category is selected)
     if (state.selectedCategory !== '全部') {
       const inCat = records.filter(r => r.category === state.selectedCategory);
@@ -748,6 +915,31 @@ window.App = (function () {
 
   function setModel(m) {
     state.selectedModel = m;
+    renderAll();
+    saveFilterState();
+    collapseSubbar();
+  }
+
+  function quickModelSearch(raw) {
+    const q = String(raw || '').trim();
+    if (!q) {
+      state.selectedModel = '全部';
+      renderAll();
+      saveFilterState();
+      return;
+    }
+    const records = RepairAnalyzer.getRecords(state.db, { months: state.selectedMonths });
+    const models = Array.from(new Set(records.map(r => r.model))).sort();
+    const norm = RepairAnalyzer.normalizeModel ? RepairAnalyzer.normalizeModel(q) : q.toUpperCase().replace(/[-_\s]/g, '');
+    const exact = models.find(m => (RepairAnalyzer.normalizeModel ? RepairAnalyzer.normalizeModel(m) : m) === norm);
+    const fuzzy = exact || models.find(m => m.includes(norm) || norm.includes(m));
+    if (!fuzzy) {
+      alert(`找不到型號「${q}」。請確認月份範圍是否包含該型號。`);
+      return;
+    }
+    state.selectedCategory = '全部';
+    state.selectedModel = fuzzy;
+    state.currentPage = 'trend';
     renderAll();
     saveFilterState();
     collapseSubbar();
@@ -1808,30 +2000,139 @@ window.App = (function () {
     },
   };
 
+  const PAGE_GUIDE = {
+    summary: {
+      simple: '登入後先看這頁，知道今天最該處理哪幾件事。',
+      when: '每天第一次打開、開週會或月會前先看。',
+      read: '先看紅色和橘色提醒；沒有紅色，就代表暫時沒有大問題。',
+      steps: ['選你的角色。', '看最上面的重點卡片。', '有紅色就按「前往」看原因。', '把要追的問題交給負責人。']
+    },
+    overview: {
+      simple: '看全廠這個月壞了多少、哪個型號最多、哪個零件最多。',
+      when: '想先知道整體狀況時看這頁。',
+      read: '先看維修件數，再看型號排名和零件排名。',
+      steps: ['確認月份是你要看的月份。', '看總維修數有沒有明顯變多。', '找出前三名型號。', '再去「零件分析」看是哪個零件造成。']
+    },
+    alerts: {
+      simple: '幫你找「長期看起來不太正常」的地方。',
+      when: '想知道有沒有未知異常、故障是不是變嚴重時看。',
+      read: '紅色先處理；短暫上升只當提醒，不直接判定異常。',
+      steps: ['先看紅色異常。', '確認是不是連續幾個月都上升。', '點到相關頁面看型號和零件。', '如果只是一個月變多，先觀察不要急著判定。']
+    },
+    parts: {
+      simple: '看哪個零件最常壞，先抓最有影響的零件。',
+      when: '要備料、改善零件品質、找常壞零件時看。',
+      read: '排名越前面，代表越值得先檢查。',
+      steps: ['看零件排行榜。', '先挑前三名。', '確認它們影響哪些型號。', '需要時再開改善追蹤。']
+    },
+    cross: {
+      simple: '看同一個零件是不是害到很多型號。',
+      when: '懷疑不是單一機種，而是共用零件本身有問題時看。',
+      read: '同一零件出現在越多型號，越像共用料問題。',
+      steps: ['找跨兩個以上型號的零件。', '看受影響型號清單。', '確認是否同供應商或同批料。', '通知採購、品保或工程一起追。']
+    },
+    trend: {
+      simple: '看故障是慢慢變多、變少，還是只是某個月跳一下。',
+      when: '要判斷長期趨勢時看這頁。',
+      read: '連續上升才重要；單月跳高先當提醒。',
+      steps: ['選最近 1 到 2 年資料。', '看總維修線有沒有連續上升。', '再看主要零件是否也上升。', '連續多月上升才列為優先處理。']
+    },
+    reason: {
+      simple: '看產品到底是因為什麼原因壞掉。',
+      when: '想找故障原因和改善方向時看。',
+      read: '最大的故障原因，就是最先要問「為什麼」的地方。',
+      steps: ['看故障原因排名。', '挑最多的原因。', '看它對應哪些型號和零件。', '再決定要改製程、料件或維修方式。']
+    },
+    scrap: {
+      simple: '看報廢和修了又壞的狀況。',
+      when: '想知道維修品質好不好、哪些序號一直回來時看。',
+      read: '重複維修和報廢都代表成本和品質壓力。',
+      steps: ['看重複維修數。', '找同一序號是否多次維修。', '看報廢集中在哪些型號。', '把高風險項目列入追蹤。']
+    },
+    detail: {
+      simple: '查每一筆原始維修資料。',
+      when: '需要查序號、型號、故障原因或匯出明細時看。',
+      read: '這頁像資料表，拿來查證用。',
+      steps: ['輸入序號、型號或零件。', '縮小搜尋結果。', '點開或匯出需要的資料。', '用明細確認前面頁面的判斷。']
+    },
+    quality: {
+      simple: '給品保看整體品質指標。',
+      when: '要向主管報告品質表現時看。',
+      read: '數字變差不一定立刻異常，要搭配趨勢一起看。',
+      steps: ['看故障率和重修率。', '確認是否連續變差。', '對照異常偵測頁。', '需要正式改善時再開追蹤。']
+    },
+    batch: {
+      simple: '看是不是同一批產品或同一批料比較容易壞。',
+      when: '懷疑批次問題時看。',
+      read: '同批次集中出現，才值得往批次問題查。',
+      steps: ['看故障是否集中在某批。', '確認批次數量夠不夠。', '比對故障零件和原因。', '必要時請品保追批次來源。']
+    },
+    risk: {
+      simple: '把問題按風險大小排隊。',
+      when: '問題很多，不知道先處理哪個時看。',
+      read: '分數越高，越應該優先處理。',
+      steps: ['看最高風險項目。', '確認是不是也有長期上升。', '選前幾名安排改善。', '處理後回來看分數是否下降。']
+    },
+    capa: {
+      simple: '把要改善的事列成追蹤清單。',
+      when: '確定有重大或長期異常，需要追到結案時看。',
+      read: '這頁是管理改善事項，不是找異常的第一站。',
+      steps: ['先從異常或風險頁找到問題。', '建立改善項目。', '填負責人和期限。', '每週更新狀態直到關閉。']
+    },
+    cost: {
+      simple: '把故障和報廢換算成大概花了多少錢。',
+      when: '要向管理層說明改善效益時看。',
+      read: '成本需要先設定單價；沒設定時只當參考。',
+      steps: ['先確認單價資料是否正確。', '看報廢和維修成本。', '找成本最高的型號或零件。', '用來支持改善優先順序。']
+    },
+    partsdb: {
+      simple: '幫零件取好懂的分類名字。',
+      when: '零件名稱太難懂、想統一分類時看。',
+      read: '分類越清楚，其他頁面的分析越好懂。',
+      steps: ['搜尋零件品號。', '確認系統分類是否正確。', '必要時改成好懂的類別。', '回到零件分析確認標籤是否正常。']
+    }
+  };
+
   function injectHelp(pageName) {
+    const guide = PAGE_GUIDE[pageName];
     const help = HELP[pageName];
     const pageEl = $(`page${pageName.charAt(0).toUpperCase() + pageName.slice(1)}`);
     if (!pageEl) return;
     // Remove old inline help block if any
-    const old = pageEl.querySelector(':scope > .page-help');
+    const old = pageEl.querySelector(':scope > .page-simple-help, :scope > .page-help');
     if (old) old.remove();
-    if (!help) return;
+    if (!help && !guide) return;
     // Inject i-button right after the page title text (inside .page-t)
     const titleEl = pageEl.querySelector(':scope > .page-h .page-t');
     if (!titleEl) return;
     if (!titleEl.querySelector('.ph-icon-btn')) {
       const ibtn = document.createElement('button');
       ibtn.className = 'ph-icon-btn';
-      ibtn.title = '使用說明';
+      ibtn.title = '看詳細流程';
       ibtn.textContent = 'i';
       ibtn.onclick = () => App.showHelpModal(pageName);
       titleEl.appendChild(ibtn);
     }
+    if (guide) {
+      const box = document.createElement('div');
+      box.className = 'page-simple-help';
+      box.innerHTML = `
+        <div class="page-simple-help-copy">
+          <span class="page-simple-help-label">這頁做什麼</span>
+          <span class="page-simple-help-text">${escapeHtml(guide.simple)}</span>
+        </div>
+        <button class="page-simple-help-btn" type="button">看詳細流程</button>`;
+      const btn = box.querySelector('.page-simple-help-btn');
+      if (btn) btn.onclick = () => App.showHelpModal(pageName);
+      const header = pageEl.querySelector(':scope > .page-h');
+      if (header) header.insertAdjacentElement('afterend', box);
+    }
   }
 
   function showHelpModal(pageName) {
+    const guide = PAGE_GUIDE[pageName];
     const help = HELP[pageName];
-    if (!help) return;
+    if (!guide && !help) return;
     const pageTitleEl = document.querySelector(`#page${pageName.charAt(0).toUpperCase()+pageName.slice(1)} .page-t`);
     const pageTitle = pageTitleEl ? pageTitleEl.textContent.replace('i','').trim() : '使用說明';
     let modal = $('helpModal');
@@ -1841,6 +2142,38 @@ window.App = (function () {
       modal.className = 'help-modal-mask';
       modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
       document.body.appendChild(modal);
+    }
+    if (guide) {
+      modal.innerHTML = `
+      <div class="help-modal">
+        <div class="help-modal-h">
+          <span class="help-modal-ico">i</span>
+          <span class="help-modal-title">${escapeHtml(pageTitle)} · 詳細流程</span>
+          <button class="help-modal-close" onclick="document.getElementById('helpModal').style.display='none'">×</button>
+        </div>
+        <div class="help-modal-body help-modal-simple">
+          <div class="help-flow-block">
+            <span class="help-flow-label">一句話</span>
+            <span class="help-flow-text">${escapeHtml(guide.simple)}</span>
+          </div>
+          <div class="help-flow-block">
+            <span class="help-flow-label">什麼時候看</span>
+            <span class="help-flow-text">${escapeHtml(guide.when)}</span>
+          </div>
+          <div class="help-flow-block help-flow-wide">
+            <span class="help-flow-label">先看哪裡</span>
+            <span class="help-flow-text">${escapeHtml(guide.read)}</span>
+          </div>
+          <div class="help-flow-block help-flow-wide">
+            <span class="help-flow-label">照這樣做</span>
+            <ol class="help-flow-steps">
+              ${guide.steps.map(step => `<li>${escapeHtml(step)}</li>`).join('')}
+            </ol>
+          </div>
+        </div>
+      </div>`;
+      modal.style.display = 'flex';
+      return;
     }
     modal.innerHTML = `
       <div class="help-modal">
@@ -5192,7 +5525,11 @@ window.App = (function () {
   let syncCloudPromise = null;
 
   async function init() {
-    syncCloudPromise = syncCloud();
+    syncCloudPromise = (async () => {
+      const cloud = await syncCloud();
+      await syncMonthlyWorkbook();
+      return cloud;
+    })();
     const cloud = await syncCloudPromise;
     state.cloudUsers = (cloud && cloud.users) ? cloud.users : null;
     setupUpload();
@@ -5246,7 +5583,7 @@ window.App = (function () {
     openDashboard, openDashboardDirect, openUpload, switchPage,
     toggleNav, closeNav,
     pdbSearch: pdbSearchRender, pdbOpenEdit, pdbCloseEdit, pdbSaveEdit, pdbDelete,
-    setMonth, setMonthDirect, setCategory, setModel,
+    setMonth, setMonthDirect, setCategory, setModel, quickModelSearch,
     setAnalysisRole,
     openCapaForm, saveCapaForm, setCapaStatus, deleteCapa,
     openCostConfig, saveCostConfig, quickEstimateCost,
@@ -5686,12 +6023,23 @@ window.Auth = (function () {
     try {
       const saved = JSON.parse(sessionStorage.getItem(FILTER_SESSION_KEY) || 'null');
       if (!saved || !state.db) return false;
-      const allMonths = Object.keys(state.db.months);
+      const allMonths = Object.keys(state.db.months).sort();
       const validMonths = (saved.months || []).filter(m => allMonths.includes(m));
-      if (validMonths.length) state.selectedMonths = validMonths;
-      if (saved.category) state.selectedCategory = saved.category;
-      if (saved.model) state.selectedModel = saved.model;
-      if (saved.page && saved.page !== 'summary') {
+      state.selectedMonths = validMonths.length ? validMonths : allMonths.slice();
+
+      const validCategories = new Set(['全部', ...Object.keys(RepairParser.CATEGORY_MAP || {}), '其他']);
+      state.selectedCategory = validCategories.has(saved.category) ? saved.category : '全部';
+
+      const recordsForMonths = RepairAnalyzer.getRecords(state.db, { months: state.selectedMonths });
+      const validModels = new Set(recordsForMonths.map(r => r.model));
+      if (saved.model && saved.model !== '全部') {
+        const normSaved = RepairAnalyzer.normalizeModel ? RepairAnalyzer.normalizeModel(saved.model) : saved.model;
+        state.selectedModel = validModels.has(normSaved) ? normSaved : '全部';
+      } else {
+        state.selectedModel = '全部';
+      }
+
+      if (saved.page && PAGE_NAME[saved.page] && saved.page !== 'summary') {
         state.currentPage = saved.page;
       }
       return true;

@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "import:month": "node scripts/import-month.js",
+    "build": "node build.js"
+  },
   "devDependencies": {
     "xlsx": "^0.18.5"
   }

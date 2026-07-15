@@ -9,12 +9,12 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="TITAN-STAR">
 <link rel="manifest" href="manifest.json">
-<title>TITAN-STAR · 維修分析 & RMA 管理</title>
+<title>TITAN-STAR · 維修分析</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css">
-<link rel="stylesheet" href="rma-styles.css">
-<link rel="stylesheet" href="styles-morandi.css" id="morandiThemeLink">
+<link rel="stylesheet" href="styles.css?v=20260715-2">
+<link rel="stylesheet" href="rma-styles.css?v=20260715-2">
+<link rel="stylesheet" href="styles-morandi.css?v=20260715-2" id="morandiThemeLink">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
@@ -28,7 +28,7 @@
   <div style="text-align:center;margin-bottom:32px">
     <div class="s-icon" style="margin:0 auto 16px;width:52px;height:52px;font-size:22px;line-height:52px">S</div>
     <div style="font-size:22px;font-weight:700;letter-spacing:0.05em">TITAN-STAR</div>
-    <div style="font-size:13px;color:var(--text2);margin-top:4px">維修分析 &amp; RMA 管理系統</div>
+    <div style="font-size:13px;color:var(--text2);margin-top:4px">維修分析系統</div>
   </div>
   <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:32px;width:320px;max-width:90vw">
     <div style="font-size:15px;font-weight:600;margin-bottom:20px">請輸入員工編號登入</div>
@@ -109,11 +109,11 @@
   <div class="uz-wrap">
     <div class="uz-brand">
       <div class="uz-mark">TS</div>
-      <div class="uz-title"><strong>TITAN-STAR</strong> · 維修分析 &amp; RMA 管理</div>
+      <div class="uz-title"><strong>TITAN-STAR</strong> · 維修分析</div>
     </div>
 
     <!-- Mode selection before upload -->
-    <div class="uz-mode-row">
+    <div class="uz-mode-row" style="display:none">
       <div class="uz-mode-card active" id="uzModeA" onclick="uzSelectMode('analysis')">
         <div class="uz-mode-ico">◈</div>
         <div class="uz-mode-t">維修分析報表</div>
@@ -173,6 +173,13 @@
         <select class="sb-select" id="monthSelect" onchange="App.setMonthDirect(this.value)"></select>
         <select class="sb-select" id="catSelect" onchange="App.setCategory(this.value)"></select>
       </div>
+      <div class="subbar-row model-lookup-row">
+        <div class="sb-label">型號查詢</div>
+        <input class="model-lookup-input" id="modelQuickSearch" list="modelLookupList" placeholder="輸入型號，例如 MSM0801 / ZSPMG51"
+          onchange="App.quickModelSearch(this.value)"
+          onkeydown="if(event.key==='Enter')App.quickModelSearch(this.value)">
+        <datalist id="modelLookupList"></datalist>
+      </div>
       <!-- Desktop: chip rows (>820px) -->
       <div class="subbar-row subbar-chips-row" id="monthChips"></div>
       <div class="subbar-row subbar-chips-row" id="catChips"></div>
@@ -189,59 +196,59 @@
       <button class="sidebar-mini-toggle" id="sidebarMiniToggle" onclick="App.toggleSidebarMini()" title="收合側欄">◁</button>
       <div class="snav">
         <div class="snav-h"><span class="snav-lbl">分析</span></div>
-        <button class="snav-item" data-page="summary" onclick="App.switchPage('summary')" title="主管摘要">
-          <div class="snav-l"><span class="snav-ico">★</span><span class="snav-lbl"> 主管摘要</span></div>
+        <button class="snav-item active" data-page="summary" onclick="App.switchPage('summary')" title="今日重點">
+          <div class="snav-l"><span class="snav-ico">★</span><span class="snav-lbl"> 今日重點</span></div>
           <span class="snav-badge" id="summaryBadge" style="display:none">0</span>
         </button>
-        <button class="snav-item active" data-page="overview" onclick="App.switchPage('overview')" title="總覽">
+        <button class="snav-item" data-page="overview" onclick="App.switchPage('overview')" title="總覽">
           <div class="snav-l"><span class="snav-ico">◈</span><span class="snav-lbl"> 總覽</span></div>
         </button>
-        <button class="snav-item" data-page="alerts" onclick="App.switchPage('alerts')" title="異常偵測">
-          <div class="snav-l"><span class="snav-ico">!</span><span class="snav-lbl"> 異常偵測</span></div>
+        <button class="snav-item" data-page="alerts" onclick="App.switchPage('alerts')" title="找異常">
+          <div class="snav-l"><span class="snav-ico">!</span><span class="snav-lbl"> 找異常</span></div>
           <span class="snav-badge" id="alertBadge" style="display:none">0</span>
         </button>
-        <button class="snav-item" data-page="parts" onclick="App.switchPage('parts')" title="零件 Pareto">
-          <div class="snav-l"><span class="snav-ico">▤</span><span class="snav-lbl"> 零件 Pareto</span></div>
+        <button class="snav-item" data-page="parts" onclick="App.switchPage('parts')" title="零件">
+          <div class="snav-l"><span class="snav-ico">▤</span><span class="snav-lbl"> 零件</span></div>
         </button>
         <button class="snav-item" data-page="cross" onclick="App.switchPage('cross')" title="跨機種矩陣">
-          <div class="snav-l"><span class="snav-ico">⇄</span><span class="snav-lbl"> 跨機種矩陣</span></div>
+          <div class="snav-l"><span class="snav-ico">⇄</span><span class="snav-lbl"> 共用零件</span></div>
         </button>
-        <button class="snav-item" data-page="trend" onclick="App.switchPage('trend')" title="月份趨勢">
-          <div class="snav-l"><span class="snav-ico">↗</span><span class="snav-lbl"> 月份趨勢</span></div>
+        <button class="snav-item" data-page="trend" onclick="App.switchPage('trend')" title="趨勢">
+          <div class="snav-l"><span class="snav-ico">↗</span><span class="snav-lbl"> 趨勢</span></div>
         </button>
-        <button class="snav-item" data-page="reason" onclick="App.switchPage('reason')" title="故障原因">
-          <div class="snav-l"><span class="snav-ico">◎</span><span class="snav-lbl"> 故障原因</span></div>
+        <button class="snav-item" data-page="reason" onclick="App.switchPage('reason')" title="原因">
+          <div class="snav-l"><span class="snav-ico">◎</span><span class="snav-lbl"> 原因</span></div>
         </button>
         <div class="snav-sep"></div>
         <div class="snav-h"><span class="snav-lbl">品質工程</span></div>
         <button class="snav-item" data-page="quality" onclick="App.switchPage('quality')" title="品質指標/SPC">
-          <div class="snav-l"><span class="snav-ico">◈</span><span class="snav-lbl"> 品質指標 / SPC</span></div>
+          <div class="snav-l"><span class="snav-ico">◈</span><span class="snav-lbl"> 品質</span></div>
         </button>
         <button class="snav-item" data-page="batch" onclick="App.switchPage('batch')" title="製造批次分析">
-          <div class="snav-l"><span class="snav-ico">⊞</span><span class="snav-lbl"> 製造批次分析</span></div>
+          <div class="snav-l"><span class="snav-ico">⊞</span><span class="snav-lbl"> 批次</span></div>
           <span class="snav-badge" id="batchBadge" style="display:none">0</span>
         </button>
         <button class="snav-item" data-page="risk" onclick="App.switchPage('risk')" title="風險/根因/預測">
-          <div class="snav-l"><span class="snav-ico">⚠</span><span class="snav-lbl"> 風險 / 根因 / 預測</span></div>
+          <div class="snav-l"><span class="snav-ico">⚠</span><span class="snav-lbl"> 風險</span></div>
         </button>
         <button class="snav-item" data-page="capa" onclick="App.switchPage('capa')" title="CAPA 追蹤">
-          <div class="snav-l"><span class="snav-ico">✓</span><span class="snav-lbl"> CAPA 追蹤</span></div>
+          <div class="snav-l"><span class="snav-ico">✓</span><span class="snav-lbl"> 改善追蹤</span></div>
           <span class="snav-badge" id="capaBadge" style="display:none">0</span>
         </button>
         <button class="snav-item" data-page="cost" onclick="App.switchPage('cost')" title="成本量化">
-          <div class="snav-l"><span class="snav-ico">$</span><span class="snav-lbl"> 成本量化</span></div>
+          <div class="snav-l"><span class="snav-ico">$</span><span class="snav-lbl"> 成本</span></div>
         </button>
         <div class="snav-sep"></div>
         <div class="snav-h"><span class="snav-lbl">追蹤</span></div>
         <button class="snav-item" data-page="scrap" onclick="App.switchPage('scrap')" title="報廢 & 重修">
-          <div class="snav-l"><span class="snav-ico">↻</span><span class="snav-lbl"> 報廢 &amp; 重修</span></div>
+          <div class="snav-l"><span class="snav-ico">↻</span><span class="snav-lbl"> 報廢重修</span></div>
           <span class="snav-badge" id="crossMonthBadge" style="display:none">0</span>
         </button>
         <button class="snav-item" data-page="detail" onclick="App.switchPage('detail')" title="明細資料">
-          <div class="snav-l"><span class="snav-ico">≡</span><span class="snav-lbl"> 明細資料</span></div>
+          <div class="snav-l"><span class="snav-ico">≡</span><span class="snav-lbl"> 查資料</span></div>
         </button>
         <button class="snav-item" data-page="partsdb" onclick="App.switchPage('partsdb')" title="料件資料庫">
-          <div class="snav-l"><span class="snav-ico">⛁</span><span class="snav-lbl"> 料件資料庫</span></div>
+          <div class="snav-l"><span class="snav-ico">⛁</span><span class="snav-lbl"> 料件</span></div>
         </button>
       </div>
     </nav>
@@ -257,7 +264,7 @@
         </div>
 
         <!-- Manager Summary -->
-        <div class="page" id="pageSummary">
+        <div class="page active" id="pageSummary">
           <div class="page-h">
             <div>
               <div class="page-t">主管摘要</div>
@@ -272,7 +279,7 @@
         </div>
 
         <!-- Overview -->
-        <div class="page active" id="pageOverview">
+        <div class="page" id="pageOverview">
           <div class="page-h">
             <div>
               <div class="page-t">總覽</div>
@@ -699,11 +706,11 @@
 <!-- RMA Modal container -->
 <div id="rmaModal" style="display:none;position:fixed;inset:0;z-index:600;align-items:center;justify-content:center"></div>
 
-<script src="parser.js"></script>
-<script src="analyzer.js"></script>
-<script src="app.js"></script>
-<script src="report.js"></script>
-<script src="rma.js"></script>
+<script src="parser.js?v=20260715-2"></script>
+<script src="analyzer.js?v=20260715-2"></script>
+<script src="app.js?v=20260715-2"></script>
+<script src="report.js?v=20260715-2"></script>
+<script src="rma.js?v=20260715-2"></script>
 <script>
 // ─── Theme toggle（深色 ↔ 莫蘭迪淺色）───
 const THEME_KEY = 'titan_theme';
@@ -760,23 +767,36 @@ let currentMode = 'analysis';
 let uzMode = 'analysis';
 
 function uzSelectMode(mode) {
+  mode = 'analysis';
   uzMode = mode;
   document.getElementById('uzModeA').classList.toggle('active', mode === 'analysis');
-  document.getElementById('uzModeR').classList.toggle('active', mode === 'rma');
+  const uzModeR = document.getElementById('uzModeR');
+  if (uzModeR) uzModeR.classList.toggle('active', false);
   document.getElementById('uzAnalysisSection').style.display = mode === 'analysis' ? '' : 'none';
   document.getElementById('uzRmaSection').style.display = mode === 'rma' ? '' : 'none';
 }
 
 function openRmaMode() {
-  document.getElementById('uploadZone').style.display = 'none';
-  document.getElementById('modeBar').style.display = 'flex';
-  switchMode('rma');
+  switchMode('analysis');
 }
 
 function switchMode(mode) {
+  if (mode === 'rma') mode = 'analysis';
   currentMode = mode;
   document.getElementById('modeAnalysis').classList.toggle('active', mode === 'analysis');
-  document.getElementById('modeRma').classList.toggle('active', mode === 'rma');
+  const modeRma = document.getElementById('modeRma');
+  if (modeRma) {
+    modeRma.classList.toggle('active', false);
+    modeRma.style.display = 'none';
+  }
+  const canMaintainData = (() => {
+    try {
+      const session = JSON.parse(sessionStorage.getItem('titan_session') || 'null');
+      return !!(session && session.isAdmin);
+    } catch(e) {
+      return false;
+    }
+  })();
 
   const dash = document.getElementById('dash');
   const rmaDash = document.getElementById('rmaDash');
@@ -791,7 +811,9 @@ function switchMode(mode) {
       dash.classList.add('active');
       rmaDash.style.display = 'none';
       modeBar.style.display = 'flex';
-      ['modeUploadBtn','modeReportBtn','roleSelWrap','modeRma'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
+      ['modeReportBtn','roleSelWrap'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
+      const uploadBtn = document.getElementById('modeUploadBtn');
+      if (uploadBtn) uploadBtn.style.display = canMaintainData ? '' : 'none';
     } else {
       // No data yet — show upload zone
       uploadZone.style.display = 'flex';
@@ -807,7 +829,7 @@ function switchMode(mode) {
     modeBar.style.display = 'flex';
     ['modeUploadBtn','modeReportBtn','roleSelWrap'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
     const modeRmaEl = document.getElementById('modeRma');
-    if (modeRmaEl) modeRmaEl.style.display = '';
+    if (modeRmaEl) modeRmaEl.style.display = 'none';
     // Init RMA content container
     const rmaContent = document.getElementById('rmaContent');
     if (rmaContent) {

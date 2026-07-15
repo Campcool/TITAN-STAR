@@ -441,11 +441,25 @@
     const prevRecs = prevMonth ? getRecords(db, { months: [prevMonth] }) : [];
     const prevParts = prevMonth ? partPareto(prevRecs) : [];
     const prevPartMap = new Map(prevParts.map(p => [p.name, p.count]));
+    const baselineMonths = monthKeys.slice(Math.max(0, curIdx - 3), curIdx);
+    const baselinePartMaps = baselineMonths.map(mk =>
+      new Map(partPareto(getRecords(db, { months: [mk] })).map(p => [p.name, p.count]))
+    );
+    const baselinePartNames = new Set();
+    for (const mp of baselinePartMaps) {
+      for (const name of mp.keys()) baselinePartNames.add(name);
+    }
+    const baselineAvg = (name) => {
+      if (!baselinePartMaps.length) return 0;
+      const sum = baselinePartMaps.reduce((s, mp) => s + (mp.get(name) || 0), 0);
+      return sum / baselinePartMaps.length;
+    };
 
     // 1) NEW high-volume parts
     for (const p of curParts) {
-      if (p.count < 3) continue;
-      if (!prevPartMap.has(p.name) && prevMonth) {
+      // 小樣本單月出現容易是填寫粒度差異，先不打異常；真正的新熱點需同時滿足高件數與歷史未出現。
+      if (p.count < 10) continue;
+      if (!baselinePartNames.has(p.name) && prevMonth) {
         anomalies.push({
           severity: 'critical',
           type: 'new_part',
@@ -464,8 +478,10 @@
     // 2) Surging parts
     for (const p of curParts) {
       const prev = prevPartMap.get(p.name) || 0;
-      if (prev > 0 && p.count >= 3) {
-        const growth = (p.count - prev) / prev;
+      const base = baselineAvg(p.name);
+      // 短期低基數跳動先忽略；用近 3 個月平均當基準，避免 1→5 這類雜訊每月報警。
+      if (prev > 0 && p.count >= 10 && base >= 3) {
+        const growth = (p.count - base) / base;
         if (growth >= 1.0) {
           anomalies.push({
             severity: growth >= 3 ? 'critical' : 'warn',
@@ -473,11 +489,11 @@
             icon: '↑',
             title: `零件用量暴增`,
             subject: p.name,
-            message: `${prev} → ${p.count} 件 (+${Math.round(growth * 100)}%)`,
+            message: `近${baselineMonths.length}月均 ${base.toFixed(1)} → 本月 ${p.count} 件 (+${Math.round(growth * 100)}%)`,
             metric: Math.round(growth * 100),
             metricLabel: '%',
             drillDown: { kind: 'part', partNorm: p.name },
-            detail: { part: p, prev, current: p.count, growth },
+            detail: { part: p, prev, baseline: base, current: p.count, growth },
           });
         }
       }
