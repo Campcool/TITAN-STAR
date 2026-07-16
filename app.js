@@ -958,7 +958,6 @@ window.App = (function () {
     renderAll();
     saveFilterState();
     collapseSubbar();
-    setTimeout(() => openModelDrawer(fuzzy, '__all__'), 0);
   }
 
   // ─────────────── Render orchestration ───────────────
@@ -1818,7 +1817,7 @@ window.App = (function () {
           <div class="sum-banner-t">${escapeHtml(modelName)} · 型號專用分析</div>
           <div class="sum-banner-d">這裡只看這個型號的維修紀錄、故障原因與零件落點。</div>
         </div>
-        <button class="sum-card-go" onclick="App.openModelDrawer('${escapeAttr(modelName)}','__all__')">開啟彈跳視窗 →</button>
+        <div class="model-result-pill">結果已顯示在下方</div>
       </div>`;
     $('sumKpi').innerHTML = `
       <div class="kpi k-blue"><div class="kpi-h"><div class="kpi-l">維修紀錄</div><div class="kpi-ico">#</div></div>
@@ -3673,19 +3672,11 @@ window.App = (function () {
     drawer.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
     $('drawerBody').scrollTop = 0;
-    // 推入一個歷史狀態：手機「上一頁」會先關抽屜而非離開頁面。
-    // 已在抽屜狀態時（抽屜內再開下一層）不重複推入，維持單一返回層級。
-    if (!(history.state && history.state.__drawer)) {
-      history.pushState({ __drawer: true }, '');
-    }
   }
   function closeDrawer() {
-    // 使用者主動關閉（X 或點遮罩）：若目前停在抽屜歷史狀態，則 back() 觸發
-    // popstate 完成 DOM 關閉，使歷史回到開抽屜前，避免殘留多餘的返回層級。
+    domCloseDrawer();
     if (history.state && history.state.__drawer) {
-      history.back();
-    } else {
-      domCloseDrawer();
+      history.replaceState({ __page: state.currentPage }, '');
     }
   }
   // 手機/瀏覽器返回鍵：

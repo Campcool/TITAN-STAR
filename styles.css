@@ -1593,6 +1593,16 @@ button, input, select { font-family: inherit; }
   font-size: 13px;
   padding: 6px;
 }
+.model-result-pill {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-strong);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+}
 
 /* Mini bar trend SVG inside drawer */
 .dh-svg-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
