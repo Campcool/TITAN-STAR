@@ -925,11 +925,12 @@ window.App = (function () {
   function quickModelSearchInput(raw) {
     const { q, exact } = resolveModelQuery(raw);
     clearTimeout(quickModelSearchTimer);
-    if (!q || !exact || exact === lastAutoModelSearch) return;
+    if (!q || !exact) return;
+    if (exact === lastAutoModelSearch && isDrawerOpen()) return;
     quickModelSearchTimer = setTimeout(() => {
       const latest = $('modelQuickSearch')?.value || raw;
       const resolved = resolveModelQuery(latest);
-      if (resolved.exact && resolved.exact !== lastAutoModelSearch) {
+      if (resolved.exact && (resolved.exact !== lastAutoModelSearch || !isDrawerOpen())) {
         lastAutoModelSearch = resolved.exact;
         quickModelSearch(resolved.exact, { silentMissing: true });
       }
@@ -1720,6 +1721,10 @@ window.App = (function () {
     const kpis = RepairAnalyzer.computeKPIs(records, denom);
     const lastMonth = state.selectedMonths.slice().sort().pop();
     const anoms = RepairAnalyzer.detectAnomalies(state.db, lastMonth);
+    if (f.model && f.model !== '全部') {
+      renderModelSummary(f.model, records, kpis);
+      return;
+    }
 
     const role = state.analysisRole;
     const roleInfo = ANALYSIS_ROLES[role] || ANALYSIS_ROLES.all;
@@ -1797,6 +1802,41 @@ window.App = (function () {
     }
 
     body.innerHTML = execBriefHtml + section('應立即追蹤', crit, 'critical') + section('本期應關注', warn, 'warn') + section('持續監控', info, 'info');
+  }
+
+  function renderModelSummary(modelName, records, kpis) {
+    const M = modelMetrics(modelName);
+    const cat = RepairParser.getCategory(modelName);
+    const topPart = M.topParts[0];
+    const topReason = M.topReason;
+    $('summaryMeta').textContent = `${modelName} · ${records.length} 筆維修紀錄 · 只看此型號`;
+    updateSummaryBadge();
+    $('sumBanner').innerHTML = `
+      <div class="sum-banner-inner" style="--rc:var(--accent)">
+        <span class="sum-banner-ico">#</span>
+        <div>
+          <div class="sum-banner-t">${escapeHtml(modelName)} · 型號專用分析</div>
+          <div class="sum-banner-d">這裡只看這個型號的維修紀錄、故障原因與零件落點。</div>
+        </div>
+        <button class="sum-card-go" onclick="App.openModelDrawer('${escapeAttr(modelName)}','__all__')">開啟彈跳視窗 →</button>
+      </div>`;
+    $('sumKpi').innerHTML = `
+      <div class="kpi k-blue"><div class="kpi-h"><div class="kpi-l">維修紀錄</div><div class="kpi-ico">#</div></div>
+        <div class="kpi-v">${fmt.int(M.count)}</div><div class="kpi-d"><span class="muted">${escapeHtml(cat)} · ${fmt.int(kpis.totalRepairs)} 筆</span></div></div>
+      <div class="kpi k-info"><div class="kpi-h"><div class="kpi-l">換修率</div><div class="kpi-ico">%</div></div>
+        <div class="kpi-v">${pctStr(M.rate)}</div><div class="kpi-d"><span class="muted">依目前匯入月份計算</span></div></div>
+      <div class="kpi k-warn"><div class="kpi-h"><div class="kpi-l">最常換零件</div><div class="kpi-ico">▤</div></div>
+        <div class="kpi-v">${topPart ? fmt.int(topPart.count) : '0'}</div><div class="kpi-d"><span class="muted">${topPart ? escapeHtml(pdbLabel(topPart.name)) : '目前無零件資料'}</span></div></div>
+      <div class="kpi k-red"><div class="kpi-h"><div class="kpi-l">主要故障</div><div class="kpi-ico">!</div></div>
+        <div class="kpi-v">${topReason ? fmt.int(topReason[1]) : '0'}</div><div class="kpi-d"><span class="muted">${topReason ? escapeHtml(topReason[0]) : '目前無原因資料'}</span></div></div>
+    `;
+    $('sumBody').innerHTML = `
+      <div class="card">
+        <div class="drawer-banner info">
+          <strong>${escapeHtml(modelName)}</strong> 已切換為單一型號分析。下方內容不含其他設備異常。
+        </div>
+        ${modelDrillContent(modelName, '__all__')}
+      </div>`;
   }
 
   function updateAlertBadge() {
@@ -3619,15 +3659,18 @@ window.App = (function () {
     $('drawer').setAttribute('aria-hidden', 'true');
     document.body.style.overflow = '';
   }
-  function openDrawer({ severity = 'info', icon = 'i', overline, title, bodyHtml }) {
+  function openDrawer({ severity = 'info', icon = 'i', overline, title, bodyHtml, variant = '' }) {
+    const drawer = $('drawer');
+    drawer.classList.remove('model-profile');
+    if (variant) drawer.classList.add(variant);
     $('drawerIco').textContent = icon;
     $('drawerIco').className = 'drawer-ico ' + severity;
     $('drawerT').textContent = overline || '';
     $('drawerS').textContent = title || '';
     $('drawerBody').innerHTML = bodyHtml;
     $('drawerMask').classList.add('open');
-    $('drawer').classList.add('open');
-    $('drawer').setAttribute('aria-hidden', 'false');
+    drawer.classList.add('open');
+    drawer.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
     $('drawerBody').scrollTop = 0;
     // 推入一個歷史狀態：手機「上一頁」會先關抽屜而非離開頁面。
@@ -4621,9 +4664,10 @@ window.App = (function () {
     const subtitle = focusMonth ? ` · ${fmt.monthLabel(focusMonth)}` : '';
     openDrawer({
       severity: 'info', icon: '#',
-      overline: `機種深入分析 · ${cat}${subtitle}`,
-      title: model,
+      overline: `只看這個型號 · ${cat}${subtitle}`,
+      title: `${model} 型號分析`,
       bodyHtml: modelLens(model) + modelDrillContent(model, focusMonth),
+      variant: 'model-profile',
     });
   }
   function openSerialDrawer(model, serial) {
