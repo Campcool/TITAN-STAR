@@ -917,7 +917,7 @@ window.App = (function () {
       saveFilterState();
       return;
     }
-    const records = RepairAnalyzer.getRecords(state.db, { months: state.selectedMonths });
+    const records = RepairAnalyzer.getRecords(state.db, {});
     const models = Array.from(new Set(records.map(r => r.model))).sort();
     const norm = RepairAnalyzer.normalizeModel ? RepairAnalyzer.normalizeModel(q) : q.toUpperCase().replace(/[-_\s]/g, '');
     const exact = models.find(m => (RepairAnalyzer.normalizeModel ? RepairAnalyzer.normalizeModel(m) : m) === norm);
@@ -928,10 +928,12 @@ window.App = (function () {
     }
     state.selectedCategory = '全部';
     state.selectedModel = fuzzy;
-    state.currentPage = 'trend';
+    state.selectedMonths = Object.keys(state.db.months).sort();
+    state.currentPage = 'summary';
     renderAll();
     saveFilterState();
     collapseSubbar();
+    setTimeout(() => openModelDrawer(fuzzy, '__all__'), 0);
   }
 
   // ─────────────── Render orchestration ───────────────
@@ -3942,6 +3944,11 @@ window.App = (function () {
   // ── Drill content: model ──
   function modelDrillContent(modelName, focusMonth) {
     const history = RepairAnalyzer.modelHistory(state.db, modelName);
+    const modelRecords = RepairAnalyzer.getRecords(state.db, { model: modelName });
+    const { reasons, contents } = RepairAnalyzer.reasonBreakdown(modelRecords);
+    const recentRecords = modelRecords.slice()
+      .sort((a, b) => (b.date || b._monthKey || '').localeCompare(a.date || a._monthKey || ''))
+      .slice(0, 12);
     const sortedMonths = state.selectedMonths.slice().sort();
     const isAll = focusMonth === '__all__';
     const curMonth = isAll ? '__all__' : (focusMonth || sortedMonths[sortedMonths.length - 1]);
@@ -3965,6 +3972,25 @@ window.App = (function () {
     const shownParts = isAll ? allTopParts : cur.topParts;
     const partsTitle = isAll ? '累計最常更換零件' : `${fmt.monthLabel(curMonth)} 最常更換零件`;
     const max = shownParts[0]?.count || 1;
+    const reasonMax = Math.max(reasons[0]?.count || 0, contents[0]?.count || 0, 1);
+    const reasonList = (title, rows) => `
+      <div class="model-fault-card">
+        <div class="model-fault-title">${title}</div>
+        ${rows.length ? `
+          <div class="barlist">
+            ${rows.slice(0, 6).map(r => `
+              <div class="barlist-row model-fault-row">
+                <div class="barlist-name">${escapeHtml(r.name)}</div>
+                <div class="barlist-track"><div style="width:${(r.count / reasonMax * 100).toFixed(0)}%"></div></div>
+                <div class="barlist-n">${r.count}</div>
+              </div>`).join('')}
+          </div>
+        ` : '<div class="empty mini">目前沒有分類資料</div>'}
+      </div>`;
+    const recordParts = (r) => [r.part1Norm, r.part2Norm, r.part3Norm]
+      .filter(Boolean)
+      .map(p => `<button class="model-record-part" onclick="event.stopPropagation();App.openPartDrawer('${escapeAttr(p)}')">${escapeHtml(pdbLabel(p))}</button>`)
+      .join('');
 
     // Month navigation tabs (allow switching within drawer)
     const allMonths = Object.keys(state.db.months).sort();
@@ -4016,6 +4042,14 @@ window.App = (function () {
         </div>
       </div>
 
+      <div class="drawer-sec">
+        <div class="drawer-sec-t"><span class="strong">故障原因落點</span> <span class="count-tag">${modelRecords.length} 筆</span></div>
+        <div class="model-fault-grid">
+          ${reasonList('故障原因', reasons)}
+          ${reasonList('故障內容', contents)}
+        </div>
+      </div>
+
       ${shownParts.length > 0 ? `
         <div class="drawer-sec">
           <div class="drawer-sec-t"><span class="strong">${partsTitle}</span> <span class="count-tag">${shownParts.length} 種</span></div>
@@ -4028,6 +4062,24 @@ window.App = (function () {
               </div>`).join('')}
           </div>
         </div>` : ''}
+
+      <div class="drawer-sec">
+        <div class="drawer-sec-t"><span class="strong">最近維修紀錄</span> <span class="count-tag">${recentRecords.length} / ${modelRecords.length} 筆</span></div>
+        <div class="model-record-list">
+          ${recentRecords.length ? recentRecords.map(r => `
+            <div class="model-record-row" onclick="App.openSerialDrawer('${escapeAttr(r.model)}','${escapeAttr(r.serial || '')}')">
+              <div class="model-record-meta">
+                <span>${escapeHtml(r.date || fmt.monthLabel(r._monthKey) || '—')}</span>
+                ${r.serial ? `<span>#${escapeHtml(r.serial)}</span>` : ''}
+                ${r.isScrap ? '<span class="model-record-scrap">報廢</span>' : ''}
+              </div>
+              <div class="model-record-main">${escapeHtml(r.content || r.reason || '未填故障內容')}</div>
+              ${recordParts(r) ? `<div class="model-record-parts">${recordParts(r)}</div>` : ''}
+            </div>
+          `).join('') : '<div class="empty"><div class="empty-t">目前這個型號在已匯入月份沒有維修紀錄</div></div>'}
+          ${modelRecords.length > recentRecords.length ? `<div class="model-record-more">還有 ${modelRecords.length - recentRecords.length} 筆，請用上方月份卡切換查看。</div>` : ''}
+        </div>
+      </div>
     `;
   }
 
