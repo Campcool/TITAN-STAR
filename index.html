@@ -12,9 +12,9 @@
 <title>TITAN-STAR · 維修分析</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=20260716-4">
-<link rel="stylesheet" href="rma-styles.css?v=20260716-4">
-<link rel="stylesheet" href="styles-morandi.css?v=20260716-4" id="morandiThemeLink">
+<link rel="stylesheet" href="styles.css?v=20260716-5">
+<link rel="stylesheet" href="rma-styles.css?v=20260716-5">
+<link rel="stylesheet" href="styles-morandi.css?v=20260716-5" id="morandiThemeLink">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
@@ -79,7 +79,7 @@
       <!-- Desktop: custom dropdown button -->
       <button class="role-sel-btn role-sel-desktop" id="roleSelBtn" onclick="App.toggleRoleDropdown()" title="切換分析視角">
         <span id="roleSelIco">⊞</span>
-        <span id="roleSelLabel">綜合</span>
+        <span id="roleSelLabel">角色觀點：綜合</span>
         <span class="role-sel-focus" id="roleSelFocus"></span>
         <span class="role-sel-arrow">▾</span>
       </button>
@@ -160,6 +160,14 @@
 
   <!-- Sub-bar: month + category chips -->
   <div class="subbar" id="subbar">
+    <div class="subbar-row model-lookup-row top-model-lookup">
+      <div class="sb-label">型號查詢</div>
+      <input class="model-lookup-input" id="modelQuickSearch" list="modelLookupList" placeholder="輸入型號，例如 MSM0801 / ZSPMG51"
+        oninput="App.quickModelSearchInput(this.value)"
+        onchange="App.quickModelSearch(this.value)"
+        onkeydown="if(event.key==='Enter')App.quickModelSearch(this.value)">
+      <datalist id="modelLookupList"></datalist>
+    </div>
     <div class="subbar-head">
       <button class="nav-toggle" id="navToggle" onclick="App.toggleNav()" aria-label="開啟選單">☰</button>
       <button class="subbar-toggle" id="subbarToggle" onclick="App.toggleSubbar()" aria-label="展開/收合篩選">
@@ -172,14 +180,6 @@
       <div class="subbar-mobile-row" id="subbarMobileRow">
         <select class="sb-select" id="monthSelect" onchange="App.setMonthDirect(this.value)"></select>
         <select class="sb-select" id="catSelect" onchange="App.setCategory(this.value)"></select>
-      </div>
-      <div class="subbar-row model-lookup-row">
-        <div class="sb-label">型號查詢</div>
-        <input class="model-lookup-input" id="modelQuickSearch" list="modelLookupList" placeholder="輸入型號，例如 MSM0801 / ZSPMG51"
-          oninput="App.quickModelSearchInput(this.value)"
-          onchange="App.quickModelSearch(this.value)"
-          onkeydown="if(event.key==='Enter')App.quickModelSearch(this.value)">
-        <datalist id="modelLookupList"></datalist>
       </div>
       <!-- Desktop: chip rows (>820px) -->
       <div class="subbar-row subbar-chips-row" id="monthChips"></div>
@@ -707,11 +707,11 @@
 <!-- RMA Modal container -->
 <div id="rmaModal" style="display:none;position:fixed;inset:0;z-index:600;align-items:center;justify-content:center"></div>
 
-<script src="parser.js?v=20260716-4"></script>
-<script src="analyzer.js?v=20260716-4"></script>
-<script src="app.js?v=20260716-4"></script>
-<script src="report.js?v=20260716-4"></script>
-<script src="rma.js?v=20260716-4"></script>
+<script src="parser.js?v=20260716-5"></script>
+<script src="analyzer.js?v=20260716-5"></script>
+<script src="app.js?v=20260716-5"></script>
+<script src="report.js?v=20260716-5"></script>
+<script src="rma.js?v=20260716-5"></script>
 <script>
 // ─── Theme toggle（深色 ↔ 莫蘭迪淺色）───
 const THEME_KEY = 'titan_theme';

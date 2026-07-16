@@ -1052,7 +1052,7 @@ window.App = (function () {
     const lbl = $('roleSelLabel');
     const foc = $('roleSelFocus');
     if (ico) { ico.textContent = curR.icon; ico.style.color = curR.color; }
-    if (lbl) lbl.textContent = curR.short;
+    if (lbl) lbl.textContent = `角色觀點：${curR.short}`;
     if (foc) foc.textContent = '重點：' + (ROLE_FOCUS[cur] || curR.desc);
 
     // Rebuild dropdown items
@@ -1061,7 +1061,7 @@ window.App = (function () {
       drop.innerHTML = Object.entries(ANALYSIS_ROLES).map(([k, r]) =>
         `<button class="role-sel-item ${k === cur ? 'active' : ''}" style="--rc:${r.color}"
           onclick="App.setAnalysisRole('${k}');App.closeRoleDropdown()" title="${r.desc}">
-          <span style="color:${r.color}">${r.icon}</span><span>${r.short}</span>
+          <span style="color:${r.color}">${r.icon}</span><span>${r.label}</span>
         </button>`
       ).join('');
     }
@@ -1070,7 +1070,7 @@ window.App = (function () {
     if (msel) {
       if (!msel.options.length) {
         msel.innerHTML = Object.entries(ANALYSIS_ROLES).map(([k, r]) =>
-          `<option value="${k}">${r.icon} ${r.label}</option>`).join('');
+          `<option value="${k}">${r.icon} 角色觀點：${r.label}</option>`).join('');
       }
       msel.value = cur;
     }

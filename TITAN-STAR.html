@@ -339,6 +339,15 @@ button, input, select { font-family: inherit; }
 }
 .subbar-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .subbar-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.top-model-lookup {
+  order: -2;
+  width: 100%;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, rgba(56,189,248,.10), rgba(255,255,255,.03));
+  border: 1px solid rgba(56,189,248,.28);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(15,23,42,.08);
+}
 .subbar.collapsed .subbar-head { margin-bottom: 0; }
 .subbar-toggle {
   display: flex; align-items: center; justify-content: space-between;
@@ -359,7 +368,7 @@ button, input, select { font-family: inherit; }
 }
 .model-lookup-row { flex-wrap: nowrap; }
 .model-lookup-input {
-  width: min(360px, 100%);
+  width: min(560px, 100%);
   min-height: 34px;
   box-sizing: border-box;
   border: 1px solid var(--border);
@@ -588,10 +597,11 @@ button, input, select { font-family: inherit; }
 
 /* ══════════════════════ Card ══════════════════════ */
 .card {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(255,255,255,.72), rgba(255,255,255,.50)), var(--surface);
+  border: 1px solid var(--border2);
   border-radius: 12px;
   padding: 22px;
+  box-shadow: 0 10px 28px rgba(15,23,42,.08);
 }
 .card.flat { background: transparent; border-color: var(--border); }
 .card-h {
@@ -608,12 +618,13 @@ button, input, select { font-family: inherit; }
   gap: 14px;
 }
 .kpi {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: linear-gradient(145deg, rgba(255,255,255,.78), rgba(241,245,249,.62)), var(--surface);
+  border: 1px solid var(--border2);
   border-radius: 12px;
   padding: 22px 24px;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 10px 24px rgba(15,23,42,.08);
 }
 .kpi-h {
   display: flex; align-items: center; justify-content: space-between;
@@ -1398,7 +1409,14 @@ button, input, select { font-family: inherit; }
   flex: 1; overflow-y: auto;
   padding: 24px;
 }
-.drawer-sec { margin-bottom: 28px; }
+.drawer-sec {
+  margin-bottom: 28px;
+  background: rgba(255,255,255,.46);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 8px 20px rgba(15,23,42,.06);
+}
 .drawer-sec:last-child { margin-bottom: 0; }
 .drawer-sec-t {
   font-size: 14px; color: var(--text3); letter-spacing: .12em;
@@ -1466,10 +1484,11 @@ button, input, select { font-family: inherit; }
   gap: 8px;
 }
 .dh-month-card {
-  background: var(--surface); border: 1px solid var(--border);
+  background: var(--surface); border: 1px solid var(--border2);
   border-radius: 8px; padding: 14px 12px;
   text-align: center;
   position: relative;
+  box-shadow: 0 6px 16px rgba(15,23,42,.06);
 }
 .dh-month-card:hover { border-color: var(--border2); background: var(--surface2); }
 .dh-month-card.current { border-color: var(--accent); background: var(--accent-soft); }
@@ -1535,11 +1554,12 @@ button, input, select { font-family: inherit; }
   gap: 12px;
 }
 .model-fault-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: rgba(255,255,255,.64);
+  border: 1px solid var(--border2);
   border-radius: 8px;
   padding: 14px;
   min-width: 0;
+  box-shadow: inset 3px 0 0 var(--accent-soft);
 }
 .model-fault-title {
   font-size: 14px;
@@ -1798,6 +1818,8 @@ button, input, select { font-family: inherit; }
   background: var(--surface2); border: 1px solid var(--border2);
   color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer;
   white-space: nowrap; transition: background .15s;
+  min-width: 360px;
+  max-width: min(620px, 48vw);
 }
 .role-sel-btn:hover { background: var(--hover); }
 .role-sel-arrow { color: var(--text3); font-size: 10px; }
@@ -1806,7 +1828,7 @@ button, input, select { font-family: inherit; }
   background: var(--surface); border: 1px solid var(--border2);
   border-radius: 12px; padding: 6px;
   display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: 4px; min-width: 220px; z-index: 500;
+  gap: 4px; min-width: 300px; z-index: 500;
   box-shadow: 0 8px 24px rgba(0,0,0,.25);
 }
 .role-sel-item {
@@ -2425,9 +2447,11 @@ button, input, select { font-family: inherit; }
 }
 .sum-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
 .sum-card {
-  background: var(--surface); border: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(255,255,255,.72), rgba(248,250,252,.62)), var(--surface);
+  border: 1px solid var(--border2);
   border-left: 4px solid var(--border2); border-radius: 12px; padding: 15px 17px;
   display: flex; flex-direction: column;
+  box-shadow: 0 10px 24px rgba(15,23,42,.08);
 }
 .sum-card.critical { border-left-color: var(--critical); }
 .sum-card.warn { border-left-color: var(--warn); }
@@ -2628,7 +2652,7 @@ button, input, select { font-family: inherit; }
 .role-sel-btn { height: 34px; border-radius: 9px; }
 .role-sel-focus {
   font-size: 12px; color: var(--text3); font-weight: 500;
-  max-width: 280px; overflow: hidden; text-overflow: ellipsis;
+  max-width: 390px; overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap; border-left: 1px solid var(--border2);
   padding-left: 8px; margin-left: 2px;
 }
@@ -2641,7 +2665,12 @@ button, input, select { font-family: inherit; }
   align-items: center; justify-content: center; font-size: 16px;
   padding: 0 6px;
 }
+@media (max-width: 1180px) {
+  .role-sel-btn { min-width: 260px; max-width: 42vw; }
+  .role-sel-focus { max-width: 180px; }
+}
 @media (max-width: 900px) {
+  .role-sel-btn { min-width: 160px; max-width: none; }
   .role-sel-focus { display: none; }
 }
 
@@ -4167,7 +4196,7 @@ button, input, select { font-family: inherit; }
       <!-- Desktop: custom dropdown button -->
       <button class="role-sel-btn role-sel-desktop" id="roleSelBtn" onclick="App.toggleRoleDropdown()" title="切換分析視角">
         <span id="roleSelIco">⊞</span>
-        <span id="roleSelLabel">綜合</span>
+        <span id="roleSelLabel">角色觀點：綜合</span>
         <span class="role-sel-focus" id="roleSelFocus"></span>
         <span class="role-sel-arrow">▾</span>
       </button>
@@ -4248,6 +4277,14 @@ button, input, select { font-family: inherit; }
 
   <!-- Sub-bar: month + category chips -->
   <div class="subbar" id="subbar">
+    <div class="subbar-row model-lookup-row top-model-lookup">
+      <div class="sb-label">型號查詢</div>
+      <input class="model-lookup-input" id="modelQuickSearch" list="modelLookupList" placeholder="輸入型號，例如 MSM0801 / ZSPMG51"
+        oninput="App.quickModelSearchInput(this.value)"
+        onchange="App.quickModelSearch(this.value)"
+        onkeydown="if(event.key==='Enter')App.quickModelSearch(this.value)">
+      <datalist id="modelLookupList"></datalist>
+    </div>
     <div class="subbar-head">
       <button class="nav-toggle" id="navToggle" onclick="App.toggleNav()" aria-label="開啟選單">☰</button>
       <button class="subbar-toggle" id="subbarToggle" onclick="App.toggleSubbar()" aria-label="展開/收合篩選">
@@ -4260,14 +4297,6 @@ button, input, select { font-family: inherit; }
       <div class="subbar-mobile-row" id="subbarMobileRow">
         <select class="sb-select" id="monthSelect" onchange="App.setMonthDirect(this.value)"></select>
         <select class="sb-select" id="catSelect" onchange="App.setCategory(this.value)"></select>
-      </div>
-      <div class="subbar-row model-lookup-row">
-        <div class="sb-label">型號查詢</div>
-        <input class="model-lookup-input" id="modelQuickSearch" list="modelLookupList" placeholder="輸入型號，例如 MSM0801 / ZSPMG51"
-          oninput="App.quickModelSearchInput(this.value)"
-          onchange="App.quickModelSearch(this.value)"
-          onkeydown="if(event.key==='Enter')App.quickModelSearch(this.value)">
-        <datalist id="modelLookupList"></datalist>
       </div>
       <!-- Desktop: chip rows (>820px) -->
       <div class="subbar-row subbar-chips-row" id="monthChips"></div>
@@ -7594,7 +7623,7 @@ window.App = (function () {
     const lbl = $('roleSelLabel');
     const foc = $('roleSelFocus');
     if (ico) { ico.textContent = curR.icon; ico.style.color = curR.color; }
-    if (lbl) lbl.textContent = curR.short;
+    if (lbl) lbl.textContent = `角色觀點：${curR.short}`;
     if (foc) foc.textContent = '重點：' + (ROLE_FOCUS[cur] || curR.desc);
 
     // Rebuild dropdown items
@@ -7603,7 +7632,7 @@ window.App = (function () {
       drop.innerHTML = Object.entries(ANALYSIS_ROLES).map(([k, r]) =>
         `<button class="role-sel-item ${k === cur ? 'active' : ''}" style="--rc:${r.color}"
           onclick="App.setAnalysisRole('${k}');App.closeRoleDropdown()" title="${r.desc}">
-          <span style="color:${r.color}">${r.icon}</span><span>${r.short}</span>
+          <span style="color:${r.color}">${r.icon}</span><span>${r.label}</span>
         </button>`
       ).join('');
     }
@@ -7612,7 +7641,7 @@ window.App = (function () {
     if (msel) {
       if (!msel.options.length) {
         msel.innerHTML = Object.entries(ANALYSIS_ROLES).map(([k, r]) =>
-          `<option value="${k}">${r.icon} ${r.label}</option>`).join('');
+          `<option value="${k}">${r.icon} 角色觀點：${r.label}</option>`).join('');
       }
       msel.value = cur;
     }
