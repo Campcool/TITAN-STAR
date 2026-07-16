@@ -4229,6 +4229,7 @@ button, input, select { font-family: inherit; }
       <div class="subbar-row model-lookup-row">
         <div class="sb-label">型號查詢</div>
         <input class="model-lookup-input" id="modelQuickSearch" list="modelLookupList" placeholder="輸入型號，例如 MSM0801 / ZSPMG51"
+          oninput="App.quickModelSearchInput(this.value)"
           onchange="App.quickModelSearch(this.value)"
           onkeydown="if(event.key==='Enter')App.quickModelSearch(this.value)">
         <datalist id="modelLookupList"></datalist>
@@ -7415,23 +7416,47 @@ window.App = (function () {
     collapseSubbar();
   }
 
-  function quickModelSearch(raw) {
+  let quickModelSearchTimer = null;
+  let lastAutoModelSearch = '';
+
+  function resolveModelQuery(raw) {
     const q = String(raw || '').trim();
-    if (!q) {
-      state.selectedModel = '全部';
-      renderAll();
-      saveFilterState();
-      return;
-    }
     const records = RepairAnalyzer.getRecords(state.db, {});
     const models = Array.from(new Set(records.map(r => r.model))).sort();
     const norm = RepairAnalyzer.normalizeModel ? RepairAnalyzer.normalizeModel(q) : q.toUpperCase().replace(/[-_\s]/g, '');
     const exact = models.find(m => (RepairAnalyzer.normalizeModel ? RepairAnalyzer.normalizeModel(m) : m) === norm);
     const fuzzy = exact || models.find(m => m.includes(norm) || norm.includes(m));
-    if (!fuzzy) {
-      alert(`找不到型號「${q}」。請確認月份範圍是否包含該型號。`);
+    return { q, norm, exact, fuzzy };
+  }
+
+  function quickModelSearchInput(raw) {
+    const { q, exact } = resolveModelQuery(raw);
+    clearTimeout(quickModelSearchTimer);
+    if (!q || !exact || exact === lastAutoModelSearch) return;
+    quickModelSearchTimer = setTimeout(() => {
+      const latest = $('modelQuickSearch')?.value || raw;
+      const resolved = resolveModelQuery(latest);
+      if (resolved.exact && resolved.exact !== lastAutoModelSearch) {
+        lastAutoModelSearch = resolved.exact;
+        quickModelSearch(resolved.exact, { silentMissing: true });
+      }
+    }, 280);
+  }
+
+  function quickModelSearch(raw, opts = {}) {
+    const { q, fuzzy } = resolveModelQuery(raw);
+    if (!q) {
+      state.selectedModel = '全部';
+      lastAutoModelSearch = '';
+      renderAll();
+      saveFilterState();
       return;
     }
+    if (!fuzzy) {
+      if (!opts.silentMissing) alert(`找不到型號「${q}」。請確認月份範圍是否包含該型號。`);
+      return;
+    }
+    lastAutoModelSearch = fuzzy;
     state.selectedCategory = '全部';
     state.selectedModel = fuzzy;
     state.selectedMonths = Object.keys(state.db.months).sort();
@@ -12175,7 +12200,7 @@ window.App = (function () {
     openDashboard, openDashboardDirect, openUpload, switchPage,
     toggleNav, closeNav,
     pdbSearch: pdbSearchRender, pdbOpenEdit, pdbCloseEdit, pdbSaveEdit, pdbDelete,
-    setMonth, setMonthDirect, setCategory, setModel, quickModelSearch,
+    setMonth, setMonthDirect, setCategory, setModel, quickModelSearch, quickModelSearchInput,
     setAnalysisRole,
     openCapaForm, saveCapaForm, setCapaStatus, deleteCapa,
     openCostConfig, saveCostConfig, quickEstimateCost,
