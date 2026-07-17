@@ -178,6 +178,19 @@ Remove-Item -LiteralPath gh-run.json, public-index.html, public-app.js, public-s
 - `TITAN-STAR.html` 是 build 產物。改 JS/CSS 後若需要離線版同步，必須跑 `node build.js`。
 - 工作區可能有使用者或其他 AI 的變更；不要 `git reset --hard`，不要回復不相關改動。
 
+## Claude 審查紀錄（2026-07-17）
+
+Claude 依本文件審查 Codex 的型號查詢實作後，修正 3 個 bug（版本 `20260717-1`）：
+
+1. **跨頁搜尋沒反應（嚴重）**：`quickModelSearch` 只設 `state.currentPage = 'summary'`，沒有切換 `.page.active` DOM。在總覽以外任何分頁輸入型號，結果會渲染進「隱藏的」摘要頁，看起來像壞掉。已改為呼叫 `switchPageDom('summary')` 並補 history state。
+2. **累計零件落點不準（資料正確性）**：`modelDrillContent`/`modelMetrics` 的累計零件是把 `modelHistory` 每月 top-5 相加 — 每月第 6 名以後的零件整個消失、數字偏低。已改為 `RepairAnalyzer.aggregateParts(modelRecords)` 從完整記錄聚合；單月檢視同樣改用完整記錄。
+3. **模糊比對未正規化（容錯）**：`resolveModelQuery` 拿原始型號字串與正規化後的輸入互比，`msm-0801`、`zspmg 51` 這類輸入會失敗。已改為兩邊都過 `normalizeModel`，並要求輸入 ≥3 字元才做模糊比對（避免短輸入誤中）。
+
+已知但未動的項目（留給下一位 AI 判斷）：
+- `modelDrillContent` 的「故障原因落點」永遠用全月份記錄，即使 drawer 聚焦單月 — 型號查詢主流程用 `__all__` 所以不影響，但 drawer 單月檢視時語意稍有不一致。
+- `sw.js` activate 時 `client.navigate()` 會強制重載所有分頁 — 這是刻意換新版的設計，但使用者若正在輸入會被打斷，屬已接受的取捨。
+- `quickModelSearchInput` 自動搜尋會把月份選擇重設為全部 — 符合「歷年落點」目標，屬刻意行為。
+
 ## 下一步建議
 
 1. 補一份正式 `TECHNICAL_HANDOFF.md` 給真人工程師閱讀，內容可從本文件整理成人類版。

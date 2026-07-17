@@ -916,9 +916,11 @@ window.App = (function () {
     const q = String(raw || '').trim();
     const records = RepairAnalyzer.getRecords(state.db, {});
     const models = Array.from(new Set(records.map(r => r.model))).sort();
-    const norm = RepairAnalyzer.normalizeModel ? RepairAnalyzer.normalizeModel(q) : q.toUpperCase().replace(/[-_\s]/g, '');
-    const exact = models.find(m => (RepairAnalyzer.normalizeModel ? RepairAnalyzer.normalizeModel(m) : m) === norm);
-    const fuzzy = exact || models.find(m => m.includes(norm) || norm.includes(m));
+    const normFn = RepairAnalyzer.normalizeModel || (s => String(s).toUpperCase().replace(/[-_\s]/g, ''));
+    const norm = normFn(q);
+    const exact = models.find(m => normFn(m) === norm);
+    // 模糊比對兩邊都先正規化，輸入 msm-0801 / zspmg 51 也能命中
+    const fuzzy = exact || (norm.length >= 3 ? models.find(m => { const nm = normFn(m); return nm.includes(norm) || norm.includes(nm); }) : null);
     return { q, norm, exact, fuzzy };
   }
 
@@ -954,8 +956,16 @@ window.App = (function () {
     state.selectedCategory = '全部';
     state.selectedModel = fuzzy;
     state.selectedMonths = Object.keys(state.db.months).sort();
-    state.currentPage = 'summary';
-    renderAll();
+    // 必須真正切換頁面 DOM（.page.active / 導覽高亮），
+    // 否則在其他分頁搜尋時結果會渲染進隱藏的摘要頁，看起來像沒反應
+    if (state.currentPage !== 'summary') {
+      try { history.pushState({ __page: 'summary' }, ''); } catch (e) {}
+      switchPageDom('summary');   // 內含 renderPage()
+      safeRenderStep('filters', renderFilters);
+      safeRenderStep('subbar summary', updateSubbarSummary);
+    } else {
+      renderAll();
+    }
     saveFilterState();
     collapseSubbar();
   }
@@ -4018,16 +4028,13 @@ window.App = (function () {
     const totalScrap = history.reduce((s, h) => s + (h.scrap || 0), 0);
     const totalRate = totalDenom ? totalCount / totalDenom : null;
 
-    // Cumulative top parts: merge counts across all months
-    const aggMap = {};
-    for (const h of history) {
-      for (const p of (h.topParts || [])) aggMap[p.name] = (aggMap[p.name] || 0) + p.count;
-    }
-    const allTopParts = Object.entries(aggMap).map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count);
+    // Cumulative top parts: 從完整記錄聚合（不能用每月 top-5 相加，會漏掉長尾零件且數字偏低）
+    const allTopParts = RepairAnalyzer.aggregateParts(modelRecords);
 
-    // Parts shown depend on focus: single month vs cumulative
-    const shownParts = isAll ? allTopParts : cur.topParts;
+    // Parts shown depend on focus: single month vs cumulative（單月也用完整記錄，不受 top-5 截斷）
+    const shownParts = isAll
+      ? allTopParts
+      : RepairAnalyzer.aggregateParts(modelRecords.filter(r => r._monthKey === curMonth));
     const partsTitle = isAll ? '累計最常更換零件' : `${fmt.monthLabel(curMonth)} 最常更換零件`;
     const max = shownParts[0]?.count || 1;
     const reasonMax = Math.max(reasons[0]?.count || 0, contents[0]?.count || 0, 1);
@@ -4247,9 +4254,7 @@ window.App = (function () {
     const prev = withCount[withCount.length - 2];
     const momCount = (last && prev) ? last.count - prev.count : null;
     const momRate = (last && prev && last.faultRate != null && prev.faultRate != null) ? (last.faultRate - prev.faultRate) * 100 : null;
-    const aggMap = {};
-    for (const h of history) for (const p of (h.topParts || [])) aggMap[p.name] = (aggMap[p.name] || 0) + p.count;
-    const topParts = Object.entries(aggMap).map(([name, c]) => ({ name, count: c })).sort((a, b) => b.count - a.count);
+    const topParts = RepairAnalyzer.aggregateParts(recs);
     const serialMap = {};
     for (const r of recs) { if (r.serial) serialMap[r.serial] = (serialMap[r.serial] || 0) + 1; }
     const repeated = Object.entries(serialMap).filter(([, c]) => c >= 2).sort((a, b) => b[1] - a[1]);
