@@ -180,11 +180,44 @@ Remove-Item -LiteralPath gh-run.json, public-index.html, public-app.js, public-s
 
 ## Claude 審查紀錄（2026-07-17）
 
-Claude 依本文件審查 Codex 的型號查詢實作後，修正 3 個 bug（版本 `20260717-1`）：
+Claude 依本文件審查 Codex 的型號查詢實作後，修正 3 個 bug。
+修正 commit：`32e5293`，快取版本 `20260716-5 → 20260717-1`。以下逐項記錄「為什麼改」與「怎麼改」。
 
-1. **跨頁搜尋沒反應（嚴重）**：`quickModelSearch` 只設 `state.currentPage = 'summary'`，沒有切換 `.page.active` DOM。在總覽以外任何分頁輸入型號，結果會渲染進「隱藏的」摘要頁，看起來像壞掉。已改為呼叫 `switchPageDom('summary')` 並補 history state。
-2. **累計零件落點不準（資料正確性）**：`modelDrillContent`/`modelMetrics` 的累計零件是把 `modelHistory` 每月 top-5 相加 — 每月第 6 名以後的零件整個消失、數字偏低。已改為 `RepairAnalyzer.aggregateParts(modelRecords)` 從完整記錄聚合；單月檢視同樣改用完整記錄。
-3. **模糊比對未正規化（容錯）**：`resolveModelQuery` 拿原始型號字串與正規化後的輸入互比，`msm-0801`、`zspmg 51` 這類輸入會失敗。已改為兩邊都過 `normalizeModel`，並要求輸入 ≥3 字元才做模糊比對（避免短輸入誤中）。
+### 修正 1：跨頁搜尋沒反應（嚴重，UI 流程）
+
+- **位置**：`app.js` → `quickModelSearch(raw, opts)`
+- **原因**：原寫法只設 `state.currentPage = 'summary'` 再 `renderAll()`。`renderAll → renderPage` 只負責「渲染內容」，不負責「切換哪個 `.page` 可見」— 可見性由 `switchPageDom()` 控制（切 `.page.active` class、導覽高亮、history）。所以使用者只要不是已經停在摘要頁（例如在總覽、零件 Pareto 頁）輸入型號，結果會渲染進 `display:none` 的 `#pageSummary`，畫面看起來完全沒反應 — 正是本文件「已知坑」裡最忌諱的「按了沒反應」。
+- **修改方式**：搜尋命中後改為：
+  - 若 `state.currentPage !== 'summary'`：先 `history.pushState({__page:'summary'})`（手機返回鍵可回原頁），再呼叫 `switchPageDom('summary')`（內含 renderPage），最後補跑 `renderFilters` 與 `updateSubbarSummary` 同步篩選列。
+  - 若已在摘要頁：維持原本 `renderAll()`。
+- **不要回退成**：直接改 `state.currentPage` + `renderAll()`。那就是這個 bug 本身。
+
+### 修正 2：歷年零件落點數字不準（資料正確性）
+
+- **位置**：`app.js` → `modelDrillContent(modelName, focusMonth)` 與 `modelMetrics(modelName)`
+- **原因**：`analyzer.js` 的 `modelHistory()` 對每個月只回傳 `topParts: aggregateParts(recs).slice(0, 5)`（每月前 5 名）。原寫法把「每月 top-5」相加當成「累計零件落點」，造成兩個問題：(a) 在每個月都排第 6 名以後的零件會從累計清單完全消失；(b) 某零件只在部分月份進前 5，累計數字會偏低。實測 MSM0801：舊算法 7 種零件、正確為 9 種。對「輸入型號查歷年故障落點」這條主流程來說是給錯資料。
+- **修改方式**：改用完整記錄直接聚合，不經過每月截斷：
+  - 累計檢視（`__all__`）：`RepairAnalyzer.aggregateParts(modelRecords)`
+  - 單月檢視：`RepairAnalyzer.aggregateParts(modelRecords.filter(r => r._monthKey === curMonth))`
+  - `modelMetrics` 的 `topParts` 同樣改為 `aggregateParts(recs)`。
+  - `aggregateParts` 已在 `window.RepairAnalyzer` 匯出，可直接使用。
+- **注意**：`modelHistory()` 本身沒改（月卡片仍用它），只是不再拿它的截斷結果做累計。
+
+### 修正 3：模糊比對未正規化（搜尋容錯）
+
+- **位置**：`app.js` → `resolveModelQuery(raw)`
+- **原因**：exact 比對有把兩邊都過 `normalizeModel`，但 fuzzy 比對寫成 `m.includes(norm) || norm.includes(m)` — `m` 是原始型號字串、`norm` 是正規化後（大寫、去 `-_空格`）的輸入。只要輸入帶連字號、空格或小寫（`msm-0801`、`zspmg 51`），fuzzy 就永遠比不中。
+- **修改方式**：fuzzy 比對兩邊都先過 `normFn`（`normalizeModel`，含 fallback），並加 `norm.length >= 3` 門檻，避免打一兩個字就誤中不相干型號。實測 `msm-0801`→`MSM0801`、`zspmg 51`→`ZSPMG51`、`iot0600`→`IOT0600` 均命中。
+
+### 驗證方式（本次實際跑過）
+
+```bash
+node --check app.js && node --check analyzer.js
+node build.js
+# 以 node 直接載入 analyzer.js + data.json，驗證：
+#   1) resolveModelQuery 對 msm-0801 / zspmg 51 / iot0600 命中
+#   2) MSM0801 累計零件 舊法 7 種 vs aggregateParts 9 種，top1 數字一致
+```
 
 已知但未動的項目（留給下一位 AI 判斷）：
 - `modelDrillContent` 的「故障原因落點」永遠用全月份記錄，即使 drawer 聚焦單月 — 型號查詢主流程用 `__all__` 所以不影響，但 drawer 單月檢視時語意稍有不一致。
