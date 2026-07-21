@@ -17,10 +17,11 @@ TITAN-STAR 是電子工廠維修資料分析網站。現在最重要的主流程
 - 線上網站：https://campcool.github.io/TITAN-STAR/
 - GitHub repo：https://github.com/Campcool/TITAN-STAR
 - 最新確認版本：`20260721-3`
-- 最新功能/UI 確認 commit：`2e9fb31 fix: prioritize model search and clarify roles`
+- 最新功能/UI 確認 commit：`8932723 style: promote model search and refresh ui`
 - 目前 `data.json` 內容：
   - 月份：`2026-03`、`2026-04`、`2026-05`、`2026-06`
   - 維修紀錄：`5,408` 筆
+  - 料件主檔 `partsMaster`：`8,996` 筆（品號/品名/規格/大類代碼）
   - `publishedAt`：`2026-07-15T09:06:03.018Z`
 
 ## 使用者偏好與重要決策
@@ -59,7 +60,7 @@ TITAN-STAR 是電子工廠維修資料分析網站。現在最重要的主流程
 | `app.js` | 主應用狀態、登入後流程、雲端同步、頁面渲染、型號查詢。 |
 | `report.js` | 報告產出。 |
 | `rma.js` | RMA 管理模組，目前不是主流程。 |
-| `data.json` | GitHub Pages 讀取的雲端資料快照。 |
+| `data.json` | GitHub Pages 讀取的雲端資料快照。除 `months` 外還含 `partsMaster`（料件主檔陣列）。 |
 | `build.js` | 產生離線單檔 `TITAN-STAR.html`。 |
 | `sw.js` | service worker 快取。修改 JS/CSS/HTML 後必須升版。 |
 
@@ -82,6 +83,33 @@ TITAN-STAR 是電子工廠維修資料分析網站。現在最重要的主流程
   - `.model-record-list`
 
 重要：使用者曾反應彈跳視窗不穩、X 不好關，所以不要再把型號查詢主流程改回「必須開彈窗」。
+
+## 料件資料庫（Parts Master DB）
+
+**目的**：使用者是電子廠，維修記錄裡的零件多半是純料號/規格（如 `AI-10H3C`、`ORD324`），非工程人員看不懂。料件資料庫把品號主檔帶進來，讓全站報表能顯示白話名稱與群組類別（電容/電阻/IC/開關…），達成「外行人也看得懂是什麼零件」。
+
+**資料來源**：使用者上傳的「品號基本資料報表」Excel（8,996 筆），已解析進 `data.json` 的 `partsMaster` 欄位，格式為陣列 `[品號, 品名, 規格, 大類代碼]`。大類代碼對應 `parser.js` 的 `PART_CATEGORY`（如 `105`→電容、`217`→SMD連接器）。
+
+**分頁位置**：側欄最下方 `料件資料庫`（`data-page="partsdb"`），對應 `#pagePartsdb` 與編輯用 `#pdbModal`。
+
+**app.js 相關函式（都在「料件資料庫」註解區塊內）**：
+
+- `pdbRows()`：合併主檔 + 本機編輯後的完整清單（有快取 `pdbCache`）。
+- `pdbInfoOf(partText)` / `pdbGroupOf(partText)`：把維修記錄的零件文字模糊比對回主檔，回傳 `{name, group}` 或群組名。比對順序：規格精確 → 品名精確 → 規格包含。
+- `pdbLabel(partText)`：**報表顯示核心**。純規格/料號會換成「品名（原文規格）」，例如 `AI-10H3C` → `蜂鳴器（AI-10H3C）`；比對不到就原文顯示。全站零件顯示（總覽最常更換零件、機種排名展開、零件 Pareto、跨機種矩陣列標題、明細頁零件欄、型號 drawer、零件下鑽 drawer 標題）都走這個函式。
+- `pdbTag(partText)`：回傳群組小標籤 HTML（如 `電容`），掛在零件名旁。
+- `renderPartsdb()` / `pdbSearchRender()`：分頁渲染與搜尋/群組篩選。
+- `pdbOpenEdit / pdbSaveEdit / pdbDelete`：新增/編輯/刪除，寫入 `localStorage`。
+- `pdbMergedMaster()`：發布時把合併後主檔塞回 `data.json` payload（見 `publishData` 的 `partsMaster:` 欄位）。
+- `report.js` 生成報告的零件表也用 `window.PartsDB.infoOf/groupOf` 顯示「品名（規格）」與「類別」欄。
+
+**儲存與同步機制**：
+
+- 主檔存 `localStorage['titan_partsmaster_v1']`；`syncCloud()` 會在雲端有 `partsMaster` 或本機缺主檔時自動補寫。
+- 使用者的新增/編輯/刪除存 `localStorage['titan_partsmaster_edits_v1']`，結構 `{add:[], mod:{品號:[品名,規格,大類]}, del:[品號]}`，與主檔分離，避免覆蓋原始資料。
+- 管理員「發布」→ `pdbMergedMaster()` 把主檔+編輯合併寫入 `data.json` → 推 GitHub → 全員同步。
+
+**注意**：Codex 後續在 `parser.js` 加了「零件同義詞/語序正規化」（`8瓦喇叭`=`喇叭8瓦`），那是**維修記錄零件名的聚合正規化**，與這裡的**料件主檔對照**是兩套獨立機制，改動其一時不要誤動另一個。
 
 ## 每月資料更新
 
