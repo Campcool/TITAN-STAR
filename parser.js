@@ -100,6 +100,77 @@
     return String(s).replace(/^\s*\d{3}\s+/, '').trim();
   }
 
+  function toHalfWidth(s) {
+    return String(s || '').replace(/[！-～]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+  }
+
+  function normalizePartUnits(s) {
+    return toHalfWidth(s)
+      .replace(/[ΩΩ]/g, 'Ω')
+      .replace(/\bOHMS?\b/gi, 'Ω')
+      .replace(/歐姆/g, 'Ω')
+      .replace(/瓦特/g, 'W')
+      .replace(/瓦/g, 'W')
+      .replace(/\bWATTS?\b/gi, 'W')
+      .replace(/揚聲器/g, '喇叭')
+      .replace(/\bSPEAKER\b/gi, '喇叭')
+      .replace(/喇吧/g, '喇叭');
+  }
+
+  function fmtPartNumber(n) {
+    const v = Number(n);
+    if (!Number.isFinite(v)) return String(n || '').trim();
+    return Number.isInteger(v) ? String(v) : String(v).replace(/0+$/, '').replace(/\.$/, '');
+  }
+
+  function compactPart(s) {
+    return String(s || '').toUpperCase().replace(/[\s_\-./()（）【】\[\]、，,]+/g, '');
+  }
+
+  function normalizeKnownPartAlias(t) {
+    const c = compactPart(t);
+    const aliases = {
+      'REEDSW磁簧管': '磁簧管 ORD324',
+      '磁簧管': '磁簧管 ORD324',
+      'ORD324': '磁簧管 ORD324',
+      '主板': '主機板',
+      '主機板': '主機板',
+      'SIM座': 'SIM卡座',
+      'SIM卡座': 'SIM卡座',
+      '尾線網口組': '尾線網口線組',
+      '尾線網口線組': '尾線網口線組',
+      '網口線組': '尾線網口線組',
+      'SPK': '喇叭',
+      'REDLED': '紅色LED',
+      '紅色LED': '紅色LED',
+      'LEDG': '綠色LED',
+      'LED綠色': '綠色LED',
+      '綠色LED': '綠色LED',
+    };
+    return aliases[c] || null;
+  }
+
+  function normalizeSpeakerPart(t) {
+    if (!/(喇叭|\bSPK\b)/i.test(t)) return null;
+    const wattMatch = t.match(/(\d+(?:\.\d+)?)\s*W\b/i);
+    const ohmMatch = t.match(/(\d+(?:\.\d+)?)\s*Ω/i);
+    if (!wattMatch && !ohmMatch) return normalizeKnownPartAlias(t);
+
+    let base = t
+      .replace(/(\d+(?:\.\d+)?)\s*W\b/gi, ' ')
+      .replace(/(\d+(?:\.\d+)?)\s*Ω/gi, ' ')
+      .replace(/[()（）]/g, ' ')
+      .replace(/\bSPK\b/gi, '喇叭')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    base = base || '喇叭';
+    const specs = [];
+    if (ohmMatch) specs.push(`${fmtPartNumber(ohmMatch[1])}Ω`);
+    if (wattMatch) specs.push(`${fmtPartNumber(wattMatch[1])}W`);
+    return `${base} ${specs.join(' ')}`.trim();
+  }
+
   // Normalize a part name for cross-month/cross-model comparison
   // - Strip leading 3-digit index (sheet-local)
   // - Trim whitespace
@@ -107,11 +178,12 @@
   // - Uppercase
   function normalizePart(s) {
     if (!s) return '';
-    let t = String(s)
+    let t = normalizePartUnits(s)
       .replace(/^\s*\d{3}\s+/, '')        // "032 LMC-..." → "LMC-..."
       .replace(/\s+/g, ' ')
       .trim()
       .toUpperCase();
+    t = normalizeSpeakerPart(t) || normalizeKnownPartAlias(t) || t;
     return t;
   }
 

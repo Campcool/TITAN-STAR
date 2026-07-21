@@ -5,6 +5,19 @@
 
 (function () {
 
+  function normalizePartName(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    if (typeof window !== 'undefined' && window.RepairParser && window.RepairParser.normalizePart) {
+      return window.RepairParser.normalizePart(raw);
+    }
+    return raw.toUpperCase().replace(/\s+/g, ' ').trim();
+  }
+
+  function recordPartName(raw, storedNorm) {
+    return normalizePartName(raw || storedNorm);
+  }
+
   // ─── Filter records across months by selected month set + category + model + date
   function getRecords(db, filter) {
     const { months, category, model, dateFrom, dateTo, scrapOnly } = filter || {};
@@ -21,7 +34,14 @@
         if (dateFrom && r.date && r.date < dateFrom) continue;
         if (dateTo && r.date && r.date > dateTo) continue;
         if (scrapOnly && !r.isScrap) continue;
-        out.push({ ...r, model: modelKey, _monthKey: mk });
+        out.push({
+          ...r,
+          model: modelKey,
+          part1Norm: recordPartName(r.part1, r.part1Norm),
+          part2Norm: recordPartName(r.part2, r.part2Norm),
+          part3Norm: recordPartName(r.part3, r.part3Norm),
+          _monthKey: mk,
+        });
       }
     }
     return out;
@@ -80,9 +100,9 @@
     const map = new Map(); // normPart → { name, count, models:Set, dates:Set, raw:Set }
     for (const r of records) {
       [
-        [r.part1Norm, r.part1, r.qty1, r.model, r.date],
-        [r.part2Norm, r.part2, r.qty2, r.model, r.date],
-        [r.part3Norm, r.part3, r.qty3, r.model, r.date],
+        [recordPartName(r.part1, r.part1Norm), r.part1, r.qty1, r.model, r.date],
+        [recordPartName(r.part2, r.part2Norm), r.part2, r.qty2, r.model, r.date],
+        [recordPartName(r.part3, r.part3Norm), r.part3, r.qty3, r.model, r.date],
       ].forEach(([norm, raw, qty, model, date]) => {
         if (!norm || !qty) return;
         if (!map.has(norm)) {
@@ -134,7 +154,9 @@
       if (r.isScrap) e.scrap++;
       if (r.serial) e.serials.set(r.serial, (e.serials.get(r.serial) || 0) + 1);
       [
-        [r.part1Norm, r.qty1], [r.part2Norm, r.qty2], [r.part3Norm, r.qty3]
+        [recordPartName(r.part1, r.part1Norm), r.qty1],
+        [recordPartName(r.part2, r.part2Norm), r.qty2],
+        [recordPartName(r.part3, r.part3Norm), r.qty3]
       ].forEach(([p, q]) => {
         if (p && q) e.parts.set(p, (e.parts.get(p) || 0) + q);
       });
@@ -187,6 +209,7 @@
   // ─── Per-part history across months: returns {month, count, modelsAffected}
   // Also includes per-month per-model breakdown
   function partHistoryDetailed(db, partNorm, filter) {
+    const targetPart = normalizePartName(partNorm);
     const monthKeys = Object.keys(db.months).sort();
     return monthKeys.map(mk => {
       const m = db.months[mk];
@@ -199,11 +222,11 @@
           if (filter.model && filter.model !== '全部' && r.model !== filter.model) continue;
         }
         [
-          [r.part1Norm, r.qty1, r.model],
-          [r.part2Norm, r.qty2, r.model],
-          [r.part3Norm, r.qty3, r.model],
+          [recordPartName(r.part1, r.part1Norm), r.qty1, r.model],
+          [recordPartName(r.part2, r.part2Norm), r.qty2, r.model],
+          [recordPartName(r.part3, r.part3Norm), r.qty3, r.model],
         ].forEach(([n, q, model]) => {
-          if (n === partNorm && q) {
+          if (n === targetPart && q) {
             perModel[model] = (perModel[model] || 0) + q;
           }
         });
@@ -250,7 +273,11 @@
   function aggregateParts(records) {
     const m = new Map();
     for (const r of records) {
-      [[r.part1Norm, r.qty1], [r.part2Norm, r.qty2], [r.part3Norm, r.qty3]].forEach(([n, q]) => {
+      [
+        [recordPartName(r.part1, r.part1Norm), r.qty1],
+        [recordPartName(r.part2, r.part2Norm), r.qty2],
+        [recordPartName(r.part3, r.part3Norm), r.qty3],
+      ].forEach(([n, q]) => {
         if (n && q) m.set(n, (m.get(n) || 0) + q);
       });
     }
@@ -279,9 +306,9 @@
         const perModel = {};
         for (const r of records) {
           [
-            [r.part1Norm, r.qty1, r.model],
-            [r.part2Norm, r.qty2, r.model],
-            [r.part3Norm, r.qty3, r.model],
+            [recordPartName(r.part1, r.part1Norm), r.qty1, r.model],
+            [recordPartName(r.part2, r.part2Norm), r.qty2, r.model],
+            [recordPartName(r.part3, r.part3Norm), r.qty3, r.model],
           ].forEach(([n, q, m]) => {
             if (n === p.name && q) perModel[m] = (perModel[m] || 0) + q;
           });
@@ -304,7 +331,11 @@
       if (r.date) e.dates.push(r.date);
       if (r.reason) e.reasons.push(r.reason);
       if (r.content) e.reasons.push(r.content);
-      [r.part1Norm, r.part2Norm, r.part3Norm].forEach(p => { if (p) e.parts.push(p); });
+      [
+        recordPartName(r.part1, r.part1Norm),
+        recordPartName(r.part2, r.part2Norm),
+        recordPartName(r.part3, r.part3Norm),
+      ].forEach(p => { if (p) e.parts.push(p); });
     }
     return Array.from(map.values())
       .filter(e => e.count >= 2)
@@ -342,7 +373,11 @@
           reason: r.reason,
           content: r.content,
           isScrap: r.isScrap,
-          parts: [r.part1Norm, r.part2Norm, r.part3Norm].filter(Boolean),
+          parts: [
+            recordPartName(r.part1, r.part1Norm),
+            recordPartName(r.part2, r.part2Norm),
+            recordPartName(r.part3, r.part3Norm),
+          ].filter(Boolean),
         });
       }
     }
@@ -398,6 +433,7 @@
 
   // ─── Part trend across months (for a specific normalized part)
   function partTrend(db, partNorm, filter) {
+    const targetPart = normalizePartName(partNorm);
     const monthKeys = Object.keys(db.months).sort();
     return monthKeys.map(mk => {
       const recs = getRecords(db, { ...filter, months: [mk] });
@@ -405,11 +441,11 @@
       const models = new Set();
       for (const r of recs) {
         [
-          [r.part1Norm, r.qty1, r.model],
-          [r.part2Norm, r.qty2, r.model],
-          [r.part3Norm, r.qty3, r.model],
+          [recordPartName(r.part1, r.part1Norm), r.qty1, r.model],
+          [recordPartName(r.part2, r.part2Norm), r.qty2, r.model],
+          [recordPartName(r.part3, r.part3Norm), r.qty3, r.model],
         ].forEach(([n, q, m]) => {
-          if (n === partNorm && q) { count += q; models.add(m); }
+          if (n === targetPart && q) { count += q; models.add(m); }
         });
       }
       return { month: mk, count, models: Array.from(models) };

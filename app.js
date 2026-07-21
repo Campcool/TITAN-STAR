@@ -4448,16 +4448,39 @@ window.App = (function () {
   }
 
   // 計算某零件的跨角色指標
+  function canonicalPartKey(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    return RepairParser && RepairParser.normalizePart ? RepairParser.normalizePart(raw) : raw.toUpperCase();
+  }
+
+  function recordPartKeys(r) {
+    return [
+      canonicalPartKey(r.part1 || r.part1Norm),
+      canonicalPartKey(r.part2 || r.part2Norm),
+      canonicalPartKey(r.part3 || r.part3Norm),
+    ];
+  }
+
+  function recordHasPart(r, partNorm) {
+    const target = canonicalPartKey(partNorm);
+    return recordPartKeys(r).includes(target);
+  }
+
+  function recordPartQty(r, partNorm) {
+    const target = canonicalPartKey(partNorm);
+    let q = 0;
+    if (canonicalPartKey(r.part1 || r.part1Norm) === target) q += (r.qty1 || 0);
+    if (canonicalPartKey(r.part2 || r.part2Norm) === target) q += (r.qty2 || 0);
+    if (canonicalPartKey(r.part3 || r.part3Norm) === target) q += (r.qty3 || 0);
+    return q || (recordHasPart(r, target) ? 1 : 0);
+  }
+
   function partMetrics(partNorm) {
+    partNorm = canonicalPartKey(partNorm);
     const allRecs = RepairAnalyzer.getRecords(state.db, {});
-    const recs = allRecs.filter(r => r.part1Norm === partNorm || r.part2Norm === partNorm || r.part3Norm === partNorm);
-    const qty = recs.reduce((s, r) => {
-      let q = 0;
-      if (r.part1Norm === partNorm) q += (r.qty1 || 0);
-      if (r.part2Norm === partNorm) q += (r.qty2 || 0);
-      if (r.part3Norm === partNorm) q += (r.qty3 || 0);
-      return s + (q || 1);
-    }, 0);
+    const recs = allRecs.filter(r => recordHasPart(r, partNorm));
+    const qty = recs.reduce((s, r) => s + recordPartQty(r, partNorm), 0);
     const models = {};
     for (const r of recs) models[r.model] = (models[r.model] || 0) + 1;
     const modelArr = Object.entries(models).map(([m, c]) => ({ model: m, count: c })).sort((a, b) => b.count - a.count);
@@ -4601,6 +4624,7 @@ window.App = (function () {
   }
 
   function openPartModelDrawer(partName, model, fixedMonth) {
+    const targetPart = canonicalPartKey(partName);
     const f = currentFilter();
     // Get records from all months in DB (matrix is not month-filtered)
     const allMonthRecords = [];
@@ -4612,8 +4636,7 @@ window.App = (function () {
       }
     }
     const recs = allMonthRecords.filter(r =>
-      (r.part1Norm === partName || r.part2Norm === partName || r.part3Norm === partName ||
-       r.part1 === partName || r.part2 === partName || r.part3 === partName) &&
+      recordHasPart(r, targetPart) &&
       RepairAnalyzer.normalizeModel(r.model) === RepairAnalyzer.normalizeModel(model) &&
       (!fixedMonth || r.month === fixedMonth)
     );
@@ -4647,6 +4670,7 @@ window.App = (function () {
   }
 
   function openPartDrawer(partNorm) {
+    partNorm = canonicalPartKey(partNorm);
     const pdbInfo = pdbInfoOf(partNorm);
     openDrawer({
       severity: 'info', icon: '▤',
@@ -4656,11 +4680,10 @@ window.App = (function () {
     });
   }
   function openPartFaultDrawer(partNorm) {
+    partNorm = canonicalPartKey(partNorm);
     const f = currentFilter();
     const allRecords = RepairAnalyzer.getRecords(state.db, f);
-    const partRecords = allRecords.filter(r =>
-      r.part1Norm === partNorm || r.part2Norm === partNorm || r.part3Norm === partNorm
-    );
+    const partRecords = allRecords.filter(r => recordHasPart(r, partNorm));
     const byTaxonomy = {};
     for (const r of partRecords) {
       const text = `${r.content || ''} ${r.reason || ''}`;
