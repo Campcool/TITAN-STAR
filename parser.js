@@ -200,6 +200,23 @@
     return -1;
   }
 
+  function parseNumberCell(v) {
+    if (typeof v === 'number') return v;
+    const s = String(v == null ? '' : v).replace(/,/g, '').replace(/%/g, '').trim();
+    if (!s) return NaN;
+    const n = parseFloat(s);
+    return Number.isFinite(n) ? n : NaN;
+  }
+
+  function parsePercentCell(v) {
+    if (typeof v === 'number') return v > 1 ? v / 100 : v;
+    const raw = String(v == null ? '' : v).trim();
+    if (!raw) return NaN;
+    const n = parseNumberCell(raw);
+    if (!Number.isFinite(n)) return NaN;
+    return raw.includes('%') || n > 1 ? n / 100 : n;
+  }
+
   // Parse 故障零件總數 summary sheet to extract:
   // - 整新數 (denominator) per model
   // - month identifier
@@ -226,9 +243,14 @@
         currentModel = model.toUpperCase().replace(/[-_\s]/g, '');
         // Find 整新數
         const denomIdx = cells.findIndex(c => c.includes('整新數'));
-        if (denomIdx >= 0 && cells[denomIdx + 1]) {
-          const num = parseFloat(cells[denomIdx + 1].replace(/,/g, ''));
-          if (!isNaN(num) && num > 0) denominators[currentModel] = num;
+        if (denomIdx >= 0) {
+          for (let j = denomIdx + 1; j < Math.min(cells.length, denomIdx + 6); j++) {
+            const num = parseNumberCell(cells[j]);
+            if (!isNaN(num) && num > 0) {
+              denominators[currentModel] = num;
+              break;
+            }
+          }
         }
         inDataBlock = false;
         partCatalog[currentModel] = [];
@@ -245,14 +267,16 @@
         // [code, name, spec, qty, pct]
         const [code, name, spec, qty, pct] = cells;
         if (!name && !spec) { inDataBlock = false; continue; }
-        const n = parseFloat(qty);
+        const n = parseNumberCell(qty);
         if (isNaN(n)) continue;
+        const pctFromDenom = denominators[currentModel] ? n / denominators[currentModel] : NaN;
+        const pctFromCell = parsePercentCell(pct);
         partCatalog[currentModel].push({
           code: String(code || '').trim(),
           name: String(name || '').trim(),
           spec: String(spec || '').trim(),
           count: n,
-          pct: parseFloat(pct) || (denominators[currentModel] ? n / denominators[currentModel] : 0),
+          pct: Number.isFinite(pctFromDenom) ? pctFromDenom : (Number.isFinite(pctFromCell) ? pctFromCell : 0),
         });
       }
     }

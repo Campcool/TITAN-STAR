@@ -4017,6 +4017,7 @@ window.App = (function () {
     const recentRecords = modelRecords.slice()
       .sort((a, b) => (b.date || b._monthKey || '').localeCompare(a.date || a._monthKey || ''))
       .slice(0, 12);
+    const allDbMonths = Object.keys(state.db.months).sort();
     const sortedMonths = state.selectedMonths.slice().sort();
     const isAll = focusMonth === '__all__';
     const curMonth = isAll ? '__all__' : (focusMonth || sortedMonths[sortedMonths.length - 1]);
@@ -4031,10 +4032,49 @@ window.App = (function () {
     // Cumulative top parts: 從完整記錄聚合（不能用每月 top-5 相加，會漏掉長尾零件且數字偏低）
     const allTopParts = RepairAnalyzer.aggregateParts(modelRecords);
 
-    // Parts shown depend on focus: single month vs cumulative（單月也用完整記錄，不受 top-5 截斷）
-    const shownParts = isAll
+    const modelDenomForMonth = (mk) => {
+      const den = state.db.months[mk]?.denominators || {};
+      const norm = RepairAnalyzer.normalizeModel ? RepairAnalyzer.normalizeModel(modelName) : modelName;
+      return den[norm] || Object.entries(den).find(([k]) => (RepairAnalyzer.normalizeModel ? RepairAnalyzer.normalizeModel(k) : k) === norm)?.[1] || 0;
+    };
+    const catalogPartsForMonths = (monthKeys) => {
+      const map = new Map();
+      const scopeDenom = monthKeys.reduce((s, mk) => s + (Number(modelDenomForMonth(mk)) || 0), 0);
+      for (const mk of monthKeys) {
+        const monthData = state.db.months[mk];
+        if (!monthData) continue;
+        const catalog = monthData.partCatalog || {};
+        const norm = RepairAnalyzer.normalizeModel ? RepairAnalyzer.normalizeModel(modelName) : modelName;
+        const parts = catalog[norm] || Object.entries(catalog).find(([k]) => (RepairAnalyzer.normalizeModel ? RepairAnalyzer.normalizeModel(k) : k) === norm)?.[1] || [];
+        for (const p of parts) {
+          const count = Number(p.count) || 0;
+          if (!count) continue;
+          const rawLabel = [p.name, p.spec].filter(Boolean).join(' · ') || p.code || '未命名零件';
+          const key = RepairParser.normalizePart ? RepairParser.normalizePart(p.spec || p.name || p.code || rawLabel) : rawLabel;
+          if (!map.has(key)) {
+            map.set(key, { name: key, label: rawLabel, code: p.code || '', count: 0, denom: scopeDenom, months: new Set() });
+          }
+          const e = map.get(key);
+          e.count += count;
+          e.months.add(mk);
+        }
+      }
+      return Array.from(map.values()).map(p => ({
+        ...p,
+        months: Array.from(p.months).sort(),
+        rate: p.denom ? p.count / p.denom : null,
+      })).sort((a, b) => b.count - a.count);
+    };
+
+    // Parts shown depend on focus: prefer summary-sheet catalogue because it has 整新數 denominators.
+    const partMonthKeys = isAll ? allDbMonths : [curMonth];
+    const catalogShownParts = catalogPartsForMonths(partMonthKeys);
+    const detailFocusedParts = isAll
       ? allTopParts
       : RepairAnalyzer.aggregateParts(modelRecords.filter(r => r._monthKey === curMonth));
+    const detailShownParts = detailFocusedParts.map(p => ({ ...p, label: pdbLabel(p.name), denom: null, rate: null }));
+    const shownParts = catalogShownParts.length ? catalogShownParts : detailShownParts;
+    const partSourceLabel = catalogShownParts.length ? '首頁整新數' : '維修明細無分母';
     const partsTitle = isAll ? '累計最常更換零件' : `${fmt.monthLabel(curMonth)} 最常更換零件`;
     const max = shownParts[0]?.count || 1;
     const reasonMax = Math.max(reasons[0]?.count || 0, contents[0]?.count || 0, 1);
@@ -4058,7 +4098,7 @@ window.App = (function () {
       .join('');
 
     // Month navigation tabs (allow switching within drawer)
-    const allMonths = Object.keys(state.db.months).sort();
+    const allMonths = allDbMonths;
     const curIdx = allMonths.indexOf(curMonth);
     const prevMonth = curIdx > 0 ? allMonths[curIdx - 1] : null;
     const nextMonth = curIdx < allMonths.length - 1 ? allMonths[curIdx + 1] : null;
@@ -4117,13 +4157,16 @@ window.App = (function () {
 
       ${shownParts.length > 0 ? `
         <div class="drawer-sec">
-          <div class="drawer-sec-t"><span class="strong">${partsTitle}</span> <span class="count-tag">${shownParts.length} 種</span></div>
+          <div class="drawer-sec-t"><span class="strong">${partsTitle}</span> <span class="count-tag">${partSourceLabel}</span> <span class="count-tag">${shownParts.length} 種</span></div>
           <div class="barlist">
             ${shownParts.map(p => `
-              <div class="barlist-row" style="cursor:pointer" onclick="App.openPartDrawer('${escapeAttr(p.name)}')">
-                <div class="barlist-name">${pdbLabel(p.name)}</div>
+              <div class="barlist-row model-part-row" style="cursor:pointer" onclick="App.openPartDrawer('${escapeAttr(p.name)}')">
+                <div class="barlist-name" title="${escapeAttr(p.label || pdbLabel(p.name))}">${escapeHtml(p.label || pdbLabel(p.name))}</div>
                 <div class="barlist-track"><div style="width:${(p.count / max * 100).toFixed(0)}%"></div></div>
-                <div class="barlist-n">${p.count}</div>
+                <div class="barlist-n model-part-rate">
+                  <span>${fmt.int(p.count)}</span>
+                  ${p.denom ? `<small>/ ${fmt.int(p.denom)}</small><b>${(p.rate * 100).toFixed(2)}%</b>` : '<small>無分母</small>'}
+                </div>
               </div>`).join('')}
           </div>
         </div>` : ''}
