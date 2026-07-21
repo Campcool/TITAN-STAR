@@ -450,3 +450,50 @@ input:focus, select:focus, textarea:focus {
   border-color: rgba(91,130,166,.32) !important;
   color: #5B82A6 !important;
 }
+
+/* 20260721-3: top query/role slabs + softer readable cards. */
+.top-control {
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.78), rgba(246,248,249,.55)),
+    var(--surface) !important;
+  border-color: rgba(122,162,196,.36) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.72),
+    0 12px 26px rgba(91,130,166,.14) !important;
+}
+.top-control-model { border-left-color: #62A7D8 !important; }
+.top-control-role { border-left-color: #A58AD8 !important; }
+.top-control-icon {
+  color: #fff !important;
+  background: linear-gradient(135deg, #62A7D8, #80B77B) !important;
+}
+.top-control-role .top-control-icon {
+  background: linear-gradient(135deg, #A58AD8, #DD89B3) !important;
+}
+.top-control-label { color: var(--text) !important; }
+.top-control .model-lookup-input {
+  background: rgba(255,255,255,.70) !important;
+  border-color: rgba(122,162,196,.34) !important;
+  color: var(--text) !important;
+}
+.top-control .role-sel-btn {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+.page-usage {
+  background:
+    linear-gradient(135deg, rgba(122,162,196,.16), rgba(128,183,123,.08)),
+    var(--surface) !important;
+  border-color: rgba(122,162,196,.28) !important;
+  border-left-color: #62A7D8 !important;
+}
+.card,
+.kpi,
+.sum-card,
+.model-fault-card,
+.drawer-sec {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.62),
+    0 12px 26px rgba(91,130,166,.11) !important;
+}

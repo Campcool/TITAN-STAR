@@ -11,10 +11,10 @@
 <link rel="manifest" href="manifest.json">
 <title>TITAN-STAR · 維修分析</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=20260721-2">
-<link rel="stylesheet" href="rma-styles.css?v=20260721-2">
-<link rel="stylesheet" href="styles-morandi.css?v=20260721-2" id="morandiThemeLink">
+<link href="https://fonts.googleapis.com/css2?family=Iansui&family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=20260721-3">
+<link rel="stylesheet" href="rma-styles.css?v=20260721-3">
+<link rel="stylesheet" href="styles-morandi.css?v=20260721-3" id="morandiThemeLink">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
@@ -74,8 +74,19 @@
     <button class="mode-tab active mode-analysis-tab" id="modeAnalysis" onclick="switchMode('analysis')" style="display:none">
       <span class="mode-tab-ico">◈</span> 維修分析
     </button>
+    <div class="top-control top-control-model" id="topModelLookup">
+      <span class="top-control-icon">#</span>
+      <label class="top-control-label" for="modelQuickSearch">型號查詢</label>
+      <input class="model-lookup-input top-model-input" id="modelQuickSearch" list="modelLookupList" placeholder="輸入型號，例如 MSM0801 / ZSPMG51"
+        oninput="App.quickModelSearchInput(this.value)"
+        onchange="App.quickModelSearch(this.value)"
+        onkeydown="if(event.key==='Enter')App.quickModelSearch(this.value)">
+      <datalist id="modelLookupList"></datalist>
+    </div>
     <!-- Role selector embedded next to analysis tab -->
-    <div class="role-sel" id="roleSelWrap" style="display:none">
+    <div class="role-sel top-control top-control-role" id="roleSelWrap" style="display:none">
+      <span class="top-control-icon">⊞</span>
+      <span class="top-control-label">角色觀點</span>
       <!-- Desktop: custom dropdown button -->
       <button class="role-sel-btn role-sel-desktop" id="roleSelBtn" onclick="App.toggleRoleDropdown()" title="切換分析視角">
         <span id="roleSelIco">⊞</span>
@@ -160,14 +171,6 @@
 
   <!-- Sub-bar: month + category chips -->
   <div class="subbar" id="subbar">
-    <div class="subbar-row model-lookup-row top-model-lookup">
-      <div class="sb-label">型號查詢</div>
-      <input class="model-lookup-input" id="modelQuickSearch" list="modelLookupList" placeholder="輸入型號，例如 MSM0801 / ZSPMG51"
-        oninput="App.quickModelSearchInput(this.value)"
-        onchange="App.quickModelSearch(this.value)"
-        onkeydown="if(event.key==='Enter')App.quickModelSearch(this.value)">
-      <datalist id="modelLookupList"></datalist>
-    </div>
     <div class="subbar-head">
       <button class="nav-toggle" id="navToggle" onclick="App.toggleNav()" aria-label="開啟選單">☰</button>
       <button class="subbar-toggle" id="subbarToggle" onclick="App.toggleSubbar()" aria-label="展開/收合篩選">
@@ -707,11 +710,11 @@
 <!-- RMA Modal container -->
 <div id="rmaModal" style="display:none;position:fixed;inset:0;z-index:600;align-items:center;justify-content:center"></div>
 
-<script src="parser.js?v=20260721-2"></script>
-<script src="analyzer.js?v=20260721-2"></script>
-<script src="app.js?v=20260721-2"></script>
-<script src="report.js?v=20260721-2"></script>
-<script src="rma.js?v=20260721-2"></script>
+<script src="parser.js?v=20260721-3"></script>
+<script src="analyzer.js?v=20260721-3"></script>
+<script src="app.js?v=20260721-3"></script>
+<script src="report.js?v=20260721-3"></script>
+<script src="rma.js?v=20260721-3"></script>
 <script>
 // ─── Theme toggle（深色 ↔ 莫蘭迪淺色）───
 const THEME_KEY = 'titan_theme';
