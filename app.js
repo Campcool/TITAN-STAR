@@ -242,6 +242,11 @@ window.App = (function () {
     return countDbRecords(RepairDB.load()) > 0;
   }
 
+  function loadBestDb() {
+    const localDb = RepairDB.load();
+    return (!countDbRecords(localDb) && countDbRecords(state.cloudDb)) ? state.cloudDb : localDb;
+  }
+
   function dbStats(db) {
     const months = Object.keys((db && db.months) || {}).sort();
     return {
@@ -250,6 +255,13 @@ window.App = (function () {
       records: countDbRecords(db),
       supplements: countDbSupplements(db),
       latestMonth: months[months.length - 1] || '',
+    };
+  }
+
+  function cloudDbPayload(cloud) {
+    return {
+      months: (cloud && cloud.months) || {},
+      modelSupplements: (cloud && cloud.modelSupplements) || {},
     };
   }
 
@@ -272,7 +284,7 @@ window.App = (function () {
     try {
       const res = await fetch(CLOUD_URL, { cache: 'no-store' });
       if (!res.ok) return null;
-      localStorage.setItem(CLOUD_CHECK_KEY, currentMonthKey());
+      try { localStorage.setItem(CLOUD_CHECK_KEY, currentMonthKey()); } catch(e) {}
       const cloud = await res.json();
       if (!cloud || !cloud.months) return null;
       const cloudStats = dbStats(cloud);
@@ -290,17 +302,21 @@ window.App = (function () {
       };
       if (!cloudStats.monthCount) return cloud;
 
-      const seen = localStorage.getItem(CLOUD_SEEN_KEY);
+      let seen = null;
+      try { seen = localStorage.getItem(CLOUD_SEEN_KEY); } catch(e) {}
+      state.cloudDb = cloudDbPayload(cloud);
       if (shouldAdoptCloudData(cloud, localDb, seen)) {
         // Adopt cloud data into localStorage so every user auto-syncs.
-        localStorage.setItem('repair_db_v2', JSON.stringify({
-          months: cloud.months,
-          modelSupplements: cloud.modelSupplements || {},
-        }));
+        try {
+          localStorage.setItem('repair_db_v2', JSON.stringify(state.cloudDb));
+        } catch (e) {
+          state.cloudStorageFailed = true;
+          console.warn('Cloud data loaded for this session; local save failed:', e.message);
+        }
         if (cloud.partsMaster) { try { localStorage.setItem('titan_partsmaster_v1', JSON.stringify(cloud.partsMaster)); } catch(e) {} }
-        if (cloud.capa) localStorage.setItem('titan_capa_v1', JSON.stringify(cloud.capa));
-        if (cloud.costCfg) localStorage.setItem('titan_cost_cfg_v1', JSON.stringify(cloud.costCfg));
-        localStorage.setItem(CLOUD_SEEN_KEY, cloud.publishedAt);
+        if (cloud.capa) { try { localStorage.setItem('titan_capa_v1', JSON.stringify(cloud.capa)); } catch(e) {} }
+        if (cloud.costCfg) { try { localStorage.setItem('titan_cost_cfg_v1', JSON.stringify(cloud.costCfg)); } catch(e) {} }
+        try { localStorage.setItem(CLOUD_SEEN_KEY, cloud.publishedAt); } catch(e) {}
         state.cloudJustLoaded = true;
         // B5: notify if critical anomalies in new data
         setTimeout(() => {
@@ -613,7 +629,13 @@ window.App = (function () {
     // 等雲端資料就緒（避免快速登入時 syncCloud 尚未完成）
     if (syncCloudPromise) { try { await syncCloudPromise; } catch(e) {} }
     // 登入後直接進主介面，不彈 alert；若無資料則顯示引導畫面
-    state.db = RepairDB.load();
+    state.db = loadBestDb();
+    if (!Object.keys(state.db.months || {}).length) {
+      try {
+        await syncCloud();
+        state.db = loadBestDb();
+      } catch(e) {}
+    }
     $('uploadZone').style.display = 'none';
     $('dash').classList.add('active');
     if ($('modeBar')) $('modeBar').style.display = 'flex';
@@ -5879,7 +5901,7 @@ window.App = (function () {
     const cloud = await syncCloudPromise;
     state.cloudUsers = (cloud && cloud.users) ? cloud.users : null;
     setupUpload();
-    state.db = RepairDB.load();
+    state.db = loadBestDb();
     renderUploadList();
     // Escape key closes drawer
     document.addEventListener('keydown', e => {
