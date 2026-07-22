@@ -16,7 +16,8 @@ TITAN-STAR ?舫摮極撱雁靽株????雯蝡?冽????
 
 - 蝺?蝬脩?嚗ttps://campcool.github.io/TITAN-STAR/
 - GitHub repo嚗ttps://github.com/Campcool/TITAN-STAR
-- 最新確認版本：`20260722-2`
+- 最新確認版本：`20260722-3`
+- 20260722-3 UX：整站閱讀優化。新增全站 CSS polish，統一卡片、表格、摘要卡、異常卡、抽屜、篩選列、側欄、手機版字級與間距；此版不是只針對 ZBRT050。
 - 20260722-2 UX：型號補充抽屜已把「整新測試數 / 整新測試故障 / 年度故障分佈總數」拆成不同色卡。年度 7,217 是歷史年度分佈，不與整新測試故障率混算。
 - 最新功能/UI/資料功能：`style: clarify model supplement metrics`
 - ?桀? `data.json` ?批捆嚗?
