@@ -16,8 +16,9 @@ TITAN-STAR ?舫摮極撱雁靽株????雯蝡?冽????
 
 - 蝺?蝬脩?嚗ttps://campcool.github.io/TITAN-STAR/
 - GitHub repo嚗ttps://github.com/Campcool/TITAN-STAR
-- 最新確認版本：`20260722-1`
-- 最新功能/UI/資料功能 commit：`75232e6 feat: import model supplemental summaries`
+- 最新確認版本：`20260722-2`
+- 20260722-2 UX：型號補充抽屜已把「整新測試數 / 整新測試故障 / 年度故障分佈總數」拆成不同色卡。年度 7,217 是歷史年度分佈，不與整新測試故障率混算。
+- 最新功能/UI/資料功能：`style: clarify model supplement metrics`
 - ?桀? `data.json` ?批捆嚗?
   - ?遢嚗2026-03`?2026-04`?2026-05`?2026-06`
   - 蝬凋耨蝝??`5,408` 蝑?

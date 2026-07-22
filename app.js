@@ -4053,6 +4053,7 @@ window.App = (function () {
     const peak = history.slice().sort((a, b) => (b.faultRate || 0) - (a.faultRate || 0))[0];
     const reasons = RepairAnalyzer.modelSupplementReasons(state.db, modelName, isAll ? '__all__' : focusMonth);
     const annual = RepairAnalyzer.modelSupplementAnnual ? RepairAnalyzer.modelSupplementAnnual(state.db, modelName) : [];
+    const annualTotal = annual.reduce((s, y) => s + (Number(y.count) || 0), 0);
     const maxFailed = Math.max(...history.map(h => h.failed || 0), 1);
     const maxReason = Math.max(...reasons.map(r => r.count || 0), 1);
     const sup = RepairAnalyzer.getModelSupplement ? RepairAnalyzer.getModelSupplement(state.db, modelName) : null;
@@ -4068,33 +4069,39 @@ window.App = (function () {
 
     return `
       <div class="drawer-sec model-supp-sec">
-        <div class="drawer-sec-t">
-          <span class="strong">型號補充彙總</span>
-          <span class="count-tag">整新/故障原因碼</span>
-          ${sourceFiles ? `<span class="count-tag">${escapeHtml(sourceFiles)}</span>` : ''}
+        <div class="drawer-sec-t supp-heading">
+          <span class="strong">${escapeHtml(modelName)} 型號補充資料</span>
+          <span class="count-tag">整新測試</span>
+          <span class="count-tag">原因碼</span>
+          ${sourceFiles ? `<span class="count-tag">來源：${escapeHtml(sourceFiles)}</span>` : ''}
+        </div>
+        <div class="supp-explain-grid">
+          <div class="supp-explain primary"><b>這頁先看什麼</b><span>先看整新測試故障率，再看原因碼是不是集中在同一個問題。</span></div>
+          <div class="supp-explain warn"><b>數字口徑提醒</b><span>整新測試故障數和年度故障分佈是不同表格，不混在一起算故障率。</span></div>
         </div>
         <div class="supp-kpi-grid">
-          <div class="supp-kpi k-blue"><div class="l">累計整新</div><div class="v">${fmt.int(totalRefurbished)}</div><div class="d">測試正常 ${fmt.int(totalPassed)}</div></div>
-          <div class="supp-kpi k-red"><div class="l">累計故障</div><div class="v">${fmt.int(totalFailed)}</div><div class="d">故障率 ${fmt.pctRaw(totalRate)}</div></div>
+          <div class="supp-kpi k-blue"><div class="l">整新測試數</div><div class="v">${fmt.int(totalRefurbished)}</div><div class="d">測試正常 ${fmt.int(totalPassed)}</div></div>
+          <div class="supp-kpi k-red"><div class="l">整新測試故障</div><div class="v">${fmt.int(totalFailed)}</div><div class="d">故障率 ${fmt.pctRaw(totalRate)}</div></div>
           <div class="supp-kpi k-warn"><div class="l">最新月份</div><div class="v">${fmt.monthLabel(latest.month)}</div><div class="d">${fmt.int(latest.failed)} / ${fmt.int(latest.refurbished)} · ${fmt.pctRaw(latest.faultRate)} ${latestDelta}</div></div>
-          <div class="supp-kpi k-info"><div class="l">最高月份</div><div class="v">${fmt.monthLabel(peak.month)}</div><div class="d">${fmt.int(peak.failed)} / ${fmt.int(peak.refurbished)} · ${fmt.pctRaw(peak.faultRate)}</div></div>
+          <div class="supp-kpi k-info"><div class="l">最高故障率月份</div><div class="v">${fmt.monthLabel(peak.month)}</div><div class="d">${fmt.int(peak.failed)} / ${fmt.int(peak.refurbished)} · ${fmt.pctRaw(peak.faultRate)}</div></div>
+          ${annualTotal ? `<div class="supp-kpi k-purple"><div class="l">年度故障分佈總數</div><div class="v">${fmt.int(annualTotal)}</div><div class="d">2020-2025 歷史分佈；不作為整新故障率分母/分子</div></div>` : ''}
         </div>
-        <div class="supp-note">這裡是型號彙總資料，適合看長期趨勢與原因碼落點；它不是逐筆維修明細，所以不會混入全廠異常排行。</div>
+        <div class="supp-note"><b>簡單說：</b>藍色是整新測試母數，紅色是整新測試中失敗的數量，紫色是另一張年度歷史分佈表。三者可以一起參考，但不要混算。</div>
         <div class="supp-month-strip">
           ${history.map(h => `
             <button class="supp-month-card ${(!isAll && h.month === focusMonth) ? 'current' : ''}" onclick="App.openModelDrawer('${escapeAttr(modelName)}','${h.month}')">
               <span>${fmt.monthLabel(h.month)}</span>
               <b>${fmt.int(h.failed)}</b>
-              <small>/ ${fmt.int(h.refurbished)} · ${fmt.pctRaw(h.faultRate)}</small>
+              <small>故障 / 整新 ${fmt.int(h.refurbished)} · ${fmt.pctRaw(h.faultRate)}</small>
               <i style="width:${Math.max(4, Math.round((h.failed || 0) / maxFailed * 100))}%"></i>
             </button>
           `).join('')}
           <button class="supp-month-card ${isAll ? 'current' : ''}" onclick="App.openModelDrawer('${escapeAttr(modelName)}','__all__')">
-            <span>累計</span><b>${fmt.int(totalFailed)}</b><small>/ ${fmt.int(totalRefurbished)} · ${fmt.pctRaw(totalRate)}</small><i style="width:100%"></i>
+            <span>累計</span><b>${fmt.int(totalFailed)}</b><small>故障 / 整新 ${fmt.int(totalRefurbished)} · ${fmt.pctRaw(totalRate)}</small><i style="width:100%"></i>
           </button>
         </div>
         <div class="model-fault-grid">
-          <div class="model-fault-card">
+          <div class="model-fault-card reason-card">
             <div class="model-fault-title">${isAll ? '累計原因碼落點' : `${fmt.monthLabel(focusMonth)} 原因碼落點`}</div>
             ${reasons.length ? `
               <div class="barlist">
@@ -4108,12 +4115,14 @@ window.App = (function () {
               </div>
             ` : '<div class="empty mini">此範圍沒有原因碼資料</div>'}
           </div>
-          <div class="model-fault-card">
-            <div class="model-fault-title">年度故障數</div>
+          <div class="model-fault-card annual-card">
+            <div class="model-fault-title">年度故障分佈</div>
             ${annual.length ? `
+              <div class="supp-year-total">總數 <b>${fmt.int(annualTotal)}</b></div>
               <div class="supp-year-list">
                 ${annual.map(y => `<div><span>${escapeHtml(y.year)}</span><b>${fmt.int(y.count)}</b></div>`).join('')}
               </div>
+              <div class="supp-footnote">年度分佈是歷史故障數，不等於本頁整新測試故障數。</div>
             ` : '<div class="empty mini">此檔沒有年度彙總表</div>'}
           </div>
         </div>

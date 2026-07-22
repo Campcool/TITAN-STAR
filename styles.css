@@ -62,7 +62,7 @@
 
 .supp-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 12px;
   margin-top: 12px;
 }
@@ -88,6 +88,7 @@
 .supp-kpi.k-red::before { background: var(--critical); }
 .supp-kpi.k-warn::before { background: var(--warn); }
 .supp-kpi.k-info::before { background: var(--info); }
+.supp-kpi.k-purple::before { background: #8b5cf6; }
 
 .supp-kpi .l {
   color: var(--text2);
@@ -116,6 +117,51 @@
   border: 1px solid rgba(59,130,246,.18);
   border-radius: 10px;
   background: rgba(59,130,246,.08);
+  color: var(--text2);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.supp-heading .strong {
+  font-family: var(--friendly);
+  font-size: 20px;
+  letter-spacing: 0;
+}
+
+.supp-explain-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.supp-explain {
+  border: 1px solid rgba(59,130,246,.18);
+  border-left: 4px solid #3b82f6;
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: rgba(59,130,246,.08);
+}
+
+.supp-explain.warn {
+  border-color: rgba(245,158,11,.22);
+  border-left-color: #f59e0b;
+  background: rgba(245,158,11,.09);
+}
+
+.supp-explain b,
+.supp-explain span {
+  display: block;
+}
+
+.supp-explain b {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.supp-explain span {
+  margin-top: 4px;
   color: var(--text2);
   font-size: 14px;
   line-height: 1.65;
@@ -203,6 +249,43 @@
   gap: 10px;
 }
 
+.supp-year-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(139,92,246,.12);
+  color: var(--text2);
+  font-weight: 800;
+}
+
+.supp-year-total b {
+  color: #7c3aed;
+  font-family: var(--mono);
+  font-size: 28px;
+}
+
+.supp-footnote {
+  margin-top: 10px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: rgba(139,92,246,.08);
+  color: var(--text2);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.annual-card {
+  border-left: 4px solid #8b5cf6;
+}
+
+.reason-card {
+  border-left: 4px solid #ef4444;
+}
+
 .supp-year-list div {
   padding: 10px;
   border: 1px solid var(--border);
@@ -230,7 +313,9 @@
 
 @media (max-width: 520px) {
   .supp-kpi-grid { grid-template-columns: 1fr; }
+  .supp-explain-grid { grid-template-columns: 1fr; }
   .supp-month-strip { grid-template-columns: 1fr; }
+  .supp-heading .strong { font-size: 18px; }
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -3795,12 +3880,12 @@ body {
 }
 
 .top-control-model {
-  flex: 1 1 520px;
+  flex: 1.35 1 640px;
   border-left: 4px solid var(--accent);
 }
 
 .top-control-role {
-  flex: 0 1 520px;
+  flex: 1 1 500px;
   border-left: 4px solid var(--info);
 }
 
@@ -3844,6 +3929,7 @@ body {
   background: rgba(255,255,255,.06);
   border-color: var(--border2);
   font-size: 15px;
+  font-weight: 650;
 }
 
 .top-control .role-sel-btn {
@@ -3914,6 +4000,9 @@ body {
 .drawer-sec {
   border-radius: 14px;
   border-color: var(--border2);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.018)),
+    var(--surface);
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.08),
     0 12px 28px rgba(2,8,23,.10);
