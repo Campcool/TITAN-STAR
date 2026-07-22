@@ -270,6 +270,95 @@
     });
   }
 
+  function getModelSupplement(db, modelName) {
+    const supplements = (db && db.modelSupplements) || {};
+    const normName = normalizeModel(modelName);
+    if (!normName) return null;
+    return supplements[normName]
+      || Object.entries(supplements).find(([k, v]) => normalizeModel(k) === normName || normalizeModel(v && v.model) === normName)?.[1]
+      || null;
+  }
+
+  function modelSupplementHistory(db, modelName) {
+    const sup = getModelSupplement(db, modelName);
+    if (!sup) return [];
+    const map = new Map();
+    for (const row of sup.monthly || []) {
+      const month = row.month || '';
+      if (!month) continue;
+      if (!map.has(month)) {
+        map.set(month, {
+          month,
+          refurbished: 0,
+          passed: 0,
+          failed: 0,
+          variants: new Set(),
+          sourceType: sup.sourceType || 'model-supplement-v1',
+        });
+      }
+      const e = map.get(month);
+      e.refurbished += Number(row.refurbished) || 0;
+      e.passed += Number(row.passed) || 0;
+      e.failed += Number(row.failed) || 0;
+      if (row.variant) e.variants.add(row.variant);
+    }
+    return Array.from(map.values()).map(e => ({
+      ...e,
+      variants: Array.from(e.variants),
+      faultRate: e.refurbished ? e.failed / e.refurbished : null,
+      usableRate: e.refurbished ? e.passed / e.refurbished : null,
+    })).sort((a, b) => a.month.localeCompare(b.month));
+  }
+
+  function modelSupplementReasons(db, modelName, month) {
+    const sup = getModelSupplement(db, modelName);
+    if (!sup) return [];
+    const history = modelSupplementHistory(db, modelName);
+    const failByMonth = Object.fromEntries(history.map(h => [h.month, h.failed]));
+    const map = new Map();
+    for (const row of sup.reasons || []) {
+      if (month && month !== '__all__' && row.month !== month) continue;
+      const key = `${row.code || ''}|${row.reason || ''}`;
+      if (!map.has(key)) {
+        map.set(key, { code: row.code || '', reason: row.reason || '', count: 0, months: new Set(), variants: new Set(), failedBase: 0 });
+      }
+      const e = map.get(key);
+      e.count += Number(row.count) || 0;
+      if (row.month) e.months.add(row.month);
+      if (row.variant) e.variants.add(row.variant);
+    }
+    for (const e of map.values()) {
+      e.failedBase = Array.from(e.months).reduce((s, mk) => s + (Number(failByMonth[mk]) || 0), 0);
+    }
+    return Array.from(map.values()).map(e => ({
+      code: e.code,
+      reason: e.reason,
+      name: [e.code, e.reason].filter(Boolean).join(' '),
+      count: e.count,
+      months: Array.from(e.months).sort(),
+      variants: Array.from(e.variants).sort(),
+      share: e.failedBase ? e.count / e.failedBase : null,
+    })).sort((a, b) => b.count - a.count);
+  }
+
+  function modelSupplementAnnual(db, modelName) {
+    const sup = getModelSupplement(db, modelName);
+    return sup ? (sup.annual || []).slice().sort((a, b) => String(a.year).localeCompare(String(b.year))) : [];
+  }
+
+  function knownModels(db) {
+    const set = new Set();
+    for (const m of Object.values((db && db.months) || {})) {
+      for (const r of m.records || []) if (r.model) set.add(normalizeModel(r.model));
+      for (const k of Object.keys(m.denominators || {})) if (k) set.add(normalizeModel(k));
+      for (const k of Object.keys(m.partCatalog || {})) if (k) set.add(normalizeModel(k));
+    }
+    for (const [k, v] of Object.entries((db && db.modelSupplements) || {})) {
+      set.add(normalizeModel((v && (v.modelDisplay || v.model)) || k));
+    }
+    return Array.from(set).filter(Boolean).sort();
+  }
+
   function aggregateParts(records) {
     const m = new Map();
     for (const r of records) {
@@ -1248,6 +1337,11 @@
     partPareto,
     modelRank,
     modelHistory,
+    getModelSupplement,
+    modelSupplementHistory,
+    modelSupplementReasons,
+    modelSupplementAnnual,
+    knownModels,
     partHistoryDetailed,
     aggregateParts,
     reasonBreakdown,

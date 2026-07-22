@@ -81,6 +81,7 @@ window.App = (function () {
     pctRaw: (n, digits = 1) => (n == null || isNaN(n)) ? '—' : `${(n * 100).toFixed(digits)}%`,
     monthLabel: (mk) => {
       if (!mk) return '';
+      if (mk === '__all__') return '累計';
       const [y, m] = mk.split('-');
       return `${parseInt(y, 10) - 1911}/${m}`;  // Display as Taiwan year, e.g. "115/04"
     },
@@ -229,6 +230,14 @@ window.App = (function () {
     }
   }
 
+  function countDbSupplements(db) {
+    try {
+      return Object.keys((db && db.modelSupplements) || {}).length;
+    } catch {
+      return 0;
+    }
+  }
+
   function hasUsableLocalData() {
     return countDbRecords(RepairDB.load()) > 0;
   }
@@ -239,6 +248,7 @@ window.App = (function () {
       months,
       monthCount: months.length,
       records: countDbRecords(db),
+      supplements: countDbSupplements(db),
       latestMonth: months[months.length - 1] || '',
     };
   }
@@ -251,6 +261,7 @@ window.App = (function () {
     if (cloudStats.latestMonth > localStats.latestMonth) return true;
     if (cloudStats.monthCount > localStats.monthCount) return true;
     if (cloudStats.records > localStats.records) return true;
+    if (cloudStats.supplements > localStats.supplements) return true;
     if (cloud.publishedAt && cloud.publishedAt !== seen) return true;
     return false;
   }
@@ -272,15 +283,20 @@ window.App = (function () {
         publishedBy: cloud.publishedBy || '',
         months: cloudStats.monthCount,
         records: cloudStats.records,
+        supplements: cloudStats.supplements,
         localMonths: localStats.monthCount,
         localRecords: localStats.records,
+        localSupplements: localStats.supplements,
       };
       if (!cloudStats.monthCount) return cloud;
 
       const seen = localStorage.getItem(CLOUD_SEEN_KEY);
       if (shouldAdoptCloudData(cloud, localDb, seen)) {
         // Adopt cloud data into localStorage so every user auto-syncs.
-        localStorage.setItem('repair_db_v2', JSON.stringify({ months: cloud.months }));
+        localStorage.setItem('repair_db_v2', JSON.stringify({
+          months: cloud.months,
+          modelSupplements: cloud.modelSupplements || {},
+        }));
         if (cloud.partsMaster) { try { localStorage.setItem('titan_partsmaster_v1', JSON.stringify(cloud.partsMaster)); } catch(e) {} }
         if (cloud.capa) localStorage.setItem('titan_capa_v1', JSON.stringify(cloud.capa));
         if (cloud.costCfg) localStorage.setItem('titan_cost_cfg_v1', JSON.stringify(cloud.costCfg));
@@ -378,6 +394,7 @@ window.App = (function () {
       }
       const payload = {
         months: db.months,
+        modelSupplements: db.modelSupplements || {},
         users: rawUsers,
         capa: JSON.parse(localStorage.getItem('titan_capa_v1') || '[]'),
         costCfg: JSON.parse(localStorage.getItem('titan_cost_cfg_v1') || 'null'),
@@ -819,10 +836,19 @@ window.App = (function () {
 
     const allModelCounts = {};
     for (const r of records) allModelCounts[r.model] = (allModelCounts[r.model] || 0) + 1;
-    const allModels = Object.entries(allModelCounts).sort((a, b) => b[1] - a[1]).map(([m]) => m);
+    const knownModels = RepairAnalyzer.knownModels ? RepairAnalyzer.knownModels(state.db) : Object.keys(allModelCounts);
+    for (const m of knownModels) if (!(m in allModelCounts)) allModelCounts[m] = 0;
+    const allModels = Object.entries(allModelCounts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([m]) => m);
     const modelList = $('modelLookupList');
     if (modelList) {
       modelList.innerHTML = allModels.map(m => `<option value="${m}">${allModelCounts[m]} 筆</option>`).join('');
+    }
+    if (modelList) {
+      modelList.innerHTML = allModels.map(m => {
+        const sup = RepairAnalyzer.getModelSupplement ? RepairAnalyzer.getModelSupplement(state.db, m) : null;
+        const label = allModelCounts[m] ? `${allModelCounts[m]} 筆` : (sup ? '補充彙總資料' : '0 筆');
+        return `<option value="${m}">${label}</option>`;
+      }).join('');
     }
     const modelInput = $('modelQuickSearch');
     if (modelInput && document.activeElement !== modelInput) {
@@ -915,7 +941,9 @@ window.App = (function () {
   function resolveModelQuery(raw) {
     const q = String(raw || '').trim();
     const records = RepairAnalyzer.getRecords(state.db, {});
-    const models = Array.from(new Set(records.map(r => r.model))).sort();
+    const models = RepairAnalyzer.knownModels
+      ? RepairAnalyzer.knownModels(state.db)
+      : Array.from(new Set(records.map(r => r.model))).sort();
     const normFn = RepairAnalyzer.normalizeModel || (s => String(s).toUpperCase().replace(/[-_\s]/g, ''));
     const norm = normFn(q);
     const exact = models.find(m => normFn(m) === norm);
@@ -968,6 +996,7 @@ window.App = (function () {
     }
     saveFilterState();
     collapseSubbar();
+    setTimeout(() => openModelDrawer(fuzzy, '__all__'), 80);
   }
 
   // ─────────────── Render orchestration ───────────────
@@ -4010,9 +4039,99 @@ window.App = (function () {
   }
 
   // ── Drill content: model ──
+  function modelSupplementDrillContent(modelName, focusMonth) {
+    if (!RepairAnalyzer.modelSupplementHistory) return '';
+    const history = RepairAnalyzer.modelSupplementHistory(state.db, modelName);
+    if (!history.length) return '';
+    const isAll = !focusMonth || focusMonth === '__all__';
+    const scopedHistory = isAll ? history : history.filter(h => h.month === focusMonth);
+    const totalRefurbished = scopedHistory.reduce((s, h) => s + (Number(h.refurbished) || 0), 0);
+    const totalFailed = scopedHistory.reduce((s, h) => s + (Number(h.failed) || 0), 0);
+    const totalPassed = scopedHistory.reduce((s, h) => s + (Number(h.passed) || 0), 0);
+    const totalRate = totalRefurbished ? totalFailed / totalRefurbished : null;
+    const latest = history[history.length - 1];
+    const peak = history.slice().sort((a, b) => (b.faultRate || 0) - (a.faultRate || 0))[0];
+    const reasons = RepairAnalyzer.modelSupplementReasons(state.db, modelName, isAll ? '__all__' : focusMonth);
+    const annual = RepairAnalyzer.modelSupplementAnnual ? RepairAnalyzer.modelSupplementAnnual(state.db, modelName) : [];
+    const maxFailed = Math.max(...history.map(h => h.failed || 0), 1);
+    const maxReason = Math.max(...reasons.map(r => r.count || 0), 1);
+    const sup = RepairAnalyzer.getModelSupplement ? RepairAnalyzer.getModelSupplement(state.db, modelName) : null;
+    const sourceFiles = ((sup && sup.sourceFiles) || []).join('、');
+    const latestDelta = (() => {
+      if (history.length < 2 || latest.faultRate == null) return '';
+      const prev = history[history.length - 2];
+      if (prev.faultRate == null) return '';
+      const d = (latest.faultRate - prev.faultRate) * 100;
+      if (Math.abs(d) < 0.1) return '<span class="supp-delta flat">持平</span>';
+      return `<span class="supp-delta ${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : '-'}${Math.abs(d).toFixed(1)}pp</span>`;
+    })();
+
+    return `
+      <div class="drawer-sec model-supp-sec">
+        <div class="drawer-sec-t">
+          <span class="strong">型號補充彙總</span>
+          <span class="count-tag">整新/故障原因碼</span>
+          ${sourceFiles ? `<span class="count-tag">${escapeHtml(sourceFiles)}</span>` : ''}
+        </div>
+        <div class="supp-kpi-grid">
+          <div class="supp-kpi k-blue"><div class="l">累計整新</div><div class="v">${fmt.int(totalRefurbished)}</div><div class="d">測試正常 ${fmt.int(totalPassed)}</div></div>
+          <div class="supp-kpi k-red"><div class="l">累計故障</div><div class="v">${fmt.int(totalFailed)}</div><div class="d">故障率 ${fmt.pctRaw(totalRate)}</div></div>
+          <div class="supp-kpi k-warn"><div class="l">最新月份</div><div class="v">${fmt.monthLabel(latest.month)}</div><div class="d">${fmt.int(latest.failed)} / ${fmt.int(latest.refurbished)} · ${fmt.pctRaw(latest.faultRate)} ${latestDelta}</div></div>
+          <div class="supp-kpi k-info"><div class="l">最高月份</div><div class="v">${fmt.monthLabel(peak.month)}</div><div class="d">${fmt.int(peak.failed)} / ${fmt.int(peak.refurbished)} · ${fmt.pctRaw(peak.faultRate)}</div></div>
+        </div>
+        <div class="supp-note">這裡是型號彙總資料，適合看長期趨勢與原因碼落點；它不是逐筆維修明細，所以不會混入全廠異常排行。</div>
+        <div class="supp-month-strip">
+          ${history.map(h => `
+            <button class="supp-month-card ${(!isAll && h.month === focusMonth) ? 'current' : ''}" onclick="App.openModelDrawer('${escapeAttr(modelName)}','${h.month}')">
+              <span>${fmt.monthLabel(h.month)}</span>
+              <b>${fmt.int(h.failed)}</b>
+              <small>/ ${fmt.int(h.refurbished)} · ${fmt.pctRaw(h.faultRate)}</small>
+              <i style="width:${Math.max(4, Math.round((h.failed || 0) / maxFailed * 100))}%"></i>
+            </button>
+          `).join('')}
+          <button class="supp-month-card ${isAll ? 'current' : ''}" onclick="App.openModelDrawer('${escapeAttr(modelName)}','__all__')">
+            <span>累計</span><b>${fmt.int(totalFailed)}</b><small>/ ${fmt.int(totalRefurbished)} · ${fmt.pctRaw(totalRate)}</small><i style="width:100%"></i>
+          </button>
+        </div>
+        <div class="model-fault-grid">
+          <div class="model-fault-card">
+            <div class="model-fault-title">${isAll ? '累計原因碼落點' : `${fmt.monthLabel(focusMonth)} 原因碼落點`}</div>
+            ${reasons.length ? `
+              <div class="barlist">
+                ${reasons.slice(0, 8).map(r => `
+                  <div class="barlist-row model-fault-row">
+                    <div class="barlist-name">${escapeHtml(r.name || '未分類')}</div>
+                    <div class="barlist-track"><div style="width:${Math.max(3, Math.round((r.count || 0) / maxReason * 100))}%"></div></div>
+                    <div class="barlist-n"><span>${fmt.int(r.count)}</span>${r.share != null ? `<small>${fmt.pctRaw(r.share, 1)}</small>` : ''}</div>
+                  </div>
+                `).join('')}
+              </div>
+            ` : '<div class="empty mini">此範圍沒有原因碼資料</div>'}
+          </div>
+          <div class="model-fault-card">
+            <div class="model-fault-title">年度故障數</div>
+            ${annual.length ? `
+              <div class="supp-year-list">
+                ${annual.map(y => `<div><span>${escapeHtml(y.year)}</span><b>${fmt.int(y.count)}</b></div>`).join('')}
+              </div>
+            ` : '<div class="empty mini">此檔沒有年度彙總表</div>'}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   function modelDrillContent(modelName, focusMonth) {
     const history = RepairAnalyzer.modelHistory(state.db, modelName);
     const modelRecords = RepairAnalyzer.getRecords(state.db, { model: modelName });
+    const supplementHtml = modelSupplementDrillContent(modelName, focusMonth);
+    if (!modelRecords.length && supplementHtml) {
+      return supplementHtml + `
+        <div class="drawer-sec">
+          <div class="drawer-sec-t"><span class="strong">月報逐筆維修紀錄</span></div>
+          <div class="empty"><div class="empty-t">目前月報尚未匯入這個型號的逐筆維修紀錄；上方先顯示補充彙總資料。</div></div>
+        </div>`;
+    }
     const { reasons, contents } = RepairAnalyzer.reasonBreakdown(modelRecords);
     const recentRecords = modelRecords.slice()
       .sort((a, b) => (b.date || b._monthKey || '').localeCompare(a.date || a._monthKey || ''))
@@ -4118,6 +4237,7 @@ window.App = (function () {
     ` : '';
 
     return `
+      ${supplementHtml}
       ${monthNav}
       <div class="drawer-sec">
         <div class="drawer-sec-t"><span class="strong">月份故障率比較</span></div>
@@ -4723,6 +4843,7 @@ window.App = (function () {
   }
   function openModelDrawer(model, focusMonth) {
     const cat = RepairParser.getCategory(model);
+    const displaySubtitle = focusMonth === '__all__' ? ' · 累計' : (focusMonth ? ` · ${fmt.monthLabel(focusMonth)}` : '');
     const subtitle = focusMonth ? ` · ${fmt.monthLabel(focusMonth)}` : '';
     openDrawer({
       severity: 'info', icon: '#',
@@ -6247,6 +6368,7 @@ window.Auth = (function () {
 
       const recordsForMonths = RepairAnalyzer.getRecords(state.db, { months: state.selectedMonths });
       const validModels = new Set(recordsForMonths.map(r => r.model));
+      if (RepairAnalyzer.knownModels) RepairAnalyzer.knownModels(state.db).forEach(m => validModels.add(m));
       if (saved.model && saved.model !== '全部') {
         const normSaved = RepairAnalyzer.normalizeModel ? RepairAnalyzer.normalizeModel(saved.model) : saved.model;
         state.selectedModel = validModels.has(normSaved) ? normSaved : '全部';

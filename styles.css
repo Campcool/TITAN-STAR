@@ -52,6 +52,187 @@
   --friendly: 'Iansui', 'Noto Sans TC', system-ui, -apple-system, sans-serif;
 }
 
+/* 20260722: model supplemental summary workbook support */
+.model-supp-sec {
+  border-left: 4px solid #3b82f6;
+  background:
+    linear-gradient(135deg, rgba(59,130,246,.10), rgba(16,185,129,.06)),
+    var(--surface);
+}
+
+.supp-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.supp-kpi {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 14px 12px;
+  background: rgba(255,255,255,.72);
+  box-shadow: 0 10px 22px rgba(15,23,42,.08);
+}
+
+.supp-kpi::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: var(--accent);
+}
+
+.supp-kpi.k-red::before { background: var(--critical); }
+.supp-kpi.k-warn::before { background: var(--warn); }
+.supp-kpi.k-info::before { background: var(--info); }
+
+.supp-kpi .l {
+  color: var(--text2);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.supp-kpi .v {
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 27px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.supp-kpi .d {
+  margin-top: 6px;
+  color: var(--text2);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.supp-note {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(59,130,246,.18);
+  border-radius: 10px;
+  background: rgba(59,130,246,.08);
+  color: var(--text2);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.supp-month-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.supp-month-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 96px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  text-align: left;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(15,23,42,.06);
+}
+
+.supp-month-card.current {
+  border-color: rgba(59,130,246,.55);
+  box-shadow: 0 0 0 3px rgba(59,130,246,.12), 0 12px 24px rgba(15,23,42,.10);
+}
+
+.supp-month-card span,
+.supp-month-card small {
+  display: block;
+  position: relative;
+  z-index: 1;
+}
+
+.supp-month-card span {
+  color: var(--text2);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.supp-month-card b {
+  display: block;
+  position: relative;
+  z-index: 1;
+  margin-top: 7px;
+  font-family: var(--mono);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.supp-month-card small {
+  margin-top: 5px;
+  color: var(--text3);
+  font-size: 12px;
+}
+
+.supp-month-card i {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 5px;
+  background: linear-gradient(90deg, #3b82f6, #10b981);
+}
+
+.supp-delta {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.supp-delta.up { background: rgba(239,68,68,.12); color: var(--critical); }
+.supp-delta.down { background: rgba(16,185,129,.12); color: var(--ok); }
+.supp-delta.flat { background: var(--surface2); color: var(--text2); }
+
+.supp-year-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
+  gap: 10px;
+}
+
+.supp-year-list div {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface2);
+}
+
+.supp-year-list span {
+  display: block;
+  color: var(--text3);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.supp-year-list b {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-size: 20px;
+}
+
+@media (max-width: 860px) {
+  .supp-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 520px) {
+  .supp-kpi-grid { grid-template-columns: 1fr; }
+  .supp-month-strip { grid-template-columns: 1fr; }
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {

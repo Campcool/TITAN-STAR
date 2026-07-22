@@ -356,6 +356,188 @@
     return { denominators, partCatalog, monthLabel };
   }
 
+  function parseRocMonthCell(v) {
+    const s = String(v == null ? '' : v).trim();
+    if (!s) return '';
+    let m = s.match(/^(\d{2,4})\s*[\/\-\.]\s*(\d{1,2})$/);
+    if (!m) return '';
+    let y = parseInt(m[1], 10);
+    const mo = parseInt(m[2], 10);
+    if (!Number.isFinite(y) || !Number.isFinite(mo) || mo < 1 || mo > 12) return '';
+    if (y >= 100 && y <= 150) y += 1911;
+    if (y < 100) y += 2000;
+    return `${y}-${String(mo).padStart(2, '0')}`;
+  }
+
+  function looksLikeModelSupplement(rows) {
+    if (!Array.isArray(rows) || rows.length < 9) return false;
+    const head = rows.slice(0, 12).map(row => row.map(c => String(c == null ? '' : c).trim()).join(' ')).join(' ');
+    return /整新/.test(head) && /故障/.test(head) && /機器型號|機種型號|型號/.test(head);
+  }
+
+  function rowIndexContaining(rows, re) {
+    for (let i = 0; i < rows.length; i++) {
+      const joined = (rows[i] || []).map(c => String(c == null ? '' : c).trim()).join(' ');
+      if (re.test(joined)) return i;
+    }
+    return -1;
+  }
+
+  function firstModelCode(value) {
+    const m = String(value || '').toUpperCase().match(/[A-Z]{2,}[A-Z0-9]*\d[A-Z0-9]*/);
+    return m ? m[0].replace(/[-_\s]/g, '') : '';
+  }
+
+  function parseModelSupplementSheet(rows, sheetName) {
+    if (!looksLikeModelSupplement(rows)) return null;
+    const monthRowIdx = rowIndexContaining(rows, /項次|月份|月別/);
+    const modelRowIdx = rowIndexContaining(rows, /機器型號|機種型號|型號/);
+    const refurbRowIdx = rowIndexContaining(rows, /整新.*(測試)?數/);
+    const passRowIdx = rowIndexContaining(rows, /測試正常|正常數|可用數/);
+    const failRowIdx = rowIndexContaining(rows, /整新.*故障數|故障數/);
+    const faultRateRowIdx = rowIndexContaining(rows, /故障比例|故障率/);
+    const usableRateRowIdx = rowIndexContaining(rows, /可用率|正常比例/);
+    if (monthRowIdx < 0 || modelRowIdx < 0 || refurbRowIdx < 0 || failRowIdx < 0) return null;
+
+    const monthRow = rows[monthRowIdx] || [];
+    const modelRow = rows[modelRowIdx] || [];
+    const refurbRow = rows[refurbRowIdx] || [];
+    const passRow = passRowIdx >= 0 ? rows[passRowIdx] || [] : [];
+    const failRow = rows[failRowIdx] || [];
+    const faultRateRow = faultRateRowIdx >= 0 ? rows[faultRateRowIdx] || [] : [];
+    const usableRateRow = usableRateRowIdx >= 0 ? rows[usableRateRowIdx] || [] : [];
+
+    const baseModel = firstModelCode(sheetName) || firstModelCode(modelRow.join(' '));
+    if (!baseModel) return null;
+
+    const columns = [];
+    for (let c = 0; c < Math.max(monthRow.length, modelRow.length); c++) {
+      const month = parseRocMonthCell(monthRow[c]);
+      if (!month) continue;
+      const variant = cleanCode(modelRow[c] || baseModel).toUpperCase();
+      if (!firstModelCode(variant)) continue;
+      const refurbished = parseNumberCell(refurbRow[c]);
+      const failed = parseNumberCell(failRow[c]);
+      if (!Number.isFinite(refurbished) && !Number.isFinite(failed)) continue;
+      columns.push({
+        col: c,
+        month,
+        rocMonth: String(monthRow[c] || '').trim(),
+        model: baseModel,
+        modelDisplay: baseModel,
+        variant,
+        refurbished: Number.isFinite(refurbished) ? refurbished : 0,
+        passed: Number.isFinite(parseNumberCell(passRow[c])) ? parseNumberCell(passRow[c]) : null,
+        failed: Number.isFinite(failed) ? failed : 0,
+        faultRate: Number.isFinite(parsePercentCell(faultRateRow[c])) ? parsePercentCell(faultRateRow[c]) : null,
+        usableRate: Number.isFinite(parsePercentCell(usableRateRow[c])) ? parsePercentCell(usableRateRow[c]) : null,
+        sourceSheet: sheetName,
+      });
+    }
+    if (!columns.length) return null;
+
+    const validCols = new Set(columns.map(x => x.col));
+    const reasons = [];
+    for (let r = failRowIdx + 1; r < rows.length; r++) {
+      const row = rows[r] || [];
+      const code = String(row[1] == null ? '' : row[1]).trim();
+      const reason = cleanCode(row[2] || '');
+      if (!code) continue;
+      for (const colMeta of columns) {
+        if (!validCols.has(colMeta.col)) continue;
+        const count = parseNumberCell(row[colMeta.col]);
+        if (!Number.isFinite(count) || count <= 0) continue;
+        const rateOfFailures = colMeta.failed ? count / colMeta.failed : null;
+        reasons.push({
+          month: colMeta.month,
+          rocMonth: colMeta.rocMonth,
+          model: baseModel,
+          modelDisplay: baseModel,
+          variant: colMeta.variant,
+          code,
+          reason,
+          count,
+          rateOfFailures,
+          sourceSheet: sheetName,
+        });
+      }
+    }
+
+    return {
+      sourceType: 'model-supplement-v1',
+      model: baseModel,
+      modelDisplay: baseModel,
+      monthly: columns.map(({ col, ...rest }) => rest),
+      reasons,
+    };
+  }
+
+  function parseSupplementAnnualSheet(rows, model) {
+    if (!Array.isArray(rows) || !rows.length) return [];
+    let yearRow = -1, valueRow = -1;
+    for (let i = 0; i < rows.length; i++) {
+      const cells = rows[i] || [];
+      if (cells.some(c => String(c || '').includes('西元年'))) yearRow = i;
+      if (cells.some(c => String(c || '').includes('故障數量'))) valueRow = i;
+    }
+    if (yearRow < 0 || valueRow < 0) return [];
+    const years = rows[yearRow] || [];
+    const values = rows[valueRow] || [];
+    const out = [];
+    for (let c = 0; c < Math.max(years.length, values.length); c++) {
+      const year = parseNumberCell(years[c]);
+      const count = parseNumberCell(values[c]);
+      if (!Number.isFinite(year) || year < 2000 || year > 2100 || !Number.isFinite(count)) continue;
+      out.push({ model, year: String(Math.round(year)), count });
+    }
+    return out;
+  }
+
+  function parseModelSupplementWorkbook(wb, fileName = '') {
+    const supplements = {};
+    const sheetNames = wb.SheetNames || [];
+
+    for (const sheetName of sheetNames) {
+      const ws = wb.Sheets[sheetName];
+      const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      const parsed = parseModelSupplementSheet(raw, sheetName);
+      if (!parsed) continue;
+      const key = parsed.model;
+      if (!supplements[key]) {
+        supplements[key] = {
+          sourceType: 'model-supplement-v1',
+          model: parsed.model,
+          modelDisplay: parsed.modelDisplay,
+          sourceFiles: [],
+          monthly: [],
+          reasons: [],
+          annual: [],
+        };
+      }
+      if (fileName && !supplements[key].sourceFiles.includes(fileName)) supplements[key].sourceFiles.push(fileName);
+      supplements[key].monthly.push(...parsed.monthly);
+      supplements[key].reasons.push(...parsed.reasons);
+    }
+
+    for (const sheetName of sheetNames) {
+      const ws = wb.Sheets[sheetName];
+      const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      for (const key of Object.keys(supplements)) {
+        const annual = parseSupplementAnnualSheet(raw, key);
+        if (annual.length) supplements[key].annual.push(...annual);
+      }
+    }
+
+    for (const sup of Object.values(supplements)) {
+      sup.monthly.sort((a, b) => a.month.localeCompare(b.month) || String(a.variant).localeCompare(String(b.variant)));
+      sup.reasons.sort((a, b) => a.month.localeCompare(b.month) || b.count - a.count);
+      sup.annual.sort((a, b) => a.year.localeCompare(b.year));
+      sup.updatedAt = new Date().toISOString();
+    }
+
+    return { modelSupplements: supplements };
+  }
+
   // Main: parse workbook into a month-record
   function parseWorkbook(wb, fileName) {
     const records = [];
@@ -572,6 +754,7 @@
   window.RepairParser = {
     parseFile,
     parseWorkbook,
+    parseModelSupplementWorkbook,
     normalizePart,
     parseDate,
     parseMfgMonth,

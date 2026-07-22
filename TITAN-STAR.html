@@ -67,6 +67,187 @@
   --friendly: 'Iansui', 'Noto Sans TC', system-ui, -apple-system, sans-serif;
 }
 
+/* 20260722: model supplemental summary workbook support */
+.model-supp-sec {
+  border-left: 4px solid #3b82f6;
+  background:
+    linear-gradient(135deg, rgba(59,130,246,.10), rgba(16,185,129,.06)),
+    var(--surface);
+}
+
+.supp-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.supp-kpi {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 14px 12px;
+  background: rgba(255,255,255,.72);
+  box-shadow: 0 10px 22px rgba(15,23,42,.08);
+}
+
+.supp-kpi::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: var(--accent);
+}
+
+.supp-kpi.k-red::before { background: var(--critical); }
+.supp-kpi.k-warn::before { background: var(--warn); }
+.supp-kpi.k-info::before { background: var(--info); }
+
+.supp-kpi .l {
+  color: var(--text2);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.supp-kpi .v {
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 27px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.supp-kpi .d {
+  margin-top: 6px;
+  color: var(--text2);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.supp-note {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(59,130,246,.18);
+  border-radius: 10px;
+  background: rgba(59,130,246,.08);
+  color: var(--text2);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.supp-month-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.supp-month-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 96px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  text-align: left;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(15,23,42,.06);
+}
+
+.supp-month-card.current {
+  border-color: rgba(59,130,246,.55);
+  box-shadow: 0 0 0 3px rgba(59,130,246,.12), 0 12px 24px rgba(15,23,42,.10);
+}
+
+.supp-month-card span,
+.supp-month-card small {
+  display: block;
+  position: relative;
+  z-index: 1;
+}
+
+.supp-month-card span {
+  color: var(--text2);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.supp-month-card b {
+  display: block;
+  position: relative;
+  z-index: 1;
+  margin-top: 7px;
+  font-family: var(--mono);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.supp-month-card small {
+  margin-top: 5px;
+  color: var(--text3);
+  font-size: 12px;
+}
+
+.supp-month-card i {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 5px;
+  background: linear-gradient(90deg, #3b82f6, #10b981);
+}
+
+.supp-delta {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.supp-delta.up { background: rgba(239,68,68,.12); color: var(--critical); }
+.supp-delta.down { background: rgba(16,185,129,.12); color: var(--ok); }
+.supp-delta.flat { background: var(--surface2); color: var(--text2); }
+
+.supp-year-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
+  gap: 10px;
+}
+
+.supp-year-list div {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface2);
+}
+
+.supp-year-list span {
+  display: block;
+  color: var(--text3);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.supp-year-list b {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-size: 20px;
+}
+
+@media (max-width: 860px) {
+  .supp-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 520px) {
+  .supp-kpi-grid { grid-template-columns: 1fr; }
+  .supp-month-strip { grid-template-columns: 1fr; }
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
@@ -5512,6 +5693,188 @@ body {
     return { denominators, partCatalog, monthLabel };
   }
 
+  function parseRocMonthCell(v) {
+    const s = String(v == null ? '' : v).trim();
+    if (!s) return '';
+    let m = s.match(/^(\d{2,4})\s*[\/\-\.]\s*(\d{1,2})$/);
+    if (!m) return '';
+    let y = parseInt(m[1], 10);
+    const mo = parseInt(m[2], 10);
+    if (!Number.isFinite(y) || !Number.isFinite(mo) || mo < 1 || mo > 12) return '';
+    if (y >= 100 && y <= 150) y += 1911;
+    if (y < 100) y += 2000;
+    return `${y}-${String(mo).padStart(2, '0')}`;
+  }
+
+  function looksLikeModelSupplement(rows) {
+    if (!Array.isArray(rows) || rows.length < 9) return false;
+    const head = rows.slice(0, 12).map(row => row.map(c => String(c == null ? '' : c).trim()).join(' ')).join(' ');
+    return /整新/.test(head) && /故障/.test(head) && /機器型號|機種型號|型號/.test(head);
+  }
+
+  function rowIndexContaining(rows, re) {
+    for (let i = 0; i < rows.length; i++) {
+      const joined = (rows[i] || []).map(c => String(c == null ? '' : c).trim()).join(' ');
+      if (re.test(joined)) return i;
+    }
+    return -1;
+  }
+
+  function firstModelCode(value) {
+    const m = String(value || '').toUpperCase().match(/[A-Z]{2,}[A-Z0-9]*\d[A-Z0-9]*/);
+    return m ? m[0].replace(/[-_\s]/g, '') : '';
+  }
+
+  function parseModelSupplementSheet(rows, sheetName) {
+    if (!looksLikeModelSupplement(rows)) return null;
+    const monthRowIdx = rowIndexContaining(rows, /項次|月份|月別/);
+    const modelRowIdx = rowIndexContaining(rows, /機器型號|機種型號|型號/);
+    const refurbRowIdx = rowIndexContaining(rows, /整新.*(測試)?數/);
+    const passRowIdx = rowIndexContaining(rows, /測試正常|正常數|可用數/);
+    const failRowIdx = rowIndexContaining(rows, /整新.*故障數|故障數/);
+    const faultRateRowIdx = rowIndexContaining(rows, /故障比例|故障率/);
+    const usableRateRowIdx = rowIndexContaining(rows, /可用率|正常比例/);
+    if (monthRowIdx < 0 || modelRowIdx < 0 || refurbRowIdx < 0 || failRowIdx < 0) return null;
+
+    const monthRow = rows[monthRowIdx] || [];
+    const modelRow = rows[modelRowIdx] || [];
+    const refurbRow = rows[refurbRowIdx] || [];
+    const passRow = passRowIdx >= 0 ? rows[passRowIdx] || [] : [];
+    const failRow = rows[failRowIdx] || [];
+    const faultRateRow = faultRateRowIdx >= 0 ? rows[faultRateRowIdx] || [] : [];
+    const usableRateRow = usableRateRowIdx >= 0 ? rows[usableRateRowIdx] || [] : [];
+
+    const baseModel = firstModelCode(sheetName) || firstModelCode(modelRow.join(' '));
+    if (!baseModel) return null;
+
+    const columns = [];
+    for (let c = 0; c < Math.max(monthRow.length, modelRow.length); c++) {
+      const month = parseRocMonthCell(monthRow[c]);
+      if (!month) continue;
+      const variant = cleanCode(modelRow[c] || baseModel).toUpperCase();
+      if (!firstModelCode(variant)) continue;
+      const refurbished = parseNumberCell(refurbRow[c]);
+      const failed = parseNumberCell(failRow[c]);
+      if (!Number.isFinite(refurbished) && !Number.isFinite(failed)) continue;
+      columns.push({
+        col: c,
+        month,
+        rocMonth: String(monthRow[c] || '').trim(),
+        model: baseModel,
+        modelDisplay: baseModel,
+        variant,
+        refurbished: Number.isFinite(refurbished) ? refurbished : 0,
+        passed: Number.isFinite(parseNumberCell(passRow[c])) ? parseNumberCell(passRow[c]) : null,
+        failed: Number.isFinite(failed) ? failed : 0,
+        faultRate: Number.isFinite(parsePercentCell(faultRateRow[c])) ? parsePercentCell(faultRateRow[c]) : null,
+        usableRate: Number.isFinite(parsePercentCell(usableRateRow[c])) ? parsePercentCell(usableRateRow[c]) : null,
+        sourceSheet: sheetName,
+      });
+    }
+    if (!columns.length) return null;
+
+    const validCols = new Set(columns.map(x => x.col));
+    const reasons = [];
+    for (let r = failRowIdx + 1; r < rows.length; r++) {
+      const row = rows[r] || [];
+      const code = String(row[1] == null ? '' : row[1]).trim();
+      const reason = cleanCode(row[2] || '');
+      if (!code) continue;
+      for (const colMeta of columns) {
+        if (!validCols.has(colMeta.col)) continue;
+        const count = parseNumberCell(row[colMeta.col]);
+        if (!Number.isFinite(count) || count <= 0) continue;
+        const rateOfFailures = colMeta.failed ? count / colMeta.failed : null;
+        reasons.push({
+          month: colMeta.month,
+          rocMonth: colMeta.rocMonth,
+          model: baseModel,
+          modelDisplay: baseModel,
+          variant: colMeta.variant,
+          code,
+          reason,
+          count,
+          rateOfFailures,
+          sourceSheet: sheetName,
+        });
+      }
+    }
+
+    return {
+      sourceType: 'model-supplement-v1',
+      model: baseModel,
+      modelDisplay: baseModel,
+      monthly: columns.map(({ col, ...rest }) => rest),
+      reasons,
+    };
+  }
+
+  function parseSupplementAnnualSheet(rows, model) {
+    if (!Array.isArray(rows) || !rows.length) return [];
+    let yearRow = -1, valueRow = -1;
+    for (let i = 0; i < rows.length; i++) {
+      const cells = rows[i] || [];
+      if (cells.some(c => String(c || '').includes('西元年'))) yearRow = i;
+      if (cells.some(c => String(c || '').includes('故障數量'))) valueRow = i;
+    }
+    if (yearRow < 0 || valueRow < 0) return [];
+    const years = rows[yearRow] || [];
+    const values = rows[valueRow] || [];
+    const out = [];
+    for (let c = 0; c < Math.max(years.length, values.length); c++) {
+      const year = parseNumberCell(years[c]);
+      const count = parseNumberCell(values[c]);
+      if (!Number.isFinite(year) || year < 2000 || year > 2100 || !Number.isFinite(count)) continue;
+      out.push({ model, year: String(Math.round(year)), count });
+    }
+    return out;
+  }
+
+  function parseModelSupplementWorkbook(wb, fileName = '') {
+    const supplements = {};
+    const sheetNames = wb.SheetNames || [];
+
+    for (const sheetName of sheetNames) {
+      const ws = wb.Sheets[sheetName];
+      const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      const parsed = parseModelSupplementSheet(raw, sheetName);
+      if (!parsed) continue;
+      const key = parsed.model;
+      if (!supplements[key]) {
+        supplements[key] = {
+          sourceType: 'model-supplement-v1',
+          model: parsed.model,
+          modelDisplay: parsed.modelDisplay,
+          sourceFiles: [],
+          monthly: [],
+          reasons: [],
+          annual: [],
+        };
+      }
+      if (fileName && !supplements[key].sourceFiles.includes(fileName)) supplements[key].sourceFiles.push(fileName);
+      supplements[key].monthly.push(...parsed.monthly);
+      supplements[key].reasons.push(...parsed.reasons);
+    }
+
+    for (const sheetName of sheetNames) {
+      const ws = wb.Sheets[sheetName];
+      const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      for (const key of Object.keys(supplements)) {
+        const annual = parseSupplementAnnualSheet(raw, key);
+        if (annual.length) supplements[key].annual.push(...annual);
+      }
+    }
+
+    for (const sup of Object.values(supplements)) {
+      sup.monthly.sort((a, b) => a.month.localeCompare(b.month) || String(a.variant).localeCompare(String(b.variant)));
+      sup.reasons.sort((a, b) => a.month.localeCompare(b.month) || b.count - a.count);
+      sup.annual.sort((a, b) => a.year.localeCompare(b.year));
+      sup.updatedAt = new Date().toISOString();
+    }
+
+    return { modelSupplements: supplements };
+  }
+
   // Main: parse workbook into a month-record
   function parseWorkbook(wb, fileName) {
     const records = [];
@@ -5728,6 +6091,7 @@ body {
   window.RepairParser = {
     parseFile,
     parseWorkbook,
+    parseModelSupplementWorkbook,
     normalizePart,
     parseDate,
     parseMfgMonth,
@@ -6022,6 +6386,95 @@ body {
         topParts: aggregateParts(recs).slice(0, 5),
       };
     });
+  }
+
+  function getModelSupplement(db, modelName) {
+    const supplements = (db && db.modelSupplements) || {};
+    const normName = normalizeModel(modelName);
+    if (!normName) return null;
+    return supplements[normName]
+      || Object.entries(supplements).find(([k, v]) => normalizeModel(k) === normName || normalizeModel(v && v.model) === normName)?.[1]
+      || null;
+  }
+
+  function modelSupplementHistory(db, modelName) {
+    const sup = getModelSupplement(db, modelName);
+    if (!sup) return [];
+    const map = new Map();
+    for (const row of sup.monthly || []) {
+      const month = row.month || '';
+      if (!month) continue;
+      if (!map.has(month)) {
+        map.set(month, {
+          month,
+          refurbished: 0,
+          passed: 0,
+          failed: 0,
+          variants: new Set(),
+          sourceType: sup.sourceType || 'model-supplement-v1',
+        });
+      }
+      const e = map.get(month);
+      e.refurbished += Number(row.refurbished) || 0;
+      e.passed += Number(row.passed) || 0;
+      e.failed += Number(row.failed) || 0;
+      if (row.variant) e.variants.add(row.variant);
+    }
+    return Array.from(map.values()).map(e => ({
+      ...e,
+      variants: Array.from(e.variants),
+      faultRate: e.refurbished ? e.failed / e.refurbished : null,
+      usableRate: e.refurbished ? e.passed / e.refurbished : null,
+    })).sort((a, b) => a.month.localeCompare(b.month));
+  }
+
+  function modelSupplementReasons(db, modelName, month) {
+    const sup = getModelSupplement(db, modelName);
+    if (!sup) return [];
+    const history = modelSupplementHistory(db, modelName);
+    const failByMonth = Object.fromEntries(history.map(h => [h.month, h.failed]));
+    const map = new Map();
+    for (const row of sup.reasons || []) {
+      if (month && month !== '__all__' && row.month !== month) continue;
+      const key = `${row.code || ''}|${row.reason || ''}`;
+      if (!map.has(key)) {
+        map.set(key, { code: row.code || '', reason: row.reason || '', count: 0, months: new Set(), variants: new Set(), failedBase: 0 });
+      }
+      const e = map.get(key);
+      e.count += Number(row.count) || 0;
+      if (row.month) e.months.add(row.month);
+      if (row.variant) e.variants.add(row.variant);
+    }
+    for (const e of map.values()) {
+      e.failedBase = Array.from(e.months).reduce((s, mk) => s + (Number(failByMonth[mk]) || 0), 0);
+    }
+    return Array.from(map.values()).map(e => ({
+      code: e.code,
+      reason: e.reason,
+      name: [e.code, e.reason].filter(Boolean).join(' '),
+      count: e.count,
+      months: Array.from(e.months).sort(),
+      variants: Array.from(e.variants).sort(),
+      share: e.failedBase ? e.count / e.failedBase : null,
+    })).sort((a, b) => b.count - a.count);
+  }
+
+  function modelSupplementAnnual(db, modelName) {
+    const sup = getModelSupplement(db, modelName);
+    return sup ? (sup.annual || []).slice().sort((a, b) => String(a.year).localeCompare(String(b.year))) : [];
+  }
+
+  function knownModels(db) {
+    const set = new Set();
+    for (const m of Object.values((db && db.months) || {})) {
+      for (const r of m.records || []) if (r.model) set.add(normalizeModel(r.model));
+      for (const k of Object.keys(m.denominators || {})) if (k) set.add(normalizeModel(k));
+      for (const k of Object.keys(m.partCatalog || {})) if (k) set.add(normalizeModel(k));
+    }
+    for (const [k, v] of Object.entries((db && db.modelSupplements) || {})) {
+      set.add(normalizeModel((v && (v.modelDisplay || v.model)) || k));
+    }
+    return Array.from(set).filter(Boolean).sort();
   }
 
   function aggregateParts(records) {
@@ -7002,6 +7455,11 @@ body {
     partPareto,
     modelRank,
     modelHistory,
+    getModelSupplement,
+    modelSupplementHistory,
+    modelSupplementReasons,
+    modelSupplementAnnual,
+    knownModels,
     partHistoryDetailed,
     aggregateParts,
     reasonBreakdown,
@@ -7113,6 +7571,7 @@ window.App = (function () {
     pctRaw: (n, digits = 1) => (n == null || isNaN(n)) ? '—' : `${(n * 100).toFixed(digits)}%`,
     monthLabel: (mk) => {
       if (!mk) return '';
+      if (mk === '__all__') return '累計';
       const [y, m] = mk.split('-');
       return `${parseInt(y, 10) - 1911}/${m}`;  // Display as Taiwan year, e.g. "115/04"
     },
@@ -7261,6 +7720,14 @@ window.App = (function () {
     }
   }
 
+  function countDbSupplements(db) {
+    try {
+      return Object.keys((db && db.modelSupplements) || {}).length;
+    } catch {
+      return 0;
+    }
+  }
+
   function hasUsableLocalData() {
     return countDbRecords(RepairDB.load()) > 0;
   }
@@ -7271,6 +7738,7 @@ window.App = (function () {
       months,
       monthCount: months.length,
       records: countDbRecords(db),
+      supplements: countDbSupplements(db),
       latestMonth: months[months.length - 1] || '',
     };
   }
@@ -7283,6 +7751,7 @@ window.App = (function () {
     if (cloudStats.latestMonth > localStats.latestMonth) return true;
     if (cloudStats.monthCount > localStats.monthCount) return true;
     if (cloudStats.records > localStats.records) return true;
+    if (cloudStats.supplements > localStats.supplements) return true;
     if (cloud.publishedAt && cloud.publishedAt !== seen) return true;
     return false;
   }
@@ -7304,15 +7773,20 @@ window.App = (function () {
         publishedBy: cloud.publishedBy || '',
         months: cloudStats.monthCount,
         records: cloudStats.records,
+        supplements: cloudStats.supplements,
         localMonths: localStats.monthCount,
         localRecords: localStats.records,
+        localSupplements: localStats.supplements,
       };
       if (!cloudStats.monthCount) return cloud;
 
       const seen = localStorage.getItem(CLOUD_SEEN_KEY);
       if (shouldAdoptCloudData(cloud, localDb, seen)) {
         // Adopt cloud data into localStorage so every user auto-syncs.
-        localStorage.setItem('repair_db_v2', JSON.stringify({ months: cloud.months }));
+        localStorage.setItem('repair_db_v2', JSON.stringify({
+          months: cloud.months,
+          modelSupplements: cloud.modelSupplements || {},
+        }));
         if (cloud.partsMaster) { try { localStorage.setItem('titan_partsmaster_v1', JSON.stringify(cloud.partsMaster)); } catch(e) {} }
         if (cloud.capa) localStorage.setItem('titan_capa_v1', JSON.stringify(cloud.capa));
         if (cloud.costCfg) localStorage.setItem('titan_cost_cfg_v1', JSON.stringify(cloud.costCfg));
@@ -7410,6 +7884,7 @@ window.App = (function () {
       }
       const payload = {
         months: db.months,
+        modelSupplements: db.modelSupplements || {},
         users: rawUsers,
         capa: JSON.parse(localStorage.getItem('titan_capa_v1') || '[]'),
         costCfg: JSON.parse(localStorage.getItem('titan_cost_cfg_v1') || 'null'),
@@ -7851,10 +8326,19 @@ window.App = (function () {
 
     const allModelCounts = {};
     for (const r of records) allModelCounts[r.model] = (allModelCounts[r.model] || 0) + 1;
-    const allModels = Object.entries(allModelCounts).sort((a, b) => b[1] - a[1]).map(([m]) => m);
+    const knownModels = RepairAnalyzer.knownModels ? RepairAnalyzer.knownModels(state.db) : Object.keys(allModelCounts);
+    for (const m of knownModels) if (!(m in allModelCounts)) allModelCounts[m] = 0;
+    const allModels = Object.entries(allModelCounts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([m]) => m);
     const modelList = $('modelLookupList');
     if (modelList) {
       modelList.innerHTML = allModels.map(m => `<option value="${m}">${allModelCounts[m]} 筆</option>`).join('');
+    }
+    if (modelList) {
+      modelList.innerHTML = allModels.map(m => {
+        const sup = RepairAnalyzer.getModelSupplement ? RepairAnalyzer.getModelSupplement(state.db, m) : null;
+        const label = allModelCounts[m] ? `${allModelCounts[m]} 筆` : (sup ? '補充彙總資料' : '0 筆');
+        return `<option value="${m}">${label}</option>`;
+      }).join('');
     }
     const modelInput = $('modelQuickSearch');
     if (modelInput && document.activeElement !== modelInput) {
@@ -7947,7 +8431,9 @@ window.App = (function () {
   function resolveModelQuery(raw) {
     const q = String(raw || '').trim();
     const records = RepairAnalyzer.getRecords(state.db, {});
-    const models = Array.from(new Set(records.map(r => r.model))).sort();
+    const models = RepairAnalyzer.knownModels
+      ? RepairAnalyzer.knownModels(state.db)
+      : Array.from(new Set(records.map(r => r.model))).sort();
     const normFn = RepairAnalyzer.normalizeModel || (s => String(s).toUpperCase().replace(/[-_\s]/g, ''));
     const norm = normFn(q);
     const exact = models.find(m => normFn(m) === norm);
@@ -8000,6 +8486,7 @@ window.App = (function () {
     }
     saveFilterState();
     collapseSubbar();
+    setTimeout(() => openModelDrawer(fuzzy, '__all__'), 80);
   }
 
   // ─────────────── Render orchestration ───────────────
@@ -11042,9 +11529,99 @@ window.App = (function () {
   }
 
   // ── Drill content: model ──
+  function modelSupplementDrillContent(modelName, focusMonth) {
+    if (!RepairAnalyzer.modelSupplementHistory) return '';
+    const history = RepairAnalyzer.modelSupplementHistory(state.db, modelName);
+    if (!history.length) return '';
+    const isAll = !focusMonth || focusMonth === '__all__';
+    const scopedHistory = isAll ? history : history.filter(h => h.month === focusMonth);
+    const totalRefurbished = scopedHistory.reduce((s, h) => s + (Number(h.refurbished) || 0), 0);
+    const totalFailed = scopedHistory.reduce((s, h) => s + (Number(h.failed) || 0), 0);
+    const totalPassed = scopedHistory.reduce((s, h) => s + (Number(h.passed) || 0), 0);
+    const totalRate = totalRefurbished ? totalFailed / totalRefurbished : null;
+    const latest = history[history.length - 1];
+    const peak = history.slice().sort((a, b) => (b.faultRate || 0) - (a.faultRate || 0))[0];
+    const reasons = RepairAnalyzer.modelSupplementReasons(state.db, modelName, isAll ? '__all__' : focusMonth);
+    const annual = RepairAnalyzer.modelSupplementAnnual ? RepairAnalyzer.modelSupplementAnnual(state.db, modelName) : [];
+    const maxFailed = Math.max(...history.map(h => h.failed || 0), 1);
+    const maxReason = Math.max(...reasons.map(r => r.count || 0), 1);
+    const sup = RepairAnalyzer.getModelSupplement ? RepairAnalyzer.getModelSupplement(state.db, modelName) : null;
+    const sourceFiles = ((sup && sup.sourceFiles) || []).join('、');
+    const latestDelta = (() => {
+      if (history.length < 2 || latest.faultRate == null) return '';
+      const prev = history[history.length - 2];
+      if (prev.faultRate == null) return '';
+      const d = (latest.faultRate - prev.faultRate) * 100;
+      if (Math.abs(d) < 0.1) return '<span class="supp-delta flat">持平</span>';
+      return `<span class="supp-delta ${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : '-'}${Math.abs(d).toFixed(1)}pp</span>`;
+    })();
+
+    return `
+      <div class="drawer-sec model-supp-sec">
+        <div class="drawer-sec-t">
+          <span class="strong">型號補充彙總</span>
+          <span class="count-tag">整新/故障原因碼</span>
+          ${sourceFiles ? `<span class="count-tag">${escapeHtml(sourceFiles)}</span>` : ''}
+        </div>
+        <div class="supp-kpi-grid">
+          <div class="supp-kpi k-blue"><div class="l">累計整新</div><div class="v">${fmt.int(totalRefurbished)}</div><div class="d">測試正常 ${fmt.int(totalPassed)}</div></div>
+          <div class="supp-kpi k-red"><div class="l">累計故障</div><div class="v">${fmt.int(totalFailed)}</div><div class="d">故障率 ${fmt.pctRaw(totalRate)}</div></div>
+          <div class="supp-kpi k-warn"><div class="l">最新月份</div><div class="v">${fmt.monthLabel(latest.month)}</div><div class="d">${fmt.int(latest.failed)} / ${fmt.int(latest.refurbished)} · ${fmt.pctRaw(latest.faultRate)} ${latestDelta}</div></div>
+          <div class="supp-kpi k-info"><div class="l">最高月份</div><div class="v">${fmt.monthLabel(peak.month)}</div><div class="d">${fmt.int(peak.failed)} / ${fmt.int(peak.refurbished)} · ${fmt.pctRaw(peak.faultRate)}</div></div>
+        </div>
+        <div class="supp-note">這裡是型號彙總資料，適合看長期趨勢與原因碼落點；它不是逐筆維修明細，所以不會混入全廠異常排行。</div>
+        <div class="supp-month-strip">
+          ${history.map(h => `
+            <button class="supp-month-card ${(!isAll && h.month === focusMonth) ? 'current' : ''}" onclick="App.openModelDrawer('${escapeAttr(modelName)}','${h.month}')">
+              <span>${fmt.monthLabel(h.month)}</span>
+              <b>${fmt.int(h.failed)}</b>
+              <small>/ ${fmt.int(h.refurbished)} · ${fmt.pctRaw(h.faultRate)}</small>
+              <i style="width:${Math.max(4, Math.round((h.failed || 0) / maxFailed * 100))}%"></i>
+            </button>
+          `).join('')}
+          <button class="supp-month-card ${isAll ? 'current' : ''}" onclick="App.openModelDrawer('${escapeAttr(modelName)}','__all__')">
+            <span>累計</span><b>${fmt.int(totalFailed)}</b><small>/ ${fmt.int(totalRefurbished)} · ${fmt.pctRaw(totalRate)}</small><i style="width:100%"></i>
+          </button>
+        </div>
+        <div class="model-fault-grid">
+          <div class="model-fault-card">
+            <div class="model-fault-title">${isAll ? '累計原因碼落點' : `${fmt.monthLabel(focusMonth)} 原因碼落點`}</div>
+            ${reasons.length ? `
+              <div class="barlist">
+                ${reasons.slice(0, 8).map(r => `
+                  <div class="barlist-row model-fault-row">
+                    <div class="barlist-name">${escapeHtml(r.name || '未分類')}</div>
+                    <div class="barlist-track"><div style="width:${Math.max(3, Math.round((r.count || 0) / maxReason * 100))}%"></div></div>
+                    <div class="barlist-n"><span>${fmt.int(r.count)}</span>${r.share != null ? `<small>${fmt.pctRaw(r.share, 1)}</small>` : ''}</div>
+                  </div>
+                `).join('')}
+              </div>
+            ` : '<div class="empty mini">此範圍沒有原因碼資料</div>'}
+          </div>
+          <div class="model-fault-card">
+            <div class="model-fault-title">年度故障數</div>
+            ${annual.length ? `
+              <div class="supp-year-list">
+                ${annual.map(y => `<div><span>${escapeHtml(y.year)}</span><b>${fmt.int(y.count)}</b></div>`).join('')}
+              </div>
+            ` : '<div class="empty mini">此檔沒有年度彙總表</div>'}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   function modelDrillContent(modelName, focusMonth) {
     const history = RepairAnalyzer.modelHistory(state.db, modelName);
     const modelRecords = RepairAnalyzer.getRecords(state.db, { model: modelName });
+    const supplementHtml = modelSupplementDrillContent(modelName, focusMonth);
+    if (!modelRecords.length && supplementHtml) {
+      return supplementHtml + `
+        <div class="drawer-sec">
+          <div class="drawer-sec-t"><span class="strong">月報逐筆維修紀錄</span></div>
+          <div class="empty"><div class="empty-t">目前月報尚未匯入這個型號的逐筆維修紀錄；上方先顯示補充彙總資料。</div></div>
+        </div>`;
+    }
     const { reasons, contents } = RepairAnalyzer.reasonBreakdown(modelRecords);
     const recentRecords = modelRecords.slice()
       .sort((a, b) => (b.date || b._monthKey || '').localeCompare(a.date || a._monthKey || ''))
@@ -11150,6 +11727,7 @@ window.App = (function () {
     ` : '';
 
     return `
+      ${supplementHtml}
       ${monthNav}
       <div class="drawer-sec">
         <div class="drawer-sec-t"><span class="strong">月份故障率比較</span></div>
@@ -11755,6 +12333,7 @@ window.App = (function () {
   }
   function openModelDrawer(model, focusMonth) {
     const cat = RepairParser.getCategory(model);
+    const displaySubtitle = focusMonth === '__all__' ? ' · 累計' : (focusMonth ? ` · ${fmt.monthLabel(focusMonth)}` : '');
     const subtitle = focusMonth ? ` · ${fmt.monthLabel(focusMonth)}` : '';
     openDrawer({
       severity: 'info', icon: '#',
@@ -13279,6 +13858,7 @@ window.Auth = (function () {
 
       const recordsForMonths = RepairAnalyzer.getRecords(state.db, { months: state.selectedMonths });
       const validModels = new Set(recordsForMonths.map(r => r.model));
+      if (RepairAnalyzer.knownModels) RepairAnalyzer.knownModels(state.db).forEach(m => validModels.add(m));
       if (saved.model && saved.model !== '全部') {
         const normSaved = RepairAnalyzer.normalizeModel ? RepairAnalyzer.normalizeModel(saved.model) : saved.model;
         state.selectedModel = validModels.has(normSaved) ? normSaved : '全部';

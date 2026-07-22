@@ -1,6 +1,7 @@
 {
   "scripts": {
     "import:month": "node scripts/import-month.js",
+    "import:supplement": "node scripts/import-model-supplement.js",
     "build": "node build.js"
   },
   "devDependencies": {
