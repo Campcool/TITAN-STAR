@@ -21,15 +21,16 @@ TITAN-STAR 是電子工廠維修資料分析網站。現在最重要的主流程
 - 最新確認版本：`20260722-4`
 - 最新功能/UI 確認 commit：`084fc64 fix: keep cloud data visible when local storage fails`
 - 版本歷史（新到舊）：
+  - `2026-07 資料`：匯入 115年7月主維修報表（+1,179 筆）、ZBRT050 補充（更新至 7 月）、無線多機種一覽表（+12 機種 modelSupplements）。
   - `20260722-4` hotfix：修正部分瀏覽器登入後資料空白。雲端 data.json 現在即使 localStorage 寫入失敗，也會用 session 內的 cloudDb 直接顯示，並在 dashboard 空資料時自動重試同步。
   - `20260722-3` UX：整站閱讀優化，統一卡片/表格/摘要卡/異常卡/抽屜/篩選列/側欄/手機版字級與間距（非只針對 ZBRT050）。
   - `20260722-2` UX：型號補充抽屜把「整新測試數 / 整新測試故障 / 年度故障分佈總數」拆成不同色卡。年度 7,217 是歷史年度分佈，不與整新測試故障率混算。
   - `20260722-1`：新增 `modelSupplements` 資料與匯入腳本（首個機種 ZBRT050）。
 - 目前 `data.json` 內容：
-  - 月份：`2026-03`、`2026-04`、`2026-05`、`2026-06`
-  - 維修紀錄：`5,408` 筆
+  - 月份：`2026-03`、`2026-04`、`2026-05`、`2026-06`、`2026-07`
+  - 維修紀錄：`6,587` 筆
   - 料件主檔 `partsMaster`：`8,996` 筆（品號/品名/規格/大類代碼）
-  - 型號補充 `modelSupplements`：目前 `1` 個機種（ZBRT050），為單機種整新測試/年度故障分佈補充資料
+  - 型號補充 `modelSupplements`：目前 `13` 個機種（ZBRT050 為單機種完整版；ZBDIO90/ZSPMG51/ZSPMG31/ZSPMB31/ZSPMB51/ZBIRC50/ZBIRC5S/ZBSPC40/ZBPIR50/ZBPIR5P/ZBHD060/ZBSD060 為無線一覽表 2026-07 快照）
   - `publishedAt`：`2026-07-22T01:28:28.854Z`
 
 ## 使用者偏好與重要決策
@@ -121,11 +122,13 @@ TITAN-STAR 是電子工廠維修資料分析網站。現在最重要的主流程
 
 ## 型號補充摘要（modelSupplements）
 
-**目的**：部分機種除了月度維修報表外，還有獨立的「整新測試 / 年度故障分佈」Excel。此功能把這類單機種補充資料帶進型號查詢抽屜，讓落點分析更完整。目前只有 ZBRT050 一個機種有匯入。
+**目的**：部分機種除了月度維修報表外，還有獨立的「整新測試 / 年度故障分佈」Excel。此功能把這類補充資料帶進型號查詢抽屜，讓落點分析更完整。目前已匯入 13 個機種（ZBRT050 為完整版，另 12 個無線機種為 2026-07 快照）。
 
 **資料位置**：`data.json` 的 `modelSupplements` 欄位，key 為機種名。單筆結構：`{sourceType, model, modelDisplay, sourceFiles, monthly, reasons, annual, updatedAt}`。
 
-**匯入腳本**：`scripts/import-model-supplement.js`，指令 `npm run import:supplement -- "<file.xlsx>"`。此腳本解析 Excel 需要 Python；Codex 環境用 `--python "C:\\Users\\031780\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe"` 指定直譯器。
+**兩種來源格式 / 兩支匯入腳本**：
+- **單機種完整版**（如 ZBRT050，含多月歷史 + 年度分佈）：`scripts/import-model-supplement.js`，指令 `npm run import:supplement -- "<file.xlsx>"`。此腳本解析 Excel 需要 Python；Codex 環境用 `--python "C:\\Users\\031780\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe"` 指定直譯器。sourceType = `model-supplement-v1`。
+- **無線多機種一覽表**（機種為欄、整新測試數/可用率/故障比例/分類故障明細為列的矩陣）：`scripts/import-wireless-overview.js`，指令 `npm run import:wireless -- "<file.xlsx>" [--month YYYY-MM]`。純 Node（用專案內 xlsx，不需 Python）。sourceType = `wireless-overview-v1`。同基礎型號的多個版本（如 `ZSPMG51(1.0.9)/(2.0.2)/(2.0.3)`）會合併成一個 `ZSPMG51` entry，各版本為不同 `variant`，analyzer 讀取時自動加總。**此腳本會保護既有 `model-supplement-v1` 資料不被覆蓋**（例如 ZBRT050 已有完整版就跳過）。
 
 **重要語意**：
 - 「整新測試數 / 整新測試故障」與「年度故障分佈總數」是**不同基準**，UI 已拆成不同色卡，不要混算故障率。
