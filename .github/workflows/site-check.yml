@@ -18,7 +18,7 @@ jobs:
           done
           node --check scripts/build-version.mjs 2>/dev/null || true
       - name: Data integrity + parser/analyzer smoke tests
-        run: node --test tests/
+        run: node --test tests/*.test.mjs
 
       - name: Version anchor consistency (v= params == sw.js CACHE_NAME)
         run: node scripts/check-version-anchors.mjs
