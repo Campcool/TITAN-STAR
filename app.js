@@ -2551,7 +2551,7 @@ window.App = (function () {
     $('alertStrip').innerHTML = anoms.length === 0
       ? `<div class="card" style="grid-column:1/-1"><div class="empty"><div class="empty-ico">✓</div><div class="empty-t">本期未偵測到顯著異常</div></div></div>`
       : anoms.slice(0, 3).map((a, i) => `
-          <div class="alert ${a.severity}" onclick="App.dismissAlertPulse();App.openAnomalyDrawer(${i})">
+          <div class="alert ${a.severity}${isAlertUnseen(a) ? ' alert-unseen' : ''}" data-alert-key="${escapeAttr(alertKey(a))}" onclick="App.dismissAlertPulse();App.openAnomalyDrawer(${i})">
             <div class="alert-h">
               <span class="alert-ico">${a.icon}</span>
               <span class="alert-t">${a.title}</span>
@@ -2895,7 +2895,7 @@ window.App = (function () {
   function alertMiniCard(a, idx) {
     const ts = anomalyTypeStyle(a.title);
     return `
-      <div class="amini ${a.severity}" onclick="App.openAnomalyDrawer(${idx})">
+      <div class="amini ${a.severity}${isAlertUnseen(a) ? ' alert-unseen' : ''}" data-alert-key="${escapeAttr(alertKey(a))}" onclick="App.openAnomalyDrawer(${idx})">
         <span class="amini-type" style="background:${ts.bg};color:${ts.color}">${a.icon || '!'} ${a.title}</span>
         <div class="amini-subject">${escapeHtml(a.subject || '')}</div>
         ${a.message ? `<div class="amini-msg">${escapeHtml(a.message)}</div>` : ''}
@@ -4014,10 +4014,48 @@ window.App = (function () {
   }
 
   // ── Drawer: anomaly ──
+  // ══════════════════════════════════════════════════════════════════
+  // 異常警示「本次登入已讀」狀態
+  // ------------------------------------------------------------------
+  // 粉紅流光只在「這次登入還沒看過」的嚴重警示上出現；點開看過後
+  // 立刻熄掉，直到下次重新登入才會再亮。已讀清單存 sessionStorage，
+  // 在 doLogin() 成功時清空（重新登入＝全部重新亮起）。
+  // 用 type|subject 當 key，因此同一則警示在總覽與異常頁共用已讀狀態。
+  // ══════════════════════════════════════════════════════════════════
+  const ALERT_SEEN_KEY = 'titan_alert_seen_v1';
+
+  function alertKey(a) {
+    return `${a.type || a.title || ''}|${a.subject || ''}`;
+  }
+  function loadSeenAlerts() {
+    try { return new Set(JSON.parse(sessionStorage.getItem(ALERT_SEEN_KEY) || '[]')); }
+    catch (e) { return new Set(); }
+  }
+  function isAlertUnseen(a) {
+    if (!a || a.severity !== 'critical') return false;   // 只有嚴重警示需要提醒
+    return !loadSeenAlerts().has(alertKey(a));
+  }
+  function markAlertSeen(a) {
+    if (!a) return;
+    const seen = loadSeenAlerts();
+    const k = alertKey(a);
+    if (seen.has(k)) return;
+    seen.add(k);
+    try { sessionStorage.setItem(ALERT_SEEN_KEY, JSON.stringify([...seen])); } catch (e) {}
+    // 立即熄掉畫面上同一則警示的流光（不必等重新渲染）
+    document.querySelectorAll(`[data-alert-key="${escapeAttr(k)}"]`)
+      .forEach(el => el.classList.remove('alert-unseen'));
+  }
+  // 重新登入時全部重新亮起
+  function resetSeenAlerts() {
+    try { sessionStorage.removeItem(ALERT_SEEN_KEY); } catch (e) {}
+  }
+
   function openAnomalyDrawer(idx) {
     const anoms = state.currentAnomalies || [];
     const a = anoms[idx];
     if (!a) return;
+    markAlertSeen(a);   // 看過就熄燈
 
     const sevLabel = { critical: '嚴重', warn: '注意', info: '資訊' };
 
@@ -6076,7 +6114,7 @@ window.App = (function () {
     toggleSubbar, toggleSidebarMini, showHelpModal,
     exportCrossMatrix,
     // Drawer
-    openKpiDrawer, openAnomalyDrawer, openPartDrawer, openMatrixPartDrawer, openPartModelDrawer, openModelDrawer, openSerialDrawer, openSerialTimelineDrawer,
+    openKpiDrawer, openAnomalyDrawer, resetSeenAlerts, openPartDrawer, openMatrixPartDrawer, openPartModelDrawer, openModelDrawer, openSerialDrawer, openSerialTimelineDrawer,
     closeDrawer,
     // New functions
     searchDetail,
@@ -6277,6 +6315,7 @@ window.Auth = (function () {
 
     recordLogin(username);
     setSession(username, isAdmin);
+    try { App.resetSeenAlerts(); } catch (e) {}   // 重新登入：所有嚴重警示重新亮起
     showMainUI({ username, isAdmin });
   }
 

@@ -4749,14 +4749,14 @@ body {
 }
 
 /* ════════════════════════════════════════════════════════════════════
-   異常警示 — 粉紅底 + 流光掃描
-   critical 等級的警示卡改用粉紅底，並每 3 秒掃過一道流光，
-   讓使用者在滿版報表中一眼掃到需要立即處理的項目。
+   異常警示 — 粉紅底 + 流光掃描（僅限本次登入尚未讀過者）
+   帶 .alert-unseen 的 critical 警示卡才有粉紅底與流光；點開看過後
+   JS 會移除該 class，效果立即消失，直到下次重新登入才重新亮起。
    放在檔案最末以覆蓋前面 QQ 果凍玻璃的 !important 背景。
    ════════════════════════════════════════════════════════════════════ */
-.alert.critical,
-.anom-card.critical,
-.amini.critical {
+.alert.critical.alert-unseen,
+.anom-card.critical.alert-unseen,
+.amini.critical.alert-unseen {
   position: relative;
   overflow: hidden;                       /* 裁掉流光溢出 */
   background: linear-gradient(145deg,
@@ -4768,9 +4768,9 @@ body {
     0 2px 12px rgba(244,114,182,.18) !important;
 }
 /* 流光：一道柔和亮帶橫掃而過，掃完停約 2.4 秒再掃 */
-.alert.critical::after,
-.anom-card.critical::after,
-.amini.critical::after {
+.alert.critical.alert-unseen::after,
+.anom-card.critical.alert-unseen::after,
+.amini.critical.alert-unseen::after {
   content: '';
   position: absolute; inset: 0;
   pointer-events: none;                   /* 不擋點擊 */
@@ -4787,13 +4787,13 @@ body {
   100% { transform: translateX(100%); }   /* 其餘 2.4s 靜止 */
 }
 /* 內容要疊在流光之上 */
-.alert.critical > *,
-.anom-card.critical > *,
-.amini.critical > * { position: relative; z-index: 1; }
+.alert.critical.alert-unseen > *,
+.anom-card.critical.alert-unseen > *,
+.amini.critical.alert-unseen > * { position: relative; z-index: 1; }
 
 /* 無障礙：使用者要求減少動態時只保留粉紅底，不掃流光 */
 @media (prefers-reduced-motion: reduce) {
-  .alert.critical::after,
-  .anom-card.critical::after,
-  .amini.critical::after { display: none; }
+  .alert.critical.alert-unseen::after,
+  .anom-card.critical.alert-unseen::after,
+  .amini.critical.alert-unseen::after { display: none; }
 }
