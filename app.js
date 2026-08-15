@@ -2960,9 +2960,59 @@ window.App = (function () {
   }
 
   // ─────────────── Manufacture / origin batch analysis ───────────────
+  // 製令落點分析 — 生產序號＝製令批次號，看哪一批故障特別集中
+  function renderOrderLots(records) {
+    const el = document.getElementById('orderLotPanel');
+    if (!el || !RepairAnalyzer.orderLotAnalysis) return;
+    const { lots, totalLots, totalRecords } = RepairAnalyzer.orderLotAnalysis(records, { topN: 20 });
+    if (!lots.length) { el.innerHTML = ''; return; }
+    const max = lots[0].count || 1;
+    el.innerHTML = `
+      <div class="card">
+        <div class="card-h">
+          <div>
+            <div class="card-t">製令落點分析</div>
+            <div class="card-d">依製令批次彙總，看哪一批的故障特別集中（生產序號＝製令號，同批多台共用）</div>
+          </div>
+          <div class="card-meta">${totalLots} 個製令 · ${fmt.int(totalRecords)} 筆</div>
+        </div>
+        <div class="data-notice info" style="margin:0 0 12px">
+          <span class="dn-ico">ℹ</span>
+          <div>同一製令號重複出現代表<b>同一批次的多台機器</b>，不是同一台重複維修。
+          這裡看的是「哪一批出問題」；若只是正常更換元件，集中度低就無需處理。</div>
+        </div>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr>
+            <th style="width:110px">機種</th>
+            <th style="width:130px">製令批次</th>
+            <th class="right" style="width:70px">件數</th>
+            <th style="width:160px">分佈</th>
+            <th>主要故障零件</th>
+            <th style="width:110px" title="最大宗零件佔該批故障的比例，越高代表問題越單一">集中度</th>
+          </tr></thead>
+          <tbody>
+            ${lots.map(l => {
+              const cls = l.concentration >= 0.7 ? 'bad' : l.concentration >= 0.5 ? 'warn' : '';
+              return `<tr>
+                <td class="num" style="font-weight:600">${escapeHtml(l.model)}</td>
+                <td class="num">${escapeHtml(l.lot)}</td>
+                <td class="right num" style="font-weight:700">${l.count}</td>
+                <td><div class="trend-bar"><div style="width:${(l.count / max * 100).toFixed(0)}%"></div></div>
+                    <div class="muted" style="font-size:10.5px">${l.months.map(fmt.monthLabel).join(' · ')}</div></td>
+                <td>${l.topPart ? `${pdbLabel(l.topPart.name)} <span class="muted">×${l.topPart.count}</span>` : '<span class="muted">—</span>'}
+                    ${l.topContent ? `<div class="muted" style="font-size:11px">${escapeHtml(l.topContent.name)}</div>` : ''}</td>
+                <td><span class="pct ${cls}">${(l.concentration * 100).toFixed(0)}%</span></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table></div>
+      </div>`;
+  }
+
   function renderBatch() {
     const f = currentFilter();
     const records = RepairAnalyzer.getRecords(state.db, f);
+    renderOrderLots(records);
     const rows = RepairAnalyzer.batchAnalysis(records);
     const cond = RepairAnalyzer.conditionSummary(records);
     const flagged = rows.filter(r => r.flags.length);

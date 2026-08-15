@@ -18,9 +18,10 @@ TITAN-STAR 是電子工廠維修資料分析網站。現在最重要的主流程
 
 - 線上網站：https://campcool.github.io/TITAN-STAR/
 - GitHub repo：https://github.com/Campcool/TITAN-STAR
-- 最新確認版本：`20260723-1`
+- 最新確認版本：`20260723-2`
 - 最新功能/UI 確認 commit：`084fc64 fix: keep cloud data visible when local storage fails`
 - 版本歷史（新到舊）：
+  - `20260723-2` 序號語意修正（維修課確認）：生產序號＝製令批次號，不是機器序號；重複＝同批次而非重複維修。已改為 info 警示並新增製令落點分析。
   - `20260723-1` 盤點優化：型號別名解析層、記錄瘦身、查詢快取、異常訊噪比校準（詳見文末「優化紀錄」）。
   - `2026-07 資料`：匯入 115年7月主維修報表（+1,179 筆）、ZBRT050 補充（更新至 7 月）、無線多機種一覽表（+12 機種 modelSupplements）。
   - `20260722-4` hotfix：修正部分瀏覽器登入後資料空白。雲端 data.json 現在即使 localStorage 寫入失敗，也會用 session 內的 cloudDb 直接顯示，並在 dashboard 空資料時自動重試同步。
@@ -301,7 +302,25 @@ node build.js
 
 ### 判讀正確性
 7-8. **型號補充抽屜警語**（`app.js` → `suppCaveats`）：無維修記錄時明說「不是資料遺漏」；有維修記錄時明說兩種故障率分母不同不可比大小。故障率 KPI 加註「此口徑≠維修故障率」。
-9. **序號可信度**（`analyzer.js` → `unreliableSerialModels`）：ZSPMG31 序號重複 49 倍、ZSPMG51 23 倍（正常約 1.1 倍），該欄實際填的是批號。這些機種已排除在重複維修判定外，改用一則「序號欄疑似填成批號」提醒。7 月 critical 30→13、重複維修 KPI 164→91。**不要把這兩個機種放回重複維修分析**。
+9. **序號語意：機器序號 vs 生產序號**（`parser.js` → `serialKind`；`analyzer.js` → `isMachineSerial` / `batchSerialModels`）。
+
+   **維修課已確認**：部分分頁的序號欄是「生產序號」＝製令批次號，同一批多台機器共用同一個號碼。重複出現代表**同一批次**，不是同一台機器重複維修，**不應列為異常，只列為警示**。
+
+   根因：`findCol` 用 `includes` 比對，`'生產序號'.includes('序號')` 為真，於是被當成機器序號。實測 7 月來源檔：
+   - `IOT0600` / `ZSPMG51` / `ZSPMG31` 分頁用「生產序號」→ `serialKind='production'`
+   - 其餘分頁用「機器序號」→ `serialKind='machine'`
+
+   修正內容：
+   - `parser.js` 明確判斷欄名並寫入 `record.serialKind`，同時保留 `prodSerial`。**不要只靠 `findCol` 的 includes 判斷序號語意**。
+   - 重複維修（單月 `repeatedSerials`、跨月 `crossMonthSerials`、KPI `repeatedSerials`）一律只採計 `serialKind==='machine'`。
+   - 舊資料已依 7 月來源檔的分頁欄名回填 `serialKind`（同一份月報模板每月一致）；7 月沒有的分頁用統計推定（重複倍數 <3 者判為 machine，實測 14 個分頁全為 1.0x）。
+   - 原本的「序號欄疑似填成批號」異常改為 **info 層級說明性警示**「這些機種用製令批次號」，並指向製造批次頁。
+
+   效果：7 月異常 46→36、critical 30→**9**（剩下全是真實問題）、跨月重複 99→9、重複維修 KPI 164→**50**。
+
+   **不要**把 production 序號放回重複維修分析，也不要把這則警示升級成 critical。
+
+9b. **製令落點分析**（`analyzer.js` → `orderLotAnalysis`；`app.js` → `renderOrderLots`；`index.html` → `#orderLotPanel`）。這是製令號重複時**真正該用的分析**：依製令批次彙總，看哪一批故障集中、集中在哪個零件。實測 7 月 129 個製令，最集中的 `ZSPMG31 製令190218053` 82 件、83% 集中在 `ORD324`。位置在「製造批次」頁最上方。
 10. **小樣本/單月警語**：整新測試數 <100 台或只有單月資料時，抽屜顯示明確警語（ZBIRC5S 僅 74 台、12 個無線機種都只有單月）。
 
 ## 下一步建議

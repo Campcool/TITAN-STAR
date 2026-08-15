@@ -12,7 +12,11 @@
     model:      ['器材品號', '故障品號', '品號', '器材名稱'],
     mfg:        ['製造日期', '生產日期'],
     batch:      ['製令品號', '製令批號', '製令', '批號'],
+    // 機器序號＝單台機器身分；生產序號＝製令/批次號（同批多台會重複）。
+    // 兩者語意不同，維修課已確認「生產序號重複＝同一批次，不是同一台機器重修」。
+    // 先找機器序號，找不到才退回泛用「序號」；生產序號另外抓（見 prodSerial）。
     serial:     ['機器序號', '產品序號', '序號'],
+    prodSerial: ['生產序號', '製令序號'],
     reason:     ['故障原因', '報廢內容'],
     content:    ['故障內容', '報廢原因'],
     part1:      ['故障零件一', '零件代號'],
@@ -596,6 +600,15 @@
       for (const [k, aliases] of Object.entries(COL_ALIASES)) cols[k] = findCol(headers, aliases);
       if (cols.date < 0) return;
 
+      // 這張分頁的「序號」到底是機器序號還是生產序號（製令批次）？
+      // findCol 用 includes 比對，'生產序號' 也會命中泛用的 '序號'，
+      // 因此必須明確判斷，否則同批多台會被誤判成同一台機器重複維修。
+      const hasMachineSerial = findCol(headers, ['機器序號', '產品序號']) >= 0;
+      const serialKind = hasMachineSerial ? 'machine'
+        : (cols.prodSerial >= 0 ? 'production' : 'unknown');
+      // 生產序號欄若沒被 serial 抓到，這裡補位（確保製令落點分析拿得到）
+      if (cols.serial < 0 && cols.prodSerial >= 0) cols.serial = cols.prodSerial;
+
       const get = (r, c) => (c >= 0 && r[c] !== undefined) ? String(r[c]).trim() : '';
 
       let sheetRowCount = 0;
@@ -641,6 +654,10 @@
           orderMonth,
           condition,
           serial: get(r, cols.serial),
+          // 'machine' 才是單台機器身分；'production' 是製令批次號，
+          // 重複維修分析必須排除，改由製令落點分析處理。
+          serialKind,
+          prodSerial: cols.prodSerial >= 0 ? get(r, cols.prodSerial) : '',
           reason,
           reasonRaw,
           content,

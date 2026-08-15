@@ -5756,6 +5756,8 @@ body {
           </div>
           <div class="page-usage"><span class="pu-ico">💡</span><span><b>使用時機：</b>懷疑特定「出廠批次」或「整新批次」有系統性瑕疵時使用 — 研判全新 / 整新故障佔比、找出故障集中的元件批次與製程梯次。</span></div>
           <div id="batchNotice" style="display:none"></div>
+          <!-- 製令落點分析（生產序號＝製令批次號） -->
+          <div id="orderLotPanel"></div>
           <div class="kpi-grid" id="batchKpi"></div>
           <div class="batch-2col">
             <div class="card sec">
@@ -5988,7 +5990,11 @@ body {
     model:      ['器材品號', '故障品號', '品號', '器材名稱'],
     mfg:        ['製造日期', '生產日期'],
     batch:      ['製令品號', '製令批號', '製令', '批號'],
+    // 機器序號＝單台機器身分；生產序號＝製令/批次號（同批多台會重複）。
+    // 兩者語意不同，維修課已確認「生產序號重複＝同一批次，不是同一台機器重修」。
+    // 先找機器序號，找不到才退回泛用「序號」；生產序號另外抓（見 prodSerial）。
     serial:     ['機器序號', '產品序號', '序號'],
+    prodSerial: ['生產序號', '製令序號'],
     reason:     ['故障原因', '報廢內容'],
     content:    ['故障內容', '報廢原因'],
     part1:      ['故障零件一', '零件代號'],
@@ -6572,6 +6578,15 @@ body {
       for (const [k, aliases] of Object.entries(COL_ALIASES)) cols[k] = findCol(headers, aliases);
       if (cols.date < 0) return;
 
+      // 這張分頁的「序號」到底是機器序號還是生產序號（製令批次）？
+      // findCol 用 includes 比對，'生產序號' 也會命中泛用的 '序號'，
+      // 因此必須明確判斷，否則同批多台會被誤判成同一台機器重複維修。
+      const hasMachineSerial = findCol(headers, ['機器序號', '產品序號']) >= 0;
+      const serialKind = hasMachineSerial ? 'machine'
+        : (cols.prodSerial >= 0 ? 'production' : 'unknown');
+      // 生產序號欄若沒被 serial 抓到，這裡補位（確保製令落點分析拿得到）
+      if (cols.serial < 0 && cols.prodSerial >= 0) cols.serial = cols.prodSerial;
+
       const get = (r, c) => (c >= 0 && r[c] !== undefined) ? String(r[c]).trim() : '';
 
       let sheetRowCount = 0;
@@ -6617,6 +6632,10 @@ body {
           orderMonth,
           condition,
           serial: get(r, cols.serial),
+          // 'machine' 才是單台機器身分；'production' 是製令批次號，
+          // 重複維修分析必須排除，改由製令落點分析處理。
+          serialKind,
+          prodSerial: cols.prodSerial >= 0 ? get(r, cols.prodSerial) : '',
           reason,
           reasonRaw,
           content,
@@ -6896,10 +6915,11 @@ body {
     const scrap = records.filter(r => r.isScrap).length;
     const models = new Set(records.map(r => r.model));
     // 序號實為批號的機種要排除，否則「重複維修」會被灌水數倍
-    const badSerial = unreliableSerialModels(records);
+    const badSerial = batchSerialModels(records);
     const serials = {};
     for (const r of records) {
-      if (!r.serial || badSerial.has(r.model)) continue;
+      // 只有真正的機器序號才算重複維修；製令批次號重複＝同批次，不是重修
+      if (!isMachineSerial(r) || badSerial.has(r.model)) continue;
       const k = `${r.model}|${r.serial}`;
       serials[k] = (serials[k] || 0) + 1;
     }
@@ -7276,7 +7296,8 @@ body {
       const m = db.months[mk];
       if (!m) continue;
       for (const r of m.records) {
-        if (!r.serial) continue;
+        // 只追蹤真正的機器序號；製令批次號跨月重複＝同批次陸續進廠，不是同一台重修
+        if (!isMachineSerial(r)) continue;
         // Apply user filter (category/model)
         if (filter) {
           if (filter.category && filter.category !== '全部' && r.category !== filter.category) continue;
@@ -7383,35 +7404,46 @@ body {
   }
 
   // ══════════════════════════════════════════════════════════════════
-  // 序號可信度
+  // 序號語意：機器序號 vs 生產序號（製令批次）
   // ------------------------------------------------------------------
-  // 部分機種的「機器序號」欄實際填的是批號/製令，導致同一個值對應到
-  // 幾十台不同機器。實測 ZSPMG31 = 1,718 筆 / 35 個序號（49 倍），
-  // ZSPMG51 23 倍，而正常機種約 1.1 倍。若照單全收，「重複維修」會產生
-  // 大量假警示（7 月 30 件 critical 中有 25 件來自這兩個機種）。
-  // 這裡標記出可信度不足的機種，重複維修相關分析一律排除，
-  // 改用單一則資料品質提醒告知使用者。
+  // 已與維修課確認：部分分頁的序號欄是「生產序號」＝製令批次號，
+  // 同一批多台機器共用同一個號碼。重複出現代表「同批次」而非
+  // 「同一台機器重複維修」，因此不能列為異常。
+  // 來源分頁用哪個欄名決定語意（parser.js 寫入 record.serialKind）：
+  //   機器序號 / 產品序號 → 'machine'（可做重複維修分析）
+  //   生產序號 / 製令序號 → 'production'（改由製令落點分析處理）
+  // 舊資料沒有 serialKind 時，退回統計推定（重複倍數 ≥3 視為批號）。
   // ══════════════════════════════════════════════════════════════════
   const SERIAL_RATIO_LIMIT = 3;    // 平均每個序號對應機器數的上限
   const SERIAL_MIN_RECORDS = 30;   // 樣本太小不判定
 
-  function unreliableSerialModels(records) {
+  // 這筆記錄的序號是否代表「單一台機器」
+  function isMachineSerial(r) {
+    if (!r || !r.serial) return false;
+    if (r.serialKind) return r.serialKind === 'machine';
+    return true;   // 舊資料沒標記時交給下方統計推定把關
+  }
+
+  // 序號實為製令批號的機種（供 UI 說明用）
+  function batchSerialModels(records) {
     const byModel = new Map();
     for (const r of records) {
       if (!r.serial) continue;
       let e = byModel.get(r.model);
-      if (!e) { e = { n: 0, serials: new Set() }; byModel.set(r.model, e); }
+      if (!e) { e = { n: 0, serials: new Set(), declared: false }; byModel.set(r.model, e); }
       e.n++; e.serials.add(r.serial);
+      if (r.serialKind === 'production') e.declared = true;
     }
     const out = new Map();
     for (const [model, e] of byModel) {
       const ratio = e.n / e.serials.size;
-      if (e.n >= SERIAL_MIN_RECORDS && ratio >= SERIAL_RATIO_LIMIT) {
-        out.set(model, { records: e.n, distinct: e.serials.size, ratio });
-      }
+      const isBatch = e.declared || (e.n >= SERIAL_MIN_RECORDS && ratio >= SERIAL_RATIO_LIMIT);
+      if (isBatch) out.set(model, { records: e.n, distinct: e.serials.size, ratio, declared: e.declared });
     }
     return out;
   }
+  // 舊名保留給既有呼叫點
+  const unreliableSerialModels = batchSerialModels;
 
   function detectAnomaliesUncached(db, currentMonth) {
     const monthKeys = Object.keys(db.months).sort();
@@ -7543,8 +7575,8 @@ body {
 
     // 6) Repeated serials (≥3 visits in single month)
     // 排除序號實為批號的機種，否則會產生大量假的「重複維修」警示
-    const badSerialModels = unreliableSerialModels(getRecords(db, {}));
-    const reps = repeatedSerials(curRecs).filter(r => !badSerialModels.has(r.model));
+    const badSerialModels = batchSerialModels(getRecords(db, {}));
+    const reps = repeatedSerials(curRecs.filter(isMachineSerial)).filter(r => !badSerialModels.has(r.model));
     for (const r of reps.filter(r => r.count >= 3).slice(0, 10)) {
       anomalies.push({
         severity: r.count >= 4 ? 'critical' : 'warn',
@@ -7560,19 +7592,22 @@ body {
       });
     }
 
-    // 6a) 資料品質：序號欄疑似填成批號 — 用一則提醒取代數十則假警示
+    // 6a) 說明性警示（非異常）：這些機種用的是生產序號＝製令批次號。
+    // 維修課已確認重複代表同一批次，正常更換元件並無特別意義，
+    // 因此列為 info 層級的提醒，並指向製令落點分析。
     if (badSerialModels.size) {
       const list = [...badSerialModels.entries()].sort((a, b) => b[1].ratio - a[1].ratio);
-      const top = list.slice(0, 3).map(([m, v]) => `${m}（${v.records} 筆僅 ${v.distinct} 個序號）`).join('、');
+      const top = list.slice(0, 3).map(([m]) => m).join('、');
       anomalies.push({
-        severity: 'warn',
-        type: 'serial_quality',
-        icon: '⚠',
-        title: `序號欄疑似填成批號`,
+        severity: 'info',
+        type: 'serial_batch_notice',
+        icon: 'ℹ',
+        title: `這些機種用製令批次號`,
         subject: list.map(([m]) => m).join('、'),
-        message: `${top}。平均一個序號對應數十台機器，已排除在「重複維修」判定外，避免誤報。建議確認來源報表的機器序號欄。`,
+        message: `${top} 的序號欄是「生產序號」＝製令批次號，同一批多台共用同一個號碼。重複出現代表同批次、不是同一台機器重複維修，已不列入異常。若要查同批是否集中出問題，請看「製造批次」的製令落點分析；若只是正常更換元件則無需處理。`,
         metric: list.length,
         metricLabel: '機種',
+        page: 'batch',
         detail: { models: list.map(([m, v]) => ({ model: m, ...v })) },
       });
     }
@@ -7961,6 +7996,46 @@ body {
   //   • 製造批次集中: one 製造日期 month dominates (neutral; 製令 disambiguates birth vs refurb)
   //   • 全新早夭:   全新品且 出廠月==檢修月 → 原廠新品早夭（原始生產/來料責任）
   //   • 整新後即壞: 整新品且 整新月==檢修月 → 整新製程責任
+  // ─── 製令落點分析
+  // 生產序號＝製令批次號，同批多台共用。依製令彙總可看出「哪一批的故障
+  // 特別集中、集中在哪個零件/故障內容」— 這是重複號碼真正該用的分析方式
+  // （而不是誤判成同一台機器重複維修）。
+  function orderLotAnalysis(records, opts) {
+    const topN = (opts && opts.topN) || 20;
+    const by = new Map();
+    for (const r of records) {
+      if (r.serialKind !== 'production' || !r.serial) continue;
+      const key = `${r.model}|${r.serial}`;
+      let e = by.get(key);
+      if (!e) {
+        e = { model: r.model, lot: r.serial, count: 0, scrap: 0,
+              parts: new Map(), contents: new Map(), months: new Set() };
+        by.set(key, e);
+      }
+      e.count++;
+      if (r.isScrap) e.scrap++;
+      if (r._monthKey) e.months.add(r._monthKey);
+      for (const p of [r.part1Norm, r.part2Norm, r.part3Norm]) {
+        if (p) e.parts.set(p, (e.parts.get(p) || 0) + 1);
+      }
+      if (r.content) e.contents.set(r.content, (e.contents.get(r.content) || 0) + 1);
+    }
+    const list = [...by.values()].map(e => {
+      const topPart = topEntry(e.parts);
+      const topContent = topEntry(e.contents);
+      return {
+        model: e.model, lot: e.lot, count: e.count, scrap: e.scrap,
+        months: [...e.months].sort(),
+        topPart: topPart ? { name: topPart.month, count: topPart.count } : null,
+        topContent: topContent ? { name: topContent.month, count: topContent.count } : null,
+        // 集中度：最大宗零件佔該製令故障的比例，越高代表問題越單一
+        concentration: topPart && e.count ? topPart.count / e.count : 0,
+      };
+    }).sort((a, b) => b.count - a.count);
+    return { lots: list.slice(0, topN), totalLots: list.length,
+             totalRecords: list.reduce((s, x) => s + x.count, 0) };
+  }
+
   function batchAnalysis(records, opts) {
     const minN = (opts && opts.minN) || 5;
     const conc = (opts && opts.conc) || 0.4;
@@ -8408,6 +8483,7 @@ body {
     costAnalysis,
     componentCategoryPareto,
     batchAnalysis,
+    orderLotAnalysis,
     conditionSummary,
     originBatchPareto,
     FAULT_TAXONOMY,
@@ -11378,9 +11454,59 @@ window.App = (function () {
   }
 
   // ─────────────── Manufacture / origin batch analysis ───────────────
+  // 製令落點分析 — 生產序號＝製令批次號，看哪一批故障特別集中
+  function renderOrderLots(records) {
+    const el = document.getElementById('orderLotPanel');
+    if (!el || !RepairAnalyzer.orderLotAnalysis) return;
+    const { lots, totalLots, totalRecords } = RepairAnalyzer.orderLotAnalysis(records, { topN: 20 });
+    if (!lots.length) { el.innerHTML = ''; return; }
+    const max = lots[0].count || 1;
+    el.innerHTML = `
+      <div class="card">
+        <div class="card-h">
+          <div>
+            <div class="card-t">製令落點分析</div>
+            <div class="card-d">依製令批次彙總，看哪一批的故障特別集中（生產序號＝製令號，同批多台共用）</div>
+          </div>
+          <div class="card-meta">${totalLots} 個製令 · ${fmt.int(totalRecords)} 筆</div>
+        </div>
+        <div class="data-notice info" style="margin:0 0 12px">
+          <span class="dn-ico">ℹ</span>
+          <div>同一製令號重複出現代表<b>同一批次的多台機器</b>，不是同一台重複維修。
+          這裡看的是「哪一批出問題」；若只是正常更換元件，集中度低就無需處理。</div>
+        </div>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr>
+            <th style="width:110px">機種</th>
+            <th style="width:130px">製令批次</th>
+            <th class="right" style="width:70px">件數</th>
+            <th style="width:160px">分佈</th>
+            <th>主要故障零件</th>
+            <th style="width:110px" title="最大宗零件佔該批故障的比例，越高代表問題越單一">集中度</th>
+          </tr></thead>
+          <tbody>
+            ${lots.map(l => {
+              const cls = l.concentration >= 0.7 ? 'bad' : l.concentration >= 0.5 ? 'warn' : '';
+              return `<tr>
+                <td class="num" style="font-weight:600">${escapeHtml(l.model)}</td>
+                <td class="num">${escapeHtml(l.lot)}</td>
+                <td class="right num" style="font-weight:700">${l.count}</td>
+                <td><div class="trend-bar"><div style="width:${(l.count / max * 100).toFixed(0)}%"></div></div>
+                    <div class="muted" style="font-size:10.5px">${l.months.map(fmt.monthLabel).join(' · ')}</div></td>
+                <td>${l.topPart ? `${pdbLabel(l.topPart.name)} <span class="muted">×${l.topPart.count}</span>` : '<span class="muted">—</span>'}
+                    ${l.topContent ? `<div class="muted" style="font-size:11px">${escapeHtml(l.topContent.name)}</div>` : ''}</td>
+                <td><span class="pct ${cls}">${(l.concentration * 100).toFixed(0)}%</span></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table></div>
+      </div>`;
+  }
+
   function renderBatch() {
     const f = currentFilter();
     const records = RepairAnalyzer.getRecords(state.db, f);
+    renderOrderLots(records);
     const rows = RepairAnalyzer.batchAnalysis(records);
     const cond = RepairAnalyzer.conditionSummary(records);
     const flagged = rows.filter(r => r.flags.length);
