@@ -497,3 +497,26 @@ input:focus, select:focus, textarea:focus {
     inset 0 1px 0 rgba(255,255,255,.62),
     0 12px 26px rgba(91,130,166,.11) !important;
 }
+
+/* ── 異常警示流光（莫蘭迪版）──────────────────────────────────
+   深色版用亮粉，莫蘭迪改用同色系低彩度的磚紅粉，避免在淺底上過亮。
+   本檔在 styles.css 之後載入，同權重 !important 會勝出。 */
+.alert.critical,
+.anom-card.critical,
+.amini.critical {
+  background: linear-gradient(145deg,
+    rgba(194,99,96,.16) 0%,
+    rgba(194,99,96,.05) 100%) !important;
+  border-color: rgba(194,99,96,.38) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.42),
+    0 2px 10px rgba(194,99,96,.14) !important;
+}
+.alert.critical::after,
+.anom-card.critical::after,
+.amini.critical::after {
+  background: linear-gradient(105deg,
+    transparent 35%,
+    rgba(255,255,255,.62) 50%,
+    transparent 65%) !important;
+}
