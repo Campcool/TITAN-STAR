@@ -454,3 +454,34 @@ python3 -m http.server 8099 &      # 用 http 而非 file://，SW 與 fetch 才�
 5. 各月機種涵蓋差異大（3月39種、5月24種、7月55種），共同機種僅 11 種。
    月趨勢已預設「只看每月都有的機種」，但若之後月份持續增加、共同機種
    繼續縮小，這個預設值可能要重新評估。
+
+## 2026-08-16 AI-readme 更新（Manus 多倉庫優化迭代）
+
+### 現況
+
+本次迭代前：線上版部署 index.html＋五支 JS（parser/analyzer/app/report/rma）＋sw.js，版本快取靠手動同步三處錨點（JS `?v=`、sw.js `CACHE_NAME`、data.json `publishedAt`）；離線單檔 `TITAN-STAR.html` 由 `build.js` 產出。**沒有任何 CI/測試自動化**——每月 Excel 匯入、改碼、升版全部人工，手動升版漏改任一個錨點就可能讓使用者手機看到舊版 data.json。工程分數 87（滿分組最弱之一）。
+
+### 修改方向（2026-08-16 迭代，經多輪辯證後收斂）
+
+- **拆 app.js？否。** 辯證結論：app.js（369KB）是 UI 主體且與版式深度耦合，CI 無法驗證 UI 行為，強行拆風險>收益，留給下一輪（下一輪需配合 UI 回歸測試框架）。
+- **版本管理自動化：是。** 新增 `scripts/build-version.mjs` 單一命令升版，一次更新 index.html 全部 `?v=` 與 sw.js `CACHE_NAME`，data.json 只讀不寫；並用 `scripts/check-version-anchors.mjs` 驗證錨點一致。
+- **補資料層測試：是。** `tests/data-integrity.test.mjs`（9 項）：data.json 結構斷言（月份/8,996 筆 partsMaster/13 機種 modelSupplements）、parser/analyzer 用 vm 模擬掛載 smoke 測試、normalizePart 同義詞合併斷言、每月筆數合理性。
+- **CI：是。** `.github/workflows/site-check.yml`：語法檢查五支 JS、`node --test`、錨點一致性、離線單檔 build 檢查。
+
+### 修改進度（2026-08-16 已完成並驗證）
+
+| 項目 | 狀態 | 驗證 |
+|---|---|---|
+| `scripts/build-version.mjs` | 已建立 | dry-run：升版 20260816-1 成功、錨點一致、data.json md5 未變、checkout 可完全復原 |
+| `scripts/check-version-anchors.mjs` | 已建立 | 現狀 20260724-2 一致；模擬不一致可正確報錯 |
+| `tests/data-integrity.test.mjs` | 9 項全綠 | node --test 9 pass / 0 fail |
+| `.github/workflows/site-check.yml` | 已建立 | node --check 五支 JS OK、build.js 產出 822KB 單檔 OK |
+
+### 後續接手注意事項
+
+1. **每次改版（含每月匯入新月份）必須跑 `node scripts/build-version.mjs <YYYYMMDD-N>`**，不要手動改 ?v= 或 CACHE_NAME；升版後同步更新本段版本歷史再 commit。
+2. **每月匯入新月份後必跑 `node --test tests/`**——測試已內建「每月筆數 < 5,000」合理性斷言，匯入腳本壞掉或資料欄位偏移會被抓到；若測試擋住合法變更，先改測試再改資料。
+3. **app.js 模組化留給下一輪**，但下一輪開始前必須先建立 UI 回歸測試（建議 Playwright 針對型號查詢/異常卡/手機 390×844 三條核心路徑截圖比對），沒有回歸網不拆。
+4. `TITAN-STAR.html` 離線單檔存在 repo 內供離線使用，build.js 產出後若內容變更需一併 commit；CI 會警告不同步。
+5. parser/analyzer 的解析輔助函式（normalizePart 等）在 IIFE 內部 scope 不掛 window，測試用 vm 只能測公開介面——日後若想測內部函式，需在 parser.js 加測試用掛鉤（僅限開發環境）。
+6. data.json 2.6MB 每月成長，tests 裡 partsMaster/modelSupplements 數量下限（8,000 / 12）會隨新匯入自動通過；但若某天**筆數異常下降**（匯入腳本清掉舊月份）測試也會擋，屆時確認是預期行為再調下限。
