@@ -4740,6 +4740,14 @@ body {
   }
 }
 
+/* 選填欄位無資料的指標 — 明示「來源未填」而非誤導性的 0 */
+.lens-chip-missing { opacity: .62; }
+.lens-chip-missing .lc-v { color: var(--text3); }
+.lc-na {
+  display: block; font-size: 9.5px; color: var(--text3);
+  font-weight: 500; letter-spacing: .02em; margin-top: 1px;
+}
+
 </style>
 <style>
 /* ════════════════════════════════════════════════════════════════════
@@ -5990,6 +5998,28 @@ body {
     test_result: ['測試結果', '測試'],
   };
 
+  // ── 記錄瘦身 ──────────────────────────────────────────────────
+  // 標準模板 v2 的選填欄位（保固/技師/工時…）在實際來源 Excel 幾乎全空，
+  // 但每筆都序列化會讓 data.json 膨脹三成（實測 6,587 筆多出 ~1MB）。
+  // 這裡把空值欄位直接省略；讀取端一律用 `r.x || ''` / `!= null`，
+  // 因此 undefined 與空字串等價，不影響任何分析結果。
+  // 注意：核心欄位（model/date/part…）即使為空也保留，維持結構穩定。
+  const CORE_FIELDS = new Set([
+    'sheet', 'date', 'model', 'modelDisplay', 'modelRaw', 'category',
+    'serial', 'reason', 'reasonRaw', 'content', 'isScrap',
+    'part1', 'qty1', 'part1Norm',
+  ]);
+  function compactRecord(rec) {
+    const out = {};
+    for (const [k, v] of Object.entries(rec)) {
+      if (CORE_FIELDS.has(k)) { out[k] = v; continue; }
+      if (v === '' || v == null) continue;      // 省略空值選填欄位
+      if ((k === 'qty2' || k === 'qty3') && v === 0) continue;
+      out[k] = v;
+    }
+    return out;
+  }
+
   // Sheets to skip (not per-model repair data)
   const SKIP_SHEETS = [/^工作表/, /^sheet$/i, /^系品部/];
 
@@ -6560,7 +6590,7 @@ body {
         const orderMonth = parseOrderMonth(batch);      // 製令→出廠年月
         const condition = classifyCondition(mfg, orderMonth); // 全新/整新/''
 
-        records.push({
+        records.push(compactRecord({
           sheet: sheetName,
           date,
           model,          // 正規化 key（無連字號/底線），用於所有 join
@@ -6595,7 +6625,7 @@ body {
           reproducible: (get(r, cols.reproducible) || '').trim(),
           repair_method:(get(r, cols.repair_method) || '').trim(),
           test_result:  (get(r, cols.test_result) || '').trim(),
-        });
+        }));
         sheetRowCount++;
       }
       sheetMeta[sheetName] = sheetRowCount;
@@ -6756,21 +6786,25 @@ body {
   function getRecords(db, filter) {
     const { months, category, model, dateFrom, dateTo, scrapOnly } = filter || {};
     const monthKeys = months && months.length ? months : Object.keys(db.months);
+    const aliasMap = modelAliases(db).alias;
+    const canonModel = (model && model !== '全部') ? canonicalModel(db, model) : null;
     let out = [];
     for (const mk of monthKeys) {
       const m = db.months[mk];
       if (!m) continue;
       for (const r of m.records) {
-        // 正規化 model key（向下相容舊版 data.json，去除連字號/底線/空格）
-        const modelKey = normalizeModel(r.model);
+        // 正規化 + 別名解析（同產品多種寫法合併，見 buildModelAliases）
+        const rawKey = normalizeModel(r.model);
+        const modelKey = aliasMap.get(rawKey) || rawKey;
         if (category && category !== '全部' && r.category !== category) continue;
-        if (model && model !== '全部' && modelKey !== normalizeModel(model)) continue;
+        if (model && model !== '全部' && modelKey !== canonModel) continue;
         if (dateFrom && r.date && r.date < dateFrom) continue;
         if (dateTo && r.date && r.date > dateTo) continue;
         if (scrapOnly && !r.isScrap) continue;
         out.push({
           ...r,
           model: modelKey,
+          modelVariantKey: rawKey,   // 合併前的原始寫法（供 UI 顯示變體明細）
           part1Norm: recordPartName(r.part1, r.part1Norm),
           part2Norm: recordPartName(r.part2, r.part2Norm),
           part3Norm: recordPartName(r.part3, r.part3Norm),
@@ -6788,14 +6822,16 @@ body {
     const monthKeys = months && months.length ? months : Object.keys(db.months);
     const byModel = {}; // model → most-recent denominator across selected months
     const byMonthModel = {}; // for breakdown
+    const aliasMap = modelAliases(db).alias;
 
     for (const mk of monthKeys) {
       const m = db.months[mk];
       if (!m) continue;
       byMonthModel[mk] = m.denominators || {};
       for (const [model, n] of Object.entries(m.denominators || {})) {
-        // 正規化 key，與 record.model 對齊（去除連字號/底線/空格）
-        const key = normalizeModel(model);
+        // 正規化 + 別名解析，讓分母 key 與 record.model 對齊
+        // （來源 Excel 常見 THSM010/THS0010、ZWDUO20/ZWDI020 這類不一致）
+        const key = aliasMap.get(normalizeModel(model)) || normalizeModel(model);
         byModel[key] = (byModel[key] || 0) + n;
       }
     }
@@ -6869,6 +6905,7 @@ body {
   // ─── Per-model rank (with denominator-based fault rate)
   // If db + monthKeys is passed, also computes per-month history
   function modelRank(records, denom, db, monthKeys) {
+    const rankAliasMap = db ? modelAliases(db).alias : new Map();
     const map = new Map();
     for (const r of records) {
       if (!map.has(r.model)) {
@@ -6918,11 +6955,12 @@ body {
         result.history = monthKeys.map(mk => {
           const m = db.months[mk];
           if (!m) return { month: mk, count: 0, denom: 0, faultRate: null };
-          const recs = m.records.filter(r => normalizeModel(r.model) === e.model);
+          const canonOf = (v) => { const k = normalizeModel(v); return rankAliasMap.get(k) || k; };
+          const recs = m.records.filter(r => canonOf(r.model) === e.model);
           let den = m.denominators[e.model] || 0;
           if (!den) {
             for (const [dk, dv] of Object.entries(m.denominators || {})) {
-              if (normalizeModel(dk) === e.model) { den = dv; break; }
+              if (canonOf(dk) === e.model) { den = dv; break; }
             }
           }
           return {
@@ -6983,16 +7021,17 @@ body {
 
   // ─── Per-model history across months
   function modelHistory(db, modelName) {
-    const normName = normalizeModel(modelName);
+    const aliasMap = modelAliases(db).alias;
+    const canonOf = (v) => { const k = normalizeModel(v); return aliasMap.get(k) || k; };
+    const normName = canonOf(modelName);
     const monthKeys = Object.keys(db.months).sort();
     return monthKeys.map(mk => {
       const m = db.months[mk];
       if (!m) return { month: mk, count: 0, denom: 0, faultRate: null, scrap: 0 };
-      const recs = m.records.filter(r => normalizeModel(r.model) === normName);
-      // denominators keys may be raw or normalized — try both
-      const denom = m.denominators[normName]
-        || Object.entries(m.denominators || {}).find(([k]) => normalizeModel(k) === normName)?.[1]
-        || 0;
+      const recs = m.records.filter(r => canonOf(r.model) === normName);
+      // denominators keys may be raw or normalized — 一律過別名解析後比對
+      const denom = Object.entries(m.denominators || {})
+        .find(([k]) => canonOf(k) === normName)?.[1] || 0;
       return {
         month: mk,
         count: recs.length,
@@ -7082,13 +7121,15 @@ body {
 
   function knownModels(db) {
     const set = new Set();
+    const aliasMap = modelAliases(db).alias;
+    const canonOf = (v) => { const k = normalizeModel(v); return aliasMap.get(k) || k; };
     for (const m of Object.values((db && db.months) || {})) {
-      for (const r of m.records || []) if (r.model) set.add(normalizeModel(r.model));
-      for (const k of Object.keys(m.denominators || {})) if (k) set.add(normalizeModel(k));
-      for (const k of Object.keys(m.partCatalog || {})) if (k) set.add(normalizeModel(k));
+      for (const r of m.records || []) if (r.model) set.add(canonOf(r.model));
+      for (const k of Object.keys(m.denominators || {})) if (k) set.add(canonOf(k));
+      for (const k of Object.keys(m.partCatalog || {})) if (k) set.add(canonOf(k));
     }
     for (const [k, v] of Object.entries((db && db.modelSupplements) || {})) {
-      set.add(normalizeModel((v && (v.modelDisplay || v.model)) || k));
+      set.add(canonOf((v && (v.modelDisplay || v.model)) || k));
     }
     return Array.from(set).filter(Boolean).sort();
   }
@@ -7922,6 +7963,167 @@ body {
     return String(raw).toUpperCase().replace(MODEL_STRIP_RE, '');
   }
 
+  // ══════════════════════════════════════════════════════════════════
+  // 型號別名解析層（canonical model）
+  // ------------------------------------------------------------------
+  // 來源 Excel 對同一產品常出現多種寫法，導致「歷年落點」被拆散、
+  // 整新數(分母)對不上而算不出故障率。實測案例：
+  //   THSM010 / THS001A / THS0010   （分頁名、分母 key、器材品號三者不一致）
+  //   ZWDIO20 / ZWIO20 / ZWDUO20 / ZWDI020（O/0、I/U 混用）
+  //   ZBPIR50 / ZBPIR50V2.0 / ZBPIR50V2.0.2（版本尾碼拆成三個型號）
+  // 這裡用「資料驅動」的三段式推導建立別名表，不寫死對照：
+  //   (1) 版本尾碼：ZBPIR50V2.0 → 基礎型號 ZBPIR50（基礎型號需真實存在）
+  //   (2) 分頁綁定：分母 key ↔ 分頁名 ↔ 該分頁主要 model（信心最高）
+  //   (3) 近似比對：折疊易混淆字元後編輯距離 ≤1 且候選唯一才合併
+  // 合併後的代表寫法 = 群組中「維修記錄筆數最多」的那個。
+  // ══════════════════════════════════════════════════════════════════
+
+  // 型號代碼樣式：純英數且含至少一個數字（排除「立保保全」「主機」等大類分頁名）
+  const MODEL_CODE_RE = /^(?=.*\d)[A-Z0-9.]+$/;
+  // 版本尾碼：V2.0 / V2.0.2 / (1.0.9) 等
+  const VERSION_SUFFIX_RE = /(?:V\d+(?:\.\d+)*|\(\d+(?:\.\d+)*\))$/;
+  function stripVersionSuffix(key) {
+    const out = String(key).replace(VERSION_SUFFIX_RE, '');
+    return out.length >= 4 ? out : key;   // 太短就不動，避免誤砍
+  }
+
+  // 編輯距離，超過 max 立即放棄（只需判斷 ≤1，不必算完）
+  function editDistanceWithin(a, b, max) {
+    if (Math.abs(a.length - b.length) > max) return false;
+    let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= a.length; i++) {
+      const cur = [i];
+      let best = i;
+      for (let j = 1; j <= b.length; j++) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+        if (cur[j] < best) best = cur[j];
+      }
+      if (best > max) return false;
+      prev = cur;
+    }
+    return prev[b.length] <= max;
+  }
+
+  const aliasCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+
+  function buildModelAliases(db) {
+    const recordCounts = new Map();          // normalized model → 記錄筆數
+    const sheetModels = new Map();           // normalized 分頁名 → Map(model → count)
+    const denomKeys = new Set();             // normalized 分母 key
+
+    for (const m of Object.values((db && db.months) || {})) {
+      for (const r of (m.records || [])) {
+        const key = normalizeModel(r.model);
+        if (!key) continue;
+        recordCounts.set(key, (recordCounts.get(key) || 0) + 1);
+        // 只有「看起來像型號代碼」的分頁名才納入綁定；
+        // 立保保全 / 攝影機 / 主機 / POE 這種大類分頁含多機種，不可綁成單一型號
+        const sk = MODEL_CODE_RE.test(normalizeModel(r.sheet)) ? normalizeModel(r.sheet) : '';
+        if (sk) {
+          if (!sheetModels.has(sk)) sheetModels.set(sk, new Map());
+          const inner = sheetModels.get(sk);
+          inner.set(key, (inner.get(key) || 0) + 1);
+        }
+      }
+      for (const k of Object.keys(m.denominators || {})) {
+        const key = normalizeModel(k);
+        if (key) denomKeys.add(key);
+      }
+    }
+
+    // union-find
+    const parent = new Map();
+    const find = (x) => {
+      if (!parent.has(x)) parent.set(x, x);
+      let root = x;
+      while (parent.get(root) !== root) root = parent.get(root);
+      while (parent.get(x) !== root) { const nx = parent.get(x); parent.set(x, root); x = nx; }
+      return root;
+    };
+    const union = (a, b) => { const ra = find(a), rb = find(b); if (ra !== rb) parent.set(ra, rb); };
+
+    const allKeys = new Set([...recordCounts.keys(), ...denomKeys, ...sheetModels.keys()]);
+    for (const k of allKeys) find(k);
+
+    // (1) 版本尾碼 → 基礎型號（基礎型號必須真實存在於記錄中）
+    for (const k of allKeys) {
+      const base = stripVersionSuffix(k);
+      if (base !== k && recordCounts.has(base)) union(k, base);
+    }
+
+    // (2) 分頁綁定：分母 key / 分頁名 → 該分頁主要 model
+    const sheetDominant = new Map();
+    for (const [sk, inner] of sheetModels) {
+      let top = null, topN = 0;
+      for (const [mk, n] of inner) if (n > topN) { top = mk; topN = n; }
+      if (top) sheetDominant.set(sk, top);
+    }
+    for (const [sk, top] of sheetDominant) {
+      if (sk !== top) union(sk, top);          // 分頁名本身也可能被當成型號查詢
+      if (denomKeys.has(sk)) union(sk, top);   // 分母 key 剛好等於分頁名
+    }
+
+    // (3) 近似比對：分母 key 對不上任何記錄型號時，折疊後找唯一近似
+    const foldedRecords = [...recordCounts.keys()].map(k => ({ key: k, fold: confusableFold(k) }));
+    for (const dk of denomKeys) {
+      if (recordCounts.has(dk)) continue;                 // 已對得上
+      if (find(dk) !== dk && recordCounts.has(find(dk))) continue; // 已由 (1)(2) 解決
+      const f = confusableFold(dk);
+      const hits = foldedRecords.filter(r =>
+        r.fold[0] === f[0] && r.fold[1] === f[1] && editDistanceWithin(r.fold, f, 1));
+      if (hits.length === 1) union(dk, hits[0].key);      // 唯一候選才合併
+    }
+
+    // 每群選代表：記錄筆數最多者；都沒有記錄則取字典序最小
+    const groups = new Map();
+    for (const k of allKeys) {
+      const root = find(k);
+      if (!groups.has(root)) groups.set(root, []);
+      groups.get(root).push(k);
+    }
+    const alias = new Map();     // any key → canonical key
+    const members = new Map();   // canonical key → [all variants]
+    for (const list of groups.values()) {
+      // 版本家族優先用「基礎型號」當代表（ZBPIR50 而非 ZBPIR50V2.0），
+      // 否則用維修記錄筆數最多者。
+      const baseCandidate = list.find(k =>
+        k === stripVersionSuffix(k) && list.some(o => o !== k && stripVersionSuffix(o) === k));
+      let best = baseCandidate || null, bestN = -1;
+      if (!best) {
+        for (const k of list) {
+          const n = recordCounts.get(k) || 0;
+          if (n > bestN || (n === bestN && best !== null && k < best)) { best = k; bestN = n; }
+        }
+      }
+      for (const k of list) alias.set(k, best);
+      members.set(best, list.slice().sort());
+    }
+    return { alias, members };
+  }
+
+  function modelAliases(db) {
+    if (!db) return { alias: new Map(), members: new Map() };
+    if (aliasCache && aliasCache.has(db)) return aliasCache.get(db);
+    const built = buildModelAliases(db);
+    if (aliasCache) aliasCache.set(db, built);
+    return built;
+  }
+
+  // 正規化 + 別名解析：全站型號比對都應該走這裡
+  function canonicalModel(db, raw) {
+    const key = normalizeModel(raw);
+    if (!key || !db) return key;
+    return modelAliases(db).alias.get(key) || key;
+  }
+
+  // 某個代表型號底下實際出現過的所有寫法（供 UI 顯示「已合併」）
+  function modelVariants(db, modelName) {
+    const canon = canonicalModel(db, modelName);
+    const list = modelAliases(db).members.get(canon) || [canon];
+    return list.filter(k => k !== canon);
+  }
+
   // 易混淆字元折疊 — 僅供「相似度比對」，不改變實際儲存 key。
   // 只折疊「字母 vs 數字」這種視覺上真歧義、且型號命名不會用來區分產品的對：
   //   O↔0、I↔1、L↔1。
@@ -8065,6 +8267,9 @@ body {
   window.RepairAnalyzer = {
     getRecords,
     normalizeModel,
+    canonicalModel,
+    modelVariants,
+    modelAliases,
     auditModels,
     getDenominators,
     computeKPIs,
@@ -12518,6 +12723,33 @@ window.App = (function () {
   const FW_LENS_KWS = ['韌體','異常關機','無回應','當機','重啟','重開','升級','OTA','firmware','update','版本','軟體','APP','閃退','連線異常','連不上','死機','系統異常','無反應'];
   const HW_LENS_KWS = ['焊','虛焊','破裂','變形','短路','斷裂','接觸不良','氧化','腐蝕','電容','電阻','電源','脫落','鬆動','冷焊','假焊','元件'];
   const isWarrantyIn = (r) => (r.warranty || '').includes('保固') || (r.warranty || '').toLowerCase() === 'y' || (r.warrantyType || '').includes('保固');
+
+  // ── 選填欄位覆蓋率 ──────────────────────────────────────────────
+  // 標準模板 v2 的欄位（保固/技師/工時…）多數來源報表沒填。
+  // 若整批資料都沒有該欄位，指標要顯示「來源未填」而不是誤導性的 0。
+  let _fieldCoverageCache = null;
+  function fieldHasData(field) {
+    if (!state.db) return false;
+    if (!_fieldCoverageCache || _fieldCoverageCache.db !== state.db) {
+      const found = new Set();
+      for (const m of Object.values(state.db.months || {})) {
+        for (const r of (m.records || [])) {
+          for (const k of Object.keys(r)) {
+            const v = r[k];
+            if (v !== '' && v != null && v !== false) found.add(k);
+          }
+        }
+      }
+      _fieldCoverageCache = { db: state.db, found };
+    }
+    return _fieldCoverageCache.found.has(field);
+  }
+  // 指標值：欄位整批無資料時回傳「—」並附說明
+  function optionalMetric(field, value) {
+    return fieldHasData(field)
+      ? { value, missing: false }
+      : { value: '—', missing: true, note: '來源報表未填此欄位' };
+  }
   const matchKw = (r, kws) => { const t = `${r.content || ''} ${r.reason || ''} ${r.reasonRaw || ''}`; return kws.some(k => t.includes(k)); };
 
   function rateCls(rate) { return rate == null ? '' : rate >= 0.1 ? 'bad' : rate >= 0.05 ? 'warn' : 'good'; }
@@ -12533,7 +12765,7 @@ window.App = (function () {
           <span class="lens-role">${ri.label}視角・最關注</span>
         </div>
         ${chips.length ? `<div class="lens-chips">${chips.map(c => `
-          <div class="lens-chip ${c.cls || ''}"><div class="lc-v">${c.value}</div><div class="lc-l">${c.label}</div></div>`).join('')}</div>` : ''}
+          <div class="lens-chip ${c.cls || ''}${c.missing ? ' lens-chip-missing' : ''}"${c.note ? ` title="${escapeAttr(c.note)}"` : ''}><div class="lc-v">${c.value}</div><div class="lc-l">${c.label}${c.missing ? '<span class="lc-na">來源未填</span>' : ''}</div></div>`).join('')}</div>` : ''}
         ${insight ? `<div class="lens-insight">${insight}</div>` : ''}
         ${actions.length ? `<div class="lens-actions">${actions.map(a => `<button class="lens-btn" onclick="${a.onclick}">${a.label} →</button>`).join('')}</div>` : ''}
       </div>`;
@@ -12624,7 +12856,7 @@ window.App = (function () {
       case 'qa': cfg = {
         chips: [
           { label: '重複維修台數', value: M.repeated.length, cls: M.repeated.length > 0 ? 'bad' : '' },
-          { label: '保固期內', value: M.warrantyIn, cls: M.warrantyIn > 0 ? 'warn' : '' },
+          { label: '保固期內', ...optionalMetric('warranty', M.warrantyIn), cls: M.warrantyIn > 0 ? 'warn' : '' },
           { label: '報廢率', value: pctStr(M.scrapRate), cls: M.scrapRate >= 0.3 ? 'bad' : '' },
         ],
         insight: M.repeated.length > 0 ? `有 ${M.repeated.length} 台重複進廠（最高 #${M.repeated[0][0]} ×${M.repeated[0][1]}），是品質未閉環指標，建議開立 CAPA。` : `無重複維修，品質閉環狀況良好。`,
@@ -12635,11 +12867,13 @@ window.App = (function () {
       }; break;
       case 'cs': cfg = {
         chips: [
-          { label: '保固曝險', value: M.warrantyIn, cls: M.warrantyIn > 0 ? 'warn' : '' },
+          { label: '保固曝險', ...optionalMetric('warranty', M.warrantyIn), cls: M.warrantyIn > 0 ? 'warn' : '' },
           { label: '重複進廠台數', value: M.repeated.length, cls: M.repeated.length > 0 ? 'bad' : '' },
           { label: '報廢件數', value: M.scrap },
         ],
-        insight: M.warrantyIn > 0 || M.repeated.length > 0 ? `${M.warrantyIn} 件保固期內、${M.repeated.length} 台重複進廠，屬客訴高風險，建議主動聯繫客戶說明處理進度。` : `客訴風險低。`,
+        insight: M.repeated.length > 0
+          ? `${fieldHasData('warranty') ? `${M.warrantyIn} 件保固期內、` : ''}${M.repeated.length} 台重複進廠，屬客訴高風險，建議主動聯繫客戶說明處理進度。`
+          : `客訴風險低。`,
         actions: [{ label: '看維修明細', onclick: `App.switchPage('detail')` }],
       }; break;
       case 'repair': cfg = {
@@ -15343,7 +15577,7 @@ window.Auth = (function () {
 
 </script>
 <script>
-window.__morandiCSS__ = "/* ════════════════════════════════════════════════════════════════════\r\n   TITAN-STAR — 莫蘭迪/大地色系主題\r\n   疊加在 styles.css 之後；只覆蓋 :root 色彩變數，其餘 UI 結構不變\r\n   ════════════════════════════════════════════════════════════════════ */\r\n\r\n/* Morandi primary 呼吸光 keyframe（霧藍，淺底適用） */\r\n@keyframes glow-pulse-morandi {\r\n  0%,100% { box-shadow: 0 0 0 0 rgba(91,130,166,0),\r\n                        inset 0 1px 0 rgba(255,255,255,.55),\r\n                        0 4px 14px rgba(91,130,166,.20); }\r\n  50%      { box-shadow: 0 0 0 5px rgba(91,130,166,.14),\r\n                        inset 0 1px 0 rgba(255,255,255,.65),\r\n                        0 8px 24px rgba(91,130,166,.36); }\r\n}\r\n\r\n:root {\r\n  /* ── 底色系：溫潤米白，護眼不刺眼 ── */\r\n  --bg:       #EDECEA;   /* 大地米白底 */\r\n  --surface:  #F8F7F5;   /* 卡片近白 */\r\n  --surface2: #EEECEA;   /* 次表面淺米 */\r\n  --surface3: #E2E0DC;   /* 三級灰 */\r\n  --hover:    rgba(0,0,0,0.04);\r\n\r\n  /* ── 邊框：柔和陰影邊 ── */\r\n  --border:  rgba(0,0,0,0.09);\r\n  --border2: rgba(0,0,0,0.16);\r\n\r\n  /* ── 文字：暖灰黑層次 ── */\r\n  --text:      #28241F;  /* 深暖黑，主要文字 */\r\n  --text2:     #514D47;  /* 中暖灰，次要文字 */\r\n  --text3:     #857F77;  /* 輕灰棕，標籤/輔助 */\r\n  --text-mute: #ADA89F;  /* 最淡，placeholder */\r\n\r\n  /* ── 強調色：霧霾藍（主要互動/連結/高亮） ── */\r\n  --accent:        #5B82A6;\r\n  --accent-soft:   rgba(91,130,166,0.10);\r\n  --accent-strong: rgba(91,130,166,0.22);\r\n\r\n  /* ── 嚴重警示：柔和磚紅 ── */\r\n  --critical:        #C26360;\r\n  --critical-soft:   rgba(194,99,96,0.10);\r\n  --critical-strong: rgba(194,99,96,0.20);\r\n\r\n  /* ── 警告：暖琥珀褐 ── */\r\n  --warn:        #B8833A;\r\n  --warn-soft:   rgba(184,131,58,0.10);\r\n  --warn-strong: rgba(184,131,58,0.20);\r\n\r\n  /* ── 達標/正常：鼠尾草綠 ── */\r\n  --ok:      #6E9C68;\r\n  --ok-soft: rgba(110,156,104,0.12);\r\n\r\n  /* ── 資訊/中性：暖灰褐 ── */\r\n  --info:      #8C8275;\r\n  --info-soft: rgba(140,130,117,0.12);\r\n}\r\n\r\n/* ──────────────────────────────────────────────────────────────────\r\n   深色主題中寫死的白色系元素，在淺色主題需要反轉\r\n   ────────────────────────────────────────────────────────────────── */\r\n\r\n/* 整體底色已由 :root --bg 控制，body 跟著走 */\r\nbody {\r\n  background: var(--bg);\r\n  color: var(--text);\r\n}\r\n\r\n/* ── 頂部 Logo 漸層 → 改為品牌藍方向 ── */\r\n.uz-logo, .logo-badge {\r\n  background: linear-gradient(135deg, var(--accent), #7A9EBF) !important;\r\n  color: #fff !important;\r\n}\r\n\r\n/* ── 主 nav sidebar ── */\r\n#sidebar {\r\n  background: var(--surface) !important;\r\n  border-right: 1px solid var(--border) !important;\r\n}\r\n.nav-item { color: var(--text2) !important; }\r\n.nav-item:hover { background: var(--surface2) !important; color: var(--text) !important; }\r\n.nav-item.active {\r\n  background: var(--accent-soft) !important;\r\n  color: var(--accent) !important;\r\n  border-left-color: var(--accent) !important;\r\n}\r\n\r\n/* ── 頁面 header ── */\r\n#pageHeader {\r\n  background: var(--surface) !important;\r\n  border-bottom: 1px solid var(--border) !important;\r\n}\r\n.page-title { color: var(--text) !important; }\r\n\r\n/* ── 卡片 ── */\r\n.card, .sum-card, .kpi-card, .trend-card {\r\n  background: var(--surface) !important;\r\n  border-color: var(--border) !important;\r\n  box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;\r\n}\r\n\r\n/* ── KPI 數字：保留語意色，不改 ── */\r\n\r\n/* ── 表格 ── */\r\ntable thead th {\r\n  background: var(--surface2) !important;\r\n  color: var(--text2) !important;\r\n  border-color: var(--border2) !important;\r\n}\r\ntable tbody tr { border-bottom: 1px solid var(--border) !important; }\r\ntable tbody tr:nth-child(even) { background: rgba(0,0,0,0.025) !important; }\r\ntable tbody tr:hover { background: var(--accent-soft) !important; }\r\ntable td, table th { border-color: var(--border) !important; }\r\ntable td { border-bottom: 1px solid var(--border) !important; }\r\n\r\n/* ── 機種排名 mrank cards ── */\r\n.mrank-row {\r\n  border: 1px solid var(--border2) !important;\r\n  box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;\r\n}\r\n.mrank-row + .mrank-row { margin-top: 6px; }\r\n.mrank-top:hover { background: rgba(91,130,166,.08) !important; }\r\n\r\n/* ── 按鈕 ── */\r\n.btn-primary, .sum-card-go {\r\n  background: var(--accent) !important;\r\n  color: #fff !important;\r\n}\r\n.btn-primary:hover, .sum-card-go:hover {\r\n  background: #4A6F93 !important;\r\n}\r\n.btn-outline, .sum-card-capa {\r\n  border-color: var(--accent) !important;\r\n  color: var(--accent) !important;\r\n  background: transparent !important;\r\n}\r\n.btn-outline:hover, .sum-card-capa:hover {\r\n  background: var(--accent-soft) !important;\r\n}\r\n\r\n/* ── 輸入框 ── */\r\ninput, select, textarea {\r\n  background: var(--surface) !important;\r\n  color: var(--text) !important;\r\n  border-color: var(--border2) !important;\r\n}\r\ninput:focus, select:focus, textarea:focus {\r\n  border-color: var(--accent) !important;\r\n  outline: none !important;\r\n  box-shadow: 0 0 0 2px var(--accent-soft) !important;\r\n}\r\n\r\n/* ── 抽屜/Modal ── */\r\n#drawer, .modal-panel {\r\n  background: var(--surface) !important;\r\n  border-left: 1px solid var(--border) !important;\r\n}\r\n\r\n/* ── 搜尋列 ── */\r\n.search-bar, #detailSearch {\r\n  background: var(--surface2) !important;\r\n  border-color: var(--border) !important;\r\n  color: var(--text) !important;\r\n}\r\n\r\n/* ── 標籤 Chip ── */\r\n.chip, .tag, .badge {\r\n  background: linear-gradient(135deg, rgba(91,130,166,.22) 0%, rgba(91,130,166,.09) 100%) !important;\r\n  backdrop-filter: blur(10px) saturate(1.4) !important;\r\n  -webkit-backdrop-filter: blur(10px) saturate(1.4) !important;\r\n  color: var(--text2) !important;\r\n  border-color: rgba(91,130,166,.45) !important;\r\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 1px 6px rgba(91,130,166,.12) !important;\r\n}\r\n\r\n/* ── COPQ onboarding 步驟 ── */\r\n.ob-step { background: var(--surface2) !important; color: var(--text3) !important; }\r\n.ob-step.ob-active { background: var(--accent-soft) !important; color: var(--accent) !important; }\r\n.ob-num { background: var(--surface3) !important; color: var(--text2) !important; }\r\n.ob-step.ob-active .ob-num { background: var(--accent) !important; color: #fff !important; }\r\n\r\n/* ── CEO 摘要框 ── */\r\n.exec-brief {\r\n  background: var(--accent-soft) !important;\r\n  border-left: 4px solid var(--accent) !important;\r\n}\r\n.eb-label { color: var(--accent) !important; }\r\n.eb-text  { color: var(--text) !important; }\r\n\r\n/* ── CAPA 表單 ── */\r\n.capa-row { border-bottom-color: var(--border) !important; }\r\n.capa-id  { color: var(--text3) !important; }\r\n\r\n/* ── data quality panel ── */\r\n.dq-item { background: var(--surface2) !important; }\r\n.dq-ok   { color: var(--ok) !important; }\r\n.dq-warn { color: var(--warn) !important; }\r\n.dq-bad  { color: var(--critical) !important; }\r\n\r\n/* ── 上傳區 ── */\r\n.uz-card { background: var(--surface) !important; border-color: var(--border2) !important; }\r\n.uz-card.drag { border-color: var(--accent) !important; background: var(--accent-soft) !important; }\r\n\r\n/* ── 分頁/子選單列 ── */\r\n.sub-nav, .tab-bar {\r\n  background: var(--surface2) !important;\r\n  border-bottom-color: var(--border) !important;\r\n}\r\n.sub-nav-item.active, .tab-item.active {\r\n  color: var(--accent) !important;\r\n  border-bottom-color: var(--accent) !important;\r\n}\r\n\r\n/* ── 月份卡片 ── */\r\n.uz-month-card {\r\n  background: var(--surface) !important;\r\n  border-color: var(--border) !important;\r\n}\r\n.uz-month-card:hover { border-color: var(--border2) !important; }\r\n\r\n/* ── scroll bar（Webkit） ── */\r\n::-webkit-scrollbar { width: 6px; height: 6px; }\r\n::-webkit-scrollbar-track { background: var(--surface2); }\r\n::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }\r\n::-webkit-scrollbar-thumb:hover { background: var(--text-mute); }\r\n\r\n/* ─── New UI elements ─── */\r\n.fsc-sel { background: var(--surface2); color: var(--text); border-color: var(--border); }\r\n.sidebar-mini-toggle { border-color: var(--border); color: var(--text3); }\r\n.ph-icon-btn { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-strong); }\r\n.help-modal { background: var(--surface); border-color: var(--border); }\r\n.help-modal-h { border-color: var(--border); }\r\n\r\n/* ── 頂部 mode-bar 與 subbar ── */\r\n.mode-bar {\r\n  background: rgba(237,236,234,.92) !important;\r\n  border-bottom: 1px solid var(--border) !important;\r\n}\r\n.mode-tab { color: var(--text2) !important; background: linear-gradient(135deg, rgba(91,130,166,.10) 0%, rgba(91,130,166,.03) 100%) !important; backdrop-filter: blur(8px) !important; -webkit-backdrop-filter: blur(8px) !important; border: 1px solid rgba(91,130,166,.22) !important; }\r\n.mode-tab:hover { color: var(--accent) !important; background: rgba(91,130,166,.10) !important; animation: jelly-pop .35s cubic-bezier(.34,1.56,.64,1) !important; }\r\n.mode-tab.active {\r\n  color: var(--accent) !important;\r\n  background: linear-gradient(135deg, rgba(122,162,196,.20), rgba(122,162,196,.04)) !important;\r\n  border: 1px solid rgba(122,162,196,.5) !important;\r\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.4) !important;\r\n}\r\n.mode-bar-r .btn { color: var(--text2) !important; border-color: var(--border) !important; background: rgba(91,130,166,.06) !important; }\r\n.mode-bar-r .btn:hover { color: var(--text) !important; background: rgba(91,130,166,.12) !important; }\r\n.topbar-btn {\r\n  background: linear-gradient(135deg, rgba(122,162,196,.20), rgba(122,162,196,.04)) !important;\r\n  color: var(--accent) !important;\r\n  border: 1px solid rgba(122,162,196,.5) !important;\r\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.4) !important;\r\n}\r\n.topbar-btn:hover {\r\n  background: linear-gradient(135deg, rgba(122,162,196,.28), rgba(122,162,196,.08)) !important;\r\n  border-color: rgba(122,162,196,.75) !important;\r\n}\r\n.s-icon { background: linear-gradient(180deg, var(--accent) 0%, #6E9C68 100%) !important; }\r\n.mode-bar-user { color: var(--text3) !important; }\r\n.subbar {\r\n  background: var(--surface) !important;\r\n  border-bottom: 1px solid var(--border) !important;\r\n}\r\n.chip { background: linear-gradient(135deg, rgba(91,130,166,.14) 0%, rgba(91,130,166,.05) 100%) !important; backdrop-filter: blur(10px) saturate(1.4) !important; -webkit-backdrop-filter: blur(10px) saturate(1.4) !important; color: var(--text2) !important; border-color: rgba(91,130,166,.35) !important; }\r\n/* 多巴胺玻璃擬態：淺藍漸層透明底 + 藍框，不填滿 */\r\n.chip.active {\r\n  background: linear-gradient(135deg, rgba(122,162,196,.24), rgba(122,162,196,.05)) !important;\r\n  -webkit-backdrop-filter: blur(8px) saturate(1.4); backdrop-filter: blur(8px) saturate(1.4);\r\n  color: var(--accent) !important;\r\n  border-color: rgba(122,162,196,.6) !important;\r\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 2px 10px rgba(122,162,196,.2) !important;\r\n}\r\n.subbar-toggle { color: var(--text2) !important; }\r\n.sb-label { color: var(--text3) !important; }\r\n.snav-item { color: var(--text2) !important; }\r\n.snav-item:hover { background: rgba(91,130,166,.08) !important; color: var(--text) !important; }\r\n.snav-item.active {\r\n  background: linear-gradient(135deg, rgba(122,162,196,.22), rgba(122,162,196,.04)) !important;\r\n  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);\r\n  color: var(--accent) !important;\r\n  border: 1px solid rgba(122,162,196,.5) !important;\r\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 2px 8px rgba(122,162,196,.16) !important;\r\n}\r\n.snav-item.active .snav-ico { filter: drop-shadow(0 0 4px rgba(122,162,196,.6)); opacity: 1 !important; }\r\n.snav-h, .snav-sep { border-color: var(--border) !important; color: var(--text3) !important; }\r\n\r\n/* ── 異常偵測卡片：淺色主題下標籤文字加深（亮色配淡底對比過低）── */\r\n.amini { background: var(--surface) !important; border-color: var(--border) !important; }\r\n.amini-type { color: var(--text) !important; }\r\n.matrix-cell { color: var(--text) !important; }\r\n.amini-subject { color: var(--text) !important; }\r\n.amini-msg { color: var(--text2) !important; }\r\n\r\n/* ── Morandi QQ 果凍：暖霧藍系發光（取代亮青 #38bdf8）── */\r\n/* accent = #5B82A6（霧霾藍），用 rgba(91,130,166,…) */\r\n\r\n.btn:hover, .btn:active {\r\n  border-color: rgba(91,130,166,.60) !important;\r\n  box-shadow:\r\n    inset 0 1.5px 0 rgba(255,255,255,.55),\r\n    0 0 0 3px rgba(91,130,166,.12),\r\n    0 6px 20px rgba(91,130,166,.22) !important;\r\n}\r\n.btn.primary {\r\n  background: linear-gradient(145deg,\r\n    rgba(91,130,166,.22) 0%,\r\n    rgba(122,162,196,.10) 55%,\r\n    rgba(91,130,166,.04) 100%) !important;\r\n  border: 1px solid rgba(91,130,166,.55) !important;\r\n  box-shadow:\r\n    inset 0 1.5px 0 rgba(255,255,255,.55),\r\n    0 0 10px rgba(91,130,166,.16),\r\n    0 4px 14px rgba(91,130,166,.14) !important;\r\n}\r\n.btn.primary:hover {\r\n  border-color: rgba(91,130,166,.85) !important;\r\n  box-shadow:\r\n    inset 0 1.5px 0 rgba(255,255,255,.65),\r\n    0 0 0 4px rgba(91,130,166,.14),\r\n    0 8px 24px rgba(91,130,166,.30) !important;\r\n  animation: jelly-pop .42s cubic-bezier(.34,1.56,.64,1),\r\n             glow-pulse-morandi 1.2s ease infinite !important;\r\n}\r\n.chip:hover:not(.active), .chip:active:not(.active) {\r\n  border-color: rgba(91,130,166,.45) !important;\r\n  box-shadow: 0 0 0 3px rgba(91,130,166,.10), 0 4px 12px rgba(91,130,166,.16) !important;\r\n}\r\n.snav-item:not(.active):hover, .snav-item:not(.active):active {\r\n  background: rgba(91,130,166,.08) !important;\r\n  box-shadow: inset 3px 0 0 rgba(91,130,166,.55),\r\n              0 2px 10px rgba(91,130,166,.12) !important;\r\n  animation: jelly-pop .38s cubic-bezier(.34,1.56,.64,1) !important;\r\n}\r\n.topbar-btn:hover {\r\n  box-shadow:\r\n    inset 0 1px 0 rgba(255,255,255,.55),\r\n    0 0 0 3px rgba(91,130,166,.14),\r\n    0 6px 18px rgba(91,130,166,.24) !important;\r\n}\r\n.amini:hover {\r\n  box-shadow: 0 0 0 2px rgba(91,130,166,.22),\r\n              0 8px 24px rgba(91,130,166,.16) !important;\r\n  border-color: rgba(91,130,166,.45) !important;\r\n  background: var(--surface2) !important;\r\n}\r\n.matrix tbody td:not(.empty):hover .matrix-cell {\r\n  box-shadow: 0 0 0 3px rgba(91,130,166,.25),\r\n              0 4px 14px rgba(91,130,166,.24) !important;\r\n}\r\n.kpi:hover {\r\n  box-shadow: 0 0 0 2px rgba(91,130,166,.16),\r\n              0 8px 24px rgba(91,130,166,.14) !important;\r\n}\r\n.mrank-top:hover, .mrank-top:active {\r\n  box-shadow: inset 3px 0 0 rgba(91,130,166,.55),\r\n              0 2px 12px rgba(91,130,166,.12) !important;\r\n  animation: jelly-wiggle .5s ease !important;\r\n}\r\n.sum-card-go:hover, .sum-card-capa:hover {\r\n  box-shadow: 0 0 0 3px rgba(91,130,166,.14),\r\n              0 6px 16px rgba(91,130,166,.20) !important;\r\n}\r\n\r\n/* ══════════════════════════════════════════════\r\n   莫蘭迪：全站可點擊元素 QQ 玻璃基底\r\n   ══════════════════════════════════════════════ */\r\n.kpi,\r\n.alert,\r\n.anom-card,\r\n.amini,\r\n.mrank-top,\r\n.uz-month-card,\r\n.ri-card-clickable {\r\n  background: linear-gradient(145deg,\r\n    rgba(91,130,166,.18) 0%,\r\n    rgba(91,130,166,.06) 100%) !important;\r\n  backdrop-filter: blur(12px) saturate(1.3) !important;\r\n  -webkit-backdrop-filter: blur(12px) saturate(1.3) !important;\r\n  border-color: rgba(91,130,166,.32) !important;\r\n  box-shadow:\r\n    inset 0 1px 0 rgba(255,255,255,.42),\r\n    0 2px 8px rgba(91,130,166,.10) !important;\r\n}\r\n\r\n/* 左邊框語義色 */\r\n.alert.critical, .anom-card.critical, .amini.critical { border-left-color: var(--critical) !important; }\r\n.alert.warn,     .anom-card.warn,     .amini.warn     { border-left-color: var(--warn) !important; }\r\n.alert.info,     .anom-card.info,     .amini.info     { border-left-color: var(--info) !important; }\r\n\r\n/* Hover & Active */\r\n.kpi:hover, .kpi:active {\r\n  transform: translateY(-4px) scale(1.022) !important;\r\n  border-color: rgba(91,130,166,.60) !important;\r\n  box-shadow:\r\n    inset 0 1px 0 rgba(255,255,255,.55),\r\n    0 0 0 2px rgba(91,130,166,.20),\r\n    0 10px 28px rgba(91,130,166,.22) !important;\r\n  animation: jelly-pop .42s cubic-bezier(.34,1.56,.64,1) !important;\r\n}\r\n.alert:hover, .alert:active,\r\n.anom-card:hover, .anom-card:active {\r\n  transform: translateY(-3px) scale(1.012) !important;\r\n  border-color: rgba(91,130,166,.60) !important;\r\n  box-shadow:\r\n    inset 0 1px 0 rgba(255,255,255,.55),\r\n    0 0 0 2px rgba(91,130,166,.18),\r\n    0 8px 22px rgba(91,130,166,.18) !important;\r\n  animation: jelly-pop .40s cubic-bezier(.34,1.56,.64,1) !important;\r\n}\r\n.amini:hover, .amini:active {\r\n  transform: translateY(-3px) scale(1.015) !important;\r\n  border-color: rgba(91,130,166,.60) !important;\r\n  box-shadow:\r\n    inset 0 1px 0 rgba(255,255,255,.55),\r\n    0 0 0 2px rgba(91,130,166,.20),\r\n    0 8px 24px rgba(91,130,166,.20) !important;\r\n  animation: jelly-pop .40s cubic-bezier(.34,1.56,.64,1) !important;\r\n}\r\n.mrank-top:hover, .mrank-top:active {\r\n  background: rgba(91,130,166,.12) !important;\r\n  border-color: rgba(91,130,166,.50) !important;\r\n  transform: translateX(5px) !important;\r\n  box-shadow:\r\n    inset 3px 0 0 rgba(91,130,166,.65),\r\n    0 2px 14px rgba(91,130,166,.16) !important;\r\n  animation: jelly-wiggle .46s ease !important;\r\n}\r\n.uz-month-card:hover, .uz-month-card:active {\r\n  transform: translateY(-3px) scale(1.018) !important;\r\n  border-color: rgba(91,130,166,.60) !important;\r\n  box-shadow:\r\n    inset 0 1px 0 rgba(255,255,255,.55),\r\n    0 0 0 2px rgba(91,130,166,.18),\r\n    0 8px 22px rgba(91,130,166,.18) !important;\r\n  animation: jelly-pop .40s cubic-bezier(.34,1.56,.64,1) !important;\r\n}\r\n.ri-card-clickable:hover, .ri-card-clickable:active {\r\n  transform: translateY(-3px) scale(1.012) !important;\r\n  border-color: rgba(91,130,166,.55) !important;\r\n  box-shadow:\r\n    inset 0 1px 0 rgba(255,255,255,.50),\r\n    0 0 0 2px rgba(91,130,166,.16),\r\n    0 8px 20px rgba(91,130,166,.18) !important;\r\n  animation: jelly-pop .38s cubic-bezier(.34,1.56,.64,1) !important;\r\n}\r\n\r\n/* 料件資料庫類別標籤（莫蘭迪暖藍） */\r\n.pdb-tag {\n  background: rgba(91,130,166,.10) !important;\n  border-color: rgba(91,130,166,.32) !important;\n  color: #5B82A6 !important;\n}\n\n/* 20260721-3: top query/role slabs + softer readable cards. */\n.top-control {\n  background:\n    linear-gradient(135deg, rgba(255,255,255,.78), rgba(246,248,249,.55)),\n    var(--surface) !important;\n  border-color: rgba(122,162,196,.36) !important;\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.72),\n    0 12px 26px rgba(91,130,166,.14) !important;\n}\n.top-control-model { border-left-color: #62A7D8 !important; }\n.top-control-role { border-left-color: #A58AD8 !important; }\n.top-control-icon {\n  color: #fff !important;\n  background: linear-gradient(135deg, #62A7D8, #80B77B) !important;\n}\n.top-control-role .top-control-icon {\n  background: linear-gradient(135deg, #A58AD8, #DD89B3) !important;\n}\n.top-control-label { color: var(--text) !important; }\n.top-control .model-lookup-input {\n  background: rgba(255,255,255,.70) !important;\n  border-color: rgba(122,162,196,.34) !important;\n  color: var(--text) !important;\n}\n.top-control .role-sel-btn {\n  background: transparent !important;\n  border-color: transparent !important;\n  box-shadow: none !important;\n}\n.page-usage {\n  background:\n    linear-gradient(135deg, rgba(122,162,196,.16), rgba(128,183,123,.08)),\n    var(--surface) !important;\n  border-color: rgba(122,162,196,.28) !important;\n  border-left-color: #62A7D8 !important;\n}\n.card,\n.kpi,\n.sum-card,\n.model-fault-card,\n.drawer-sec {\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.62),\n    0 12px 26px rgba(91,130,166,.11) !important;\n}\n";
+window.__morandiCSS__ = "/* ════════════════════════════════════════════════════════════════════\n   TITAN-STAR — 莫蘭迪/大地色系主題\n   疊加在 styles.css 之後；只覆蓋 :root 色彩變數，其餘 UI 結構不變\n   ════════════════════════════════════════════════════════════════════ */\n\n/* Morandi primary 呼吸光 keyframe（霧藍，淺底適用） */\n@keyframes glow-pulse-morandi {\n  0%,100% { box-shadow: 0 0 0 0 rgba(91,130,166,0),\n                        inset 0 1px 0 rgba(255,255,255,.55),\n                        0 4px 14px rgba(91,130,166,.20); }\n  50%      { box-shadow: 0 0 0 5px rgba(91,130,166,.14),\n                        inset 0 1px 0 rgba(255,255,255,.65),\n                        0 8px 24px rgba(91,130,166,.36); }\n}\n\n:root {\n  /* ── 底色系：溫潤米白，護眼不刺眼 ── */\n  --bg:       #EDECEA;   /* 大地米白底 */\n  --surface:  #F8F7F5;   /* 卡片近白 */\n  --surface2: #EEECEA;   /* 次表面淺米 */\n  --surface3: #E2E0DC;   /* 三級灰 */\n  --hover:    rgba(0,0,0,0.04);\n\n  /* ── 邊框：柔和陰影邊 ── */\n  --border:  rgba(0,0,0,0.09);\n  --border2: rgba(0,0,0,0.16);\n\n  /* ── 文字：暖灰黑層次 ── */\n  --text:      #28241F;  /* 深暖黑，主要文字 */\n  --text2:     #514D47;  /* 中暖灰，次要文字 */\n  --text3:     #857F77;  /* 輕灰棕，標籤/輔助 */\n  --text-mute: #ADA89F;  /* 最淡，placeholder */\n\n  /* ── 強調色：霧霾藍（主要互動/連結/高亮） ── */\n  --accent:        #5B82A6;\n  --accent-soft:   rgba(91,130,166,0.10);\n  --accent-strong: rgba(91,130,166,0.22);\n\n  /* ── 嚴重警示：柔和磚紅 ── */\n  --critical:        #C26360;\n  --critical-soft:   rgba(194,99,96,0.10);\n  --critical-strong: rgba(194,99,96,0.20);\n\n  /* ── 警告：暖琥珀褐 ── */\n  --warn:        #B8833A;\n  --warn-soft:   rgba(184,131,58,0.10);\n  --warn-strong: rgba(184,131,58,0.20);\n\n  /* ── 達標/正常：鼠尾草綠 ── */\n  --ok:      #6E9C68;\n  --ok-soft: rgba(110,156,104,0.12);\n\n  /* ── 資訊/中性：暖灰褐 ── */\n  --info:      #8C8275;\n  --info-soft: rgba(140,130,117,0.12);\n}\n\n/* ──────────────────────────────────────────────────────────────────\n   深色主題中寫死的白色系元素，在淺色主題需要反轉\n   ────────────────────────────────────────────────────────────────── */\n\n/* 整體底色已由 :root --bg 控制，body 跟著走 */\nbody {\n  background: var(--bg);\n  color: var(--text);\n}\n\n/* ── 頂部 Logo 漸層 → 改為品牌藍方向 ── */\n.uz-logo, .logo-badge {\n  background: linear-gradient(135deg, var(--accent), #7A9EBF) !important;\n  color: #fff !important;\n}\n\n/* ── 主 nav sidebar ── */\n#sidebar {\n  background: var(--surface) !important;\n  border-right: 1px solid var(--border) !important;\n}\n.nav-item { color: var(--text2) !important; }\n.nav-item:hover { background: var(--surface2) !important; color: var(--text) !important; }\n.nav-item.active {\n  background: var(--accent-soft) !important;\n  color: var(--accent) !important;\n  border-left-color: var(--accent) !important;\n}\n\n/* ── 頁面 header ── */\n#pageHeader {\n  background: var(--surface) !important;\n  border-bottom: 1px solid var(--border) !important;\n}\n.page-title { color: var(--text) !important; }\n\n/* ── 卡片 ── */\n.card, .sum-card, .kpi-card, .trend-card {\n  background: var(--surface) !important;\n  border-color: var(--border) !important;\n  box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;\n}\n\n/* ── KPI 數字：保留語意色，不改 ── */\n\n/* ── 表格 ── */\ntable thead th {\n  background: var(--surface2) !important;\n  color: var(--text2) !important;\n  border-color: var(--border2) !important;\n}\ntable tbody tr { border-bottom: 1px solid var(--border) !important; }\ntable tbody tr:nth-child(even) { background: rgba(0,0,0,0.025) !important; }\ntable tbody tr:hover { background: var(--accent-soft) !important; }\ntable td, table th { border-color: var(--border) !important; }\ntable td { border-bottom: 1px solid var(--border) !important; }\n\n/* ── 機種排名 mrank cards ── */\n.mrank-row {\n  border: 1px solid var(--border2) !important;\n  box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;\n}\n.mrank-row + .mrank-row { margin-top: 6px; }\n.mrank-top:hover { background: rgba(91,130,166,.08) !important; }\n\n/* ── 按鈕 ── */\n.btn-primary, .sum-card-go {\n  background: var(--accent) !important;\n  color: #fff !important;\n}\n.btn-primary:hover, .sum-card-go:hover {\n  background: #4A6F93 !important;\n}\n.btn-outline, .sum-card-capa {\n  border-color: var(--accent) !important;\n  color: var(--accent) !important;\n  background: transparent !important;\n}\n.btn-outline:hover, .sum-card-capa:hover {\n  background: var(--accent-soft) !important;\n}\n\n/* ── 輸入框 ── */\ninput, select, textarea {\n  background: var(--surface) !important;\n  color: var(--text) !important;\n  border-color: var(--border2) !important;\n}\ninput:focus, select:focus, textarea:focus {\n  border-color: var(--accent) !important;\n  outline: none !important;\n  box-shadow: 0 0 0 2px var(--accent-soft) !important;\n}\n\n/* ── 抽屜/Modal ── */\n#drawer, .modal-panel {\n  background: var(--surface) !important;\n  border-left: 1px solid var(--border) !important;\n}\n\n/* ── 搜尋列 ── */\n.search-bar, #detailSearch {\n  background: var(--surface2) !important;\n  border-color: var(--border) !important;\n  color: var(--text) !important;\n}\n\n/* ── 標籤 Chip ── */\n.chip, .tag, .badge {\n  background: linear-gradient(135deg, rgba(91,130,166,.22) 0%, rgba(91,130,166,.09) 100%) !important;\n  backdrop-filter: blur(10px) saturate(1.4) !important;\n  -webkit-backdrop-filter: blur(10px) saturate(1.4) !important;\n  color: var(--text2) !important;\n  border-color: rgba(91,130,166,.45) !important;\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 1px 6px rgba(91,130,166,.12) !important;\n}\n\n/* ── COPQ onboarding 步驟 ── */\n.ob-step { background: var(--surface2) !important; color: var(--text3) !important; }\n.ob-step.ob-active { background: var(--accent-soft) !important; color: var(--accent) !important; }\n.ob-num { background: var(--surface3) !important; color: var(--text2) !important; }\n.ob-step.ob-active .ob-num { background: var(--accent) !important; color: #fff !important; }\n\n/* ── CEO 摘要框 ── */\n.exec-brief {\n  background: var(--accent-soft) !important;\n  border-left: 4px solid var(--accent) !important;\n}\n.eb-label { color: var(--accent) !important; }\n.eb-text  { color: var(--text) !important; }\n\n/* ── CAPA 表單 ── */\n.capa-row { border-bottom-color: var(--border) !important; }\n.capa-id  { color: var(--text3) !important; }\n\n/* ── data quality panel ── */\n.dq-item { background: var(--surface2) !important; }\n.dq-ok   { color: var(--ok) !important; }\n.dq-warn { color: var(--warn) !important; }\n.dq-bad  { color: var(--critical) !important; }\n\n/* ── 上傳區 ── */\n.uz-card { background: var(--surface) !important; border-color: var(--border2) !important; }\n.uz-card.drag { border-color: var(--accent) !important; background: var(--accent-soft) !important; }\n\n/* ── 分頁/子選單列 ── */\n.sub-nav, .tab-bar {\n  background: var(--surface2) !important;\n  border-bottom-color: var(--border) !important;\n}\n.sub-nav-item.active, .tab-item.active {\n  color: var(--accent) !important;\n  border-bottom-color: var(--accent) !important;\n}\n\n/* ── 月份卡片 ── */\n.uz-month-card {\n  background: var(--surface) !important;\n  border-color: var(--border) !important;\n}\n.uz-month-card:hover { border-color: var(--border2) !important; }\n\n/* ── scroll bar（Webkit） ── */\n::-webkit-scrollbar { width: 6px; height: 6px; }\n::-webkit-scrollbar-track { background: var(--surface2); }\n::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }\n::-webkit-scrollbar-thumb:hover { background: var(--text-mute); }\n\n/* ─── New UI elements ─── */\n.fsc-sel { background: var(--surface2); color: var(--text); border-color: var(--border); }\n.sidebar-mini-toggle { border-color: var(--border); color: var(--text3); }\n.ph-icon-btn { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-strong); }\n.help-modal { background: var(--surface); border-color: var(--border); }\n.help-modal-h { border-color: var(--border); }\n\n/* ── 頂部 mode-bar 與 subbar ── */\n.mode-bar {\n  background: rgba(237,236,234,.92) !important;\n  border-bottom: 1px solid var(--border) !important;\n}\n.mode-tab { color: var(--text2) !important; background: linear-gradient(135deg, rgba(91,130,166,.10) 0%, rgba(91,130,166,.03) 100%) !important; backdrop-filter: blur(8px) !important; -webkit-backdrop-filter: blur(8px) !important; border: 1px solid rgba(91,130,166,.22) !important; }\n.mode-tab:hover { color: var(--accent) !important; background: rgba(91,130,166,.10) !important; animation: jelly-pop .35s cubic-bezier(.34,1.56,.64,1) !important; }\n.mode-tab.active {\n  color: var(--accent) !important;\n  background: linear-gradient(135deg, rgba(122,162,196,.20), rgba(122,162,196,.04)) !important;\n  border: 1px solid rgba(122,162,196,.5) !important;\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.4) !important;\n}\n.mode-bar-r .btn { color: var(--text2) !important; border-color: var(--border) !important; background: rgba(91,130,166,.06) !important; }\n.mode-bar-r .btn:hover { color: var(--text) !important; background: rgba(91,130,166,.12) !important; }\n.topbar-btn {\n  background: linear-gradient(135deg, rgba(122,162,196,.20), rgba(122,162,196,.04)) !important;\n  color: var(--accent) !important;\n  border: 1px solid rgba(122,162,196,.5) !important;\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.4) !important;\n}\n.topbar-btn:hover {\n  background: linear-gradient(135deg, rgba(122,162,196,.28), rgba(122,162,196,.08)) !important;\n  border-color: rgba(122,162,196,.75) !important;\n}\n.s-icon { background: linear-gradient(180deg, var(--accent) 0%, #6E9C68 100%) !important; }\n.mode-bar-user { color: var(--text3) !important; }\n.subbar {\n  background: var(--surface) !important;\n  border-bottom: 1px solid var(--border) !important;\n}\n.chip { background: linear-gradient(135deg, rgba(91,130,166,.14) 0%, rgba(91,130,166,.05) 100%) !important; backdrop-filter: blur(10px) saturate(1.4) !important; -webkit-backdrop-filter: blur(10px) saturate(1.4) !important; color: var(--text2) !important; border-color: rgba(91,130,166,.35) !important; }\n/* 多巴胺玻璃擬態：淺藍漸層透明底 + 藍框，不填滿 */\n.chip.active {\n  background: linear-gradient(135deg, rgba(122,162,196,.24), rgba(122,162,196,.05)) !important;\n  -webkit-backdrop-filter: blur(8px) saturate(1.4); backdrop-filter: blur(8px) saturate(1.4);\n  color: var(--accent) !important;\n  border-color: rgba(122,162,196,.6) !important;\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 2px 10px rgba(122,162,196,.2) !important;\n}\n.subbar-toggle { color: var(--text2) !important; }\n.sb-label { color: var(--text3) !important; }\n.snav-item { color: var(--text2) !important; }\n.snav-item:hover { background: rgba(91,130,166,.08) !important; color: var(--text) !important; }\n.snav-item.active {\n  background: linear-gradient(135deg, rgba(122,162,196,.22), rgba(122,162,196,.04)) !important;\n  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);\n  color: var(--accent) !important;\n  border: 1px solid rgba(122,162,196,.5) !important;\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 2px 8px rgba(122,162,196,.16) !important;\n}\n.snav-item.active .snav-ico { filter: drop-shadow(0 0 4px rgba(122,162,196,.6)); opacity: 1 !important; }\n.snav-h, .snav-sep { border-color: var(--border) !important; color: var(--text3) !important; }\n\n/* ── 異常偵測卡片：淺色主題下標籤文字加深（亮色配淡底對比過低）── */\n.amini { background: var(--surface) !important; border-color: var(--border) !important; }\n.amini-type { color: var(--text) !important; }\n.matrix-cell { color: var(--text) !important; }\n.amini-subject { color: var(--text) !important; }\n.amini-msg { color: var(--text2) !important; }\n\n/* ── Morandi QQ 果凍：暖霧藍系發光（取代亮青 #38bdf8）── */\n/* accent = #5B82A6（霧霾藍），用 rgba(91,130,166,…) */\n\n.btn:hover, .btn:active {\n  border-color: rgba(91,130,166,.60) !important;\n  box-shadow:\n    inset 0 1.5px 0 rgba(255,255,255,.55),\n    0 0 0 3px rgba(91,130,166,.12),\n    0 6px 20px rgba(91,130,166,.22) !important;\n}\n.btn.primary {\n  background: linear-gradient(145deg,\n    rgba(91,130,166,.22) 0%,\n    rgba(122,162,196,.10) 55%,\n    rgba(91,130,166,.04) 100%) !important;\n  border: 1px solid rgba(91,130,166,.55) !important;\n  box-shadow:\n    inset 0 1.5px 0 rgba(255,255,255,.55),\n    0 0 10px rgba(91,130,166,.16),\n    0 4px 14px rgba(91,130,166,.14) !important;\n}\n.btn.primary:hover {\n  border-color: rgba(91,130,166,.85) !important;\n  box-shadow:\n    inset 0 1.5px 0 rgba(255,255,255,.65),\n    0 0 0 4px rgba(91,130,166,.14),\n    0 8px 24px rgba(91,130,166,.30) !important;\n  animation: jelly-pop .42s cubic-bezier(.34,1.56,.64,1),\n             glow-pulse-morandi 1.2s ease infinite !important;\n}\n.chip:hover:not(.active), .chip:active:not(.active) {\n  border-color: rgba(91,130,166,.45) !important;\n  box-shadow: 0 0 0 3px rgba(91,130,166,.10), 0 4px 12px rgba(91,130,166,.16) !important;\n}\n.snav-item:not(.active):hover, .snav-item:not(.active):active {\n  background: rgba(91,130,166,.08) !important;\n  box-shadow: inset 3px 0 0 rgba(91,130,166,.55),\n              0 2px 10px rgba(91,130,166,.12) !important;\n  animation: jelly-pop .38s cubic-bezier(.34,1.56,.64,1) !important;\n}\n.topbar-btn:hover {\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.55),\n    0 0 0 3px rgba(91,130,166,.14),\n    0 6px 18px rgba(91,130,166,.24) !important;\n}\n.amini:hover {\n  box-shadow: 0 0 0 2px rgba(91,130,166,.22),\n              0 8px 24px rgba(91,130,166,.16) !important;\n  border-color: rgba(91,130,166,.45) !important;\n  background: var(--surface2) !important;\n}\n.matrix tbody td:not(.empty):hover .matrix-cell {\n  box-shadow: 0 0 0 3px rgba(91,130,166,.25),\n              0 4px 14px rgba(91,130,166,.24) !important;\n}\n.kpi:hover {\n  box-shadow: 0 0 0 2px rgba(91,130,166,.16),\n              0 8px 24px rgba(91,130,166,.14) !important;\n}\n.mrank-top:hover, .mrank-top:active {\n  box-shadow: inset 3px 0 0 rgba(91,130,166,.55),\n              0 2px 12px rgba(91,130,166,.12) !important;\n  animation: jelly-wiggle .5s ease !important;\n}\n.sum-card-go:hover, .sum-card-capa:hover {\n  box-shadow: 0 0 0 3px rgba(91,130,166,.14),\n              0 6px 16px rgba(91,130,166,.20) !important;\n}\n\n/* ══════════════════════════════════════════════\n   莫蘭迪：全站可點擊元素 QQ 玻璃基底\n   ══════════════════════════════════════════════ */\n.kpi,\n.alert,\n.anom-card,\n.amini,\n.mrank-top,\n.uz-month-card,\n.ri-card-clickable {\n  background: linear-gradient(145deg,\n    rgba(91,130,166,.18) 0%,\n    rgba(91,130,166,.06) 100%) !important;\n  backdrop-filter: blur(12px) saturate(1.3) !important;\n  -webkit-backdrop-filter: blur(12px) saturate(1.3) !important;\n  border-color: rgba(91,130,166,.32) !important;\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.42),\n    0 2px 8px rgba(91,130,166,.10) !important;\n}\n\n/* 左邊框語義色 */\n.alert.critical, .anom-card.critical, .amini.critical { border-left-color: var(--critical) !important; }\n.alert.warn,     .anom-card.warn,     .amini.warn     { border-left-color: var(--warn) !important; }\n.alert.info,     .anom-card.info,     .amini.info     { border-left-color: var(--info) !important; }\n\n/* Hover & Active */\n.kpi:hover, .kpi:active {\n  transform: translateY(-4px) scale(1.022) !important;\n  border-color: rgba(91,130,166,.60) !important;\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.55),\n    0 0 0 2px rgba(91,130,166,.20),\n    0 10px 28px rgba(91,130,166,.22) !important;\n  animation: jelly-pop .42s cubic-bezier(.34,1.56,.64,1) !important;\n}\n.alert:hover, .alert:active,\n.anom-card:hover, .anom-card:active {\n  transform: translateY(-3px) scale(1.012) !important;\n  border-color: rgba(91,130,166,.60) !important;\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.55),\n    0 0 0 2px rgba(91,130,166,.18),\n    0 8px 22px rgba(91,130,166,.18) !important;\n  animation: jelly-pop .40s cubic-bezier(.34,1.56,.64,1) !important;\n}\n.amini:hover, .amini:active {\n  transform: translateY(-3px) scale(1.015) !important;\n  border-color: rgba(91,130,166,.60) !important;\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.55),\n    0 0 0 2px rgba(91,130,166,.20),\n    0 8px 24px rgba(91,130,166,.20) !important;\n  animation: jelly-pop .40s cubic-bezier(.34,1.56,.64,1) !important;\n}\n.mrank-top:hover, .mrank-top:active {\n  background: rgba(91,130,166,.12) !important;\n  border-color: rgba(91,130,166,.50) !important;\n  transform: translateX(5px) !important;\n  box-shadow:\n    inset 3px 0 0 rgba(91,130,166,.65),\n    0 2px 14px rgba(91,130,166,.16) !important;\n  animation: jelly-wiggle .46s ease !important;\n}\n.uz-month-card:hover, .uz-month-card:active {\n  transform: translateY(-3px) scale(1.018) !important;\n  border-color: rgba(91,130,166,.60) !important;\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.55),\n    0 0 0 2px rgba(91,130,166,.18),\n    0 8px 22px rgba(91,130,166,.18) !important;\n  animation: jelly-pop .40s cubic-bezier(.34,1.56,.64,1) !important;\n}\n.ri-card-clickable:hover, .ri-card-clickable:active {\n  transform: translateY(-3px) scale(1.012) !important;\n  border-color: rgba(91,130,166,.55) !important;\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.50),\n    0 0 0 2px rgba(91,130,166,.16),\n    0 8px 20px rgba(91,130,166,.18) !important;\n  animation: jelly-pop .38s cubic-bezier(.34,1.56,.64,1) !important;\n}\n\n/* 料件資料庫類別標籤（莫蘭迪暖藍） */\n.pdb-tag {\n  background: rgba(91,130,166,.10) !important;\n  border-color: rgba(91,130,166,.32) !important;\n  color: #5B82A6 !important;\n}\n\n/* 20260721-3: top query/role slabs + softer readable cards. */\n.top-control {\n  background:\n    linear-gradient(135deg, rgba(255,255,255,.78), rgba(246,248,249,.55)),\n    var(--surface) !important;\n  border-color: rgba(122,162,196,.36) !important;\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.72),\n    0 12px 26px rgba(91,130,166,.14) !important;\n}\n.top-control-model { border-left-color: #62A7D8 !important; }\n.top-control-role { border-left-color: #A58AD8 !important; }\n.top-control-icon {\n  color: #fff !important;\n  background: linear-gradient(135deg, #62A7D8, #80B77B) !important;\n}\n.top-control-role .top-control-icon {\n  background: linear-gradient(135deg, #A58AD8, #DD89B3) !important;\n}\n.top-control-label { color: var(--text) !important; }\n.top-control .model-lookup-input {\n  background: rgba(255,255,255,.70) !important;\n  border-color: rgba(122,162,196,.34) !important;\n  color: var(--text) !important;\n}\n.top-control .role-sel-btn {\n  background: transparent !important;\n  border-color: transparent !important;\n  box-shadow: none !important;\n}\n.page-usage {\n  background:\n    linear-gradient(135deg, rgba(122,162,196,.16), rgba(128,183,123,.08)),\n    var(--surface) !important;\n  border-color: rgba(122,162,196,.28) !important;\n  border-left-color: #62A7D8 !important;\n}\n.card,\n.kpi,\n.sum-card,\n.model-fault-card,\n.drawer-sec {\n  box-shadow:\n    inset 0 1px 0 rgba(255,255,255,.62),\n    0 12px 26px rgba(91,130,166,.11) !important;\n}\n";
 </script>
 <script>
 // ════════════════════════════════════════════════════════════════════

@@ -37,6 +37,28 @@
     test_result: ['測試結果', '測試'],
   };
 
+  // ── 記錄瘦身 ──────────────────────────────────────────────────
+  // 標準模板 v2 的選填欄位（保固/技師/工時…）在實際來源 Excel 幾乎全空，
+  // 但每筆都序列化會讓 data.json 膨脹三成（實測 6,587 筆多出 ~1MB）。
+  // 這裡把空值欄位直接省略；讀取端一律用 `r.x || ''` / `!= null`，
+  // 因此 undefined 與空字串等價，不影響任何分析結果。
+  // 注意：核心欄位（model/date/part…）即使為空也保留，維持結構穩定。
+  const CORE_FIELDS = new Set([
+    'sheet', 'date', 'model', 'modelDisplay', 'modelRaw', 'category',
+    'serial', 'reason', 'reasonRaw', 'content', 'isScrap',
+    'part1', 'qty1', 'part1Norm',
+  ]);
+  function compactRecord(rec) {
+    const out = {};
+    for (const [k, v] of Object.entries(rec)) {
+      if (CORE_FIELDS.has(k)) { out[k] = v; continue; }
+      if (v === '' || v == null) continue;      // 省略空值選填欄位
+      if ((k === 'qty2' || k === 'qty3') && v === 0) continue;
+      out[k] = v;
+    }
+    return out;
+  }
+
   // Sheets to skip (not per-model repair data)
   const SKIP_SHEETS = [/^工作表/, /^sheet$/i, /^系品部/];
 
@@ -607,7 +629,7 @@
         const orderMonth = parseOrderMonth(batch);      // 製令→出廠年月
         const condition = classifyCondition(mfg, orderMonth); // 全新/整新/''
 
-        records.push({
+        records.push(compactRecord({
           sheet: sheetName,
           date,
           model,          // 正規化 key（無連字號/底線），用於所有 join
@@ -642,7 +664,7 @@
           reproducible: (get(r, cols.reproducible) || '').trim(),
           repair_method:(get(r, cols.repair_method) || '').trim(),
           test_result:  (get(r, cols.test_result) || '').trim(),
-        });
+        }));
         sheetRowCount++;
       }
       sheetMeta[sheetName] = sheetRowCount;

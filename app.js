@@ -4412,6 +4412,33 @@ window.App = (function () {
   const FW_LENS_KWS = ['韌體','異常關機','無回應','當機','重啟','重開','升級','OTA','firmware','update','版本','軟體','APP','閃退','連線異常','連不上','死機','系統異常','無反應'];
   const HW_LENS_KWS = ['焊','虛焊','破裂','變形','短路','斷裂','接觸不良','氧化','腐蝕','電容','電阻','電源','脫落','鬆動','冷焊','假焊','元件'];
   const isWarrantyIn = (r) => (r.warranty || '').includes('保固') || (r.warranty || '').toLowerCase() === 'y' || (r.warrantyType || '').includes('保固');
+
+  // ── 選填欄位覆蓋率 ──────────────────────────────────────────────
+  // 標準模板 v2 的欄位（保固/技師/工時…）多數來源報表沒填。
+  // 若整批資料都沒有該欄位，指標要顯示「來源未填」而不是誤導性的 0。
+  let _fieldCoverageCache = null;
+  function fieldHasData(field) {
+    if (!state.db) return false;
+    if (!_fieldCoverageCache || _fieldCoverageCache.db !== state.db) {
+      const found = new Set();
+      for (const m of Object.values(state.db.months || {})) {
+        for (const r of (m.records || [])) {
+          for (const k of Object.keys(r)) {
+            const v = r[k];
+            if (v !== '' && v != null && v !== false) found.add(k);
+          }
+        }
+      }
+      _fieldCoverageCache = { db: state.db, found };
+    }
+    return _fieldCoverageCache.found.has(field);
+  }
+  // 指標值：欄位整批無資料時回傳「—」並附說明
+  function optionalMetric(field, value) {
+    return fieldHasData(field)
+      ? { value, missing: false }
+      : { value: '—', missing: true, note: '來源報表未填此欄位' };
+  }
   const matchKw = (r, kws) => { const t = `${r.content || ''} ${r.reason || ''} ${r.reasonRaw || ''}`; return kws.some(k => t.includes(k)); };
 
   function rateCls(rate) { return rate == null ? '' : rate >= 0.1 ? 'bad' : rate >= 0.05 ? 'warn' : 'good'; }
@@ -4427,7 +4454,7 @@ window.App = (function () {
           <span class="lens-role">${ri.label}視角・最關注</span>
         </div>
         ${chips.length ? `<div class="lens-chips">${chips.map(c => `
-          <div class="lens-chip ${c.cls || ''}"><div class="lc-v">${c.value}</div><div class="lc-l">${c.label}</div></div>`).join('')}</div>` : ''}
+          <div class="lens-chip ${c.cls || ''}${c.missing ? ' lens-chip-missing' : ''}"${c.note ? ` title="${escapeAttr(c.note)}"` : ''}><div class="lc-v">${c.value}</div><div class="lc-l">${c.label}${c.missing ? '<span class="lc-na">來源未填</span>' : ''}</div></div>`).join('')}</div>` : ''}
         ${insight ? `<div class="lens-insight">${insight}</div>` : ''}
         ${actions.length ? `<div class="lens-actions">${actions.map(a => `<button class="lens-btn" onclick="${a.onclick}">${a.label} →</button>`).join('')}</div>` : ''}
       </div>`;
@@ -4518,7 +4545,7 @@ window.App = (function () {
       case 'qa': cfg = {
         chips: [
           { label: '重複維修台數', value: M.repeated.length, cls: M.repeated.length > 0 ? 'bad' : '' },
-          { label: '保固期內', value: M.warrantyIn, cls: M.warrantyIn > 0 ? 'warn' : '' },
+          { label: '保固期內', ...optionalMetric('warranty', M.warrantyIn), cls: M.warrantyIn > 0 ? 'warn' : '' },
           { label: '報廢率', value: pctStr(M.scrapRate), cls: M.scrapRate >= 0.3 ? 'bad' : '' },
         ],
         insight: M.repeated.length > 0 ? `有 ${M.repeated.length} 台重複進廠（最高 #${M.repeated[0][0]} ×${M.repeated[0][1]}），是品質未閉環指標，建議開立 CAPA。` : `無重複維修，品質閉環狀況良好。`,
@@ -4529,11 +4556,13 @@ window.App = (function () {
       }; break;
       case 'cs': cfg = {
         chips: [
-          { label: '保固曝險', value: M.warrantyIn, cls: M.warrantyIn > 0 ? 'warn' : '' },
+          { label: '保固曝險', ...optionalMetric('warranty', M.warrantyIn), cls: M.warrantyIn > 0 ? 'warn' : '' },
           { label: '重複進廠台數', value: M.repeated.length, cls: M.repeated.length > 0 ? 'bad' : '' },
           { label: '報廢件數', value: M.scrap },
         ],
-        insight: M.warrantyIn > 0 || M.repeated.length > 0 ? `${M.warrantyIn} 件保固期內、${M.repeated.length} 台重複進廠，屬客訴高風險，建議主動聯繫客戶說明處理進度。` : `客訴風險低。`,
+        insight: M.repeated.length > 0
+          ? `${fieldHasData('warranty') ? `${M.warrantyIn} 件保固期內、` : ''}${M.repeated.length} 台重複進廠，屬客訴高風險，建議主動聯繫客戶說明處理進度。`
+          : `客訴風險低。`,
         actions: [{ label: '看維修明細', onclick: `App.switchPage('detail')` }],
       }; break;
       case 'repair': cfg = {

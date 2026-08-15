@@ -22,21 +22,25 @@
   function getRecords(db, filter) {
     const { months, category, model, dateFrom, dateTo, scrapOnly } = filter || {};
     const monthKeys = months && months.length ? months : Object.keys(db.months);
+    const aliasMap = modelAliases(db).alias;
+    const canonModel = (model && model !== '全部') ? canonicalModel(db, model) : null;
     let out = [];
     for (const mk of monthKeys) {
       const m = db.months[mk];
       if (!m) continue;
       for (const r of m.records) {
-        // 正規化 model key（向下相容舊版 data.json，去除連字號/底線/空格）
-        const modelKey = normalizeModel(r.model);
+        // 正規化 + 別名解析（同產品多種寫法合併，見 buildModelAliases）
+        const rawKey = normalizeModel(r.model);
+        const modelKey = aliasMap.get(rawKey) || rawKey;
         if (category && category !== '全部' && r.category !== category) continue;
-        if (model && model !== '全部' && modelKey !== normalizeModel(model)) continue;
+        if (model && model !== '全部' && modelKey !== canonModel) continue;
         if (dateFrom && r.date && r.date < dateFrom) continue;
         if (dateTo && r.date && r.date > dateTo) continue;
         if (scrapOnly && !r.isScrap) continue;
         out.push({
           ...r,
           model: modelKey,
+          modelVariantKey: rawKey,   // 合併前的原始寫法（供 UI 顯示變體明細）
           part1Norm: recordPartName(r.part1, r.part1Norm),
           part2Norm: recordPartName(r.part2, r.part2Norm),
           part3Norm: recordPartName(r.part3, r.part3Norm),
@@ -54,14 +58,16 @@
     const monthKeys = months && months.length ? months : Object.keys(db.months);
     const byModel = {}; // model → most-recent denominator across selected months
     const byMonthModel = {}; // for breakdown
+    const aliasMap = modelAliases(db).alias;
 
     for (const mk of monthKeys) {
       const m = db.months[mk];
       if (!m) continue;
       byMonthModel[mk] = m.denominators || {};
       for (const [model, n] of Object.entries(m.denominators || {})) {
-        // 正規化 key，與 record.model 對齊（去除連字號/底線/空格）
-        const key = normalizeModel(model);
+        // 正規化 + 別名解析，讓分母 key 與 record.model 對齊
+        // （來源 Excel 常見 THSM010/THS0010、ZWDUO20/ZWDI020 這類不一致）
+        const key = aliasMap.get(normalizeModel(model)) || normalizeModel(model);
         byModel[key] = (byModel[key] || 0) + n;
       }
     }
@@ -135,6 +141,7 @@
   // ─── Per-model rank (with denominator-based fault rate)
   // If db + monthKeys is passed, also computes per-month history
   function modelRank(records, denom, db, monthKeys) {
+    const rankAliasMap = db ? modelAliases(db).alias : new Map();
     const map = new Map();
     for (const r of records) {
       if (!map.has(r.model)) {
@@ -184,11 +191,12 @@
         result.history = monthKeys.map(mk => {
           const m = db.months[mk];
           if (!m) return { month: mk, count: 0, denom: 0, faultRate: null };
-          const recs = m.records.filter(r => normalizeModel(r.model) === e.model);
+          const canonOf = (v) => { const k = normalizeModel(v); return rankAliasMap.get(k) || k; };
+          const recs = m.records.filter(r => canonOf(r.model) === e.model);
           let den = m.denominators[e.model] || 0;
           if (!den) {
             for (const [dk, dv] of Object.entries(m.denominators || {})) {
-              if (normalizeModel(dk) === e.model) { den = dv; break; }
+              if (canonOf(dk) === e.model) { den = dv; break; }
             }
           }
           return {
@@ -249,16 +257,17 @@
 
   // ─── Per-model history across months
   function modelHistory(db, modelName) {
-    const normName = normalizeModel(modelName);
+    const aliasMap = modelAliases(db).alias;
+    const canonOf = (v) => { const k = normalizeModel(v); return aliasMap.get(k) || k; };
+    const normName = canonOf(modelName);
     const monthKeys = Object.keys(db.months).sort();
     return monthKeys.map(mk => {
       const m = db.months[mk];
       if (!m) return { month: mk, count: 0, denom: 0, faultRate: null, scrap: 0 };
-      const recs = m.records.filter(r => normalizeModel(r.model) === normName);
-      // denominators keys may be raw or normalized — try both
-      const denom = m.denominators[normName]
-        || Object.entries(m.denominators || {}).find(([k]) => normalizeModel(k) === normName)?.[1]
-        || 0;
+      const recs = m.records.filter(r => canonOf(r.model) === normName);
+      // denominators keys may be raw or normalized — 一律過別名解析後比對
+      const denom = Object.entries(m.denominators || {})
+        .find(([k]) => canonOf(k) === normName)?.[1] || 0;
       return {
         month: mk,
         count: recs.length,
@@ -348,13 +357,15 @@
 
   function knownModels(db) {
     const set = new Set();
+    const aliasMap = modelAliases(db).alias;
+    const canonOf = (v) => { const k = normalizeModel(v); return aliasMap.get(k) || k; };
     for (const m of Object.values((db && db.months) || {})) {
-      for (const r of m.records || []) if (r.model) set.add(normalizeModel(r.model));
-      for (const k of Object.keys(m.denominators || {})) if (k) set.add(normalizeModel(k));
-      for (const k of Object.keys(m.partCatalog || {})) if (k) set.add(normalizeModel(k));
+      for (const r of m.records || []) if (r.model) set.add(canonOf(r.model));
+      for (const k of Object.keys(m.denominators || {})) if (k) set.add(canonOf(k));
+      for (const k of Object.keys(m.partCatalog || {})) if (k) set.add(canonOf(k));
     }
     for (const [k, v] of Object.entries((db && db.modelSupplements) || {})) {
-      set.add(normalizeModel((v && (v.modelDisplay || v.model)) || k));
+      set.add(canonOf((v && (v.modelDisplay || v.model)) || k));
     }
     return Array.from(set).filter(Boolean).sort();
   }
@@ -1188,6 +1199,167 @@
     return String(raw).toUpperCase().replace(MODEL_STRIP_RE, '');
   }
 
+  // ══════════════════════════════════════════════════════════════════
+  // 型號別名解析層（canonical model）
+  // ------------------------------------------------------------------
+  // 來源 Excel 對同一產品常出現多種寫法，導致「歷年落點」被拆散、
+  // 整新數(分母)對不上而算不出故障率。實測案例：
+  //   THSM010 / THS001A / THS0010   （分頁名、分母 key、器材品號三者不一致）
+  //   ZWDIO20 / ZWIO20 / ZWDUO20 / ZWDI020（O/0、I/U 混用）
+  //   ZBPIR50 / ZBPIR50V2.0 / ZBPIR50V2.0.2（版本尾碼拆成三個型號）
+  // 這裡用「資料驅動」的三段式推導建立別名表，不寫死對照：
+  //   (1) 版本尾碼：ZBPIR50V2.0 → 基礎型號 ZBPIR50（基礎型號需真實存在）
+  //   (2) 分頁綁定：分母 key ↔ 分頁名 ↔ 該分頁主要 model（信心最高）
+  //   (3) 近似比對：折疊易混淆字元後編輯距離 ≤1 且候選唯一才合併
+  // 合併後的代表寫法 = 群組中「維修記錄筆數最多」的那個。
+  // ══════════════════════════════════════════════════════════════════
+
+  // 型號代碼樣式：純英數且含至少一個數字（排除「立保保全」「主機」等大類分頁名）
+  const MODEL_CODE_RE = /^(?=.*\d)[A-Z0-9.]+$/;
+  // 版本尾碼：V2.0 / V2.0.2 / (1.0.9) 等
+  const VERSION_SUFFIX_RE = /(?:V\d+(?:\.\d+)*|\(\d+(?:\.\d+)*\))$/;
+  function stripVersionSuffix(key) {
+    const out = String(key).replace(VERSION_SUFFIX_RE, '');
+    return out.length >= 4 ? out : key;   // 太短就不動，避免誤砍
+  }
+
+  // 編輯距離，超過 max 立即放棄（只需判斷 ≤1，不必算完）
+  function editDistanceWithin(a, b, max) {
+    if (Math.abs(a.length - b.length) > max) return false;
+    let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= a.length; i++) {
+      const cur = [i];
+      let best = i;
+      for (let j = 1; j <= b.length; j++) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+        if (cur[j] < best) best = cur[j];
+      }
+      if (best > max) return false;
+      prev = cur;
+    }
+    return prev[b.length] <= max;
+  }
+
+  const aliasCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+
+  function buildModelAliases(db) {
+    const recordCounts = new Map();          // normalized model → 記錄筆數
+    const sheetModels = new Map();           // normalized 分頁名 → Map(model → count)
+    const denomKeys = new Set();             // normalized 分母 key
+
+    for (const m of Object.values((db && db.months) || {})) {
+      for (const r of (m.records || [])) {
+        const key = normalizeModel(r.model);
+        if (!key) continue;
+        recordCounts.set(key, (recordCounts.get(key) || 0) + 1);
+        // 只有「看起來像型號代碼」的分頁名才納入綁定；
+        // 立保保全 / 攝影機 / 主機 / POE 這種大類分頁含多機種，不可綁成單一型號
+        const sk = MODEL_CODE_RE.test(normalizeModel(r.sheet)) ? normalizeModel(r.sheet) : '';
+        if (sk) {
+          if (!sheetModels.has(sk)) sheetModels.set(sk, new Map());
+          const inner = sheetModels.get(sk);
+          inner.set(key, (inner.get(key) || 0) + 1);
+        }
+      }
+      for (const k of Object.keys(m.denominators || {})) {
+        const key = normalizeModel(k);
+        if (key) denomKeys.add(key);
+      }
+    }
+
+    // union-find
+    const parent = new Map();
+    const find = (x) => {
+      if (!parent.has(x)) parent.set(x, x);
+      let root = x;
+      while (parent.get(root) !== root) root = parent.get(root);
+      while (parent.get(x) !== root) { const nx = parent.get(x); parent.set(x, root); x = nx; }
+      return root;
+    };
+    const union = (a, b) => { const ra = find(a), rb = find(b); if (ra !== rb) parent.set(ra, rb); };
+
+    const allKeys = new Set([...recordCounts.keys(), ...denomKeys, ...sheetModels.keys()]);
+    for (const k of allKeys) find(k);
+
+    // (1) 版本尾碼 → 基礎型號（基礎型號必須真實存在於記錄中）
+    for (const k of allKeys) {
+      const base = stripVersionSuffix(k);
+      if (base !== k && recordCounts.has(base)) union(k, base);
+    }
+
+    // (2) 分頁綁定：分母 key / 分頁名 → 該分頁主要 model
+    const sheetDominant = new Map();
+    for (const [sk, inner] of sheetModels) {
+      let top = null, topN = 0;
+      for (const [mk, n] of inner) if (n > topN) { top = mk; topN = n; }
+      if (top) sheetDominant.set(sk, top);
+    }
+    for (const [sk, top] of sheetDominant) {
+      if (sk !== top) union(sk, top);          // 分頁名本身也可能被當成型號查詢
+      if (denomKeys.has(sk)) union(sk, top);   // 分母 key 剛好等於分頁名
+    }
+
+    // (3) 近似比對：分母 key 對不上任何記錄型號時，折疊後找唯一近似
+    const foldedRecords = [...recordCounts.keys()].map(k => ({ key: k, fold: confusableFold(k) }));
+    for (const dk of denomKeys) {
+      if (recordCounts.has(dk)) continue;                 // 已對得上
+      if (find(dk) !== dk && recordCounts.has(find(dk))) continue; // 已由 (1)(2) 解決
+      const f = confusableFold(dk);
+      const hits = foldedRecords.filter(r =>
+        r.fold[0] === f[0] && r.fold[1] === f[1] && editDistanceWithin(r.fold, f, 1));
+      if (hits.length === 1) union(dk, hits[0].key);      // 唯一候選才合併
+    }
+
+    // 每群選代表：記錄筆數最多者；都沒有記錄則取字典序最小
+    const groups = new Map();
+    for (const k of allKeys) {
+      const root = find(k);
+      if (!groups.has(root)) groups.set(root, []);
+      groups.get(root).push(k);
+    }
+    const alias = new Map();     // any key → canonical key
+    const members = new Map();   // canonical key → [all variants]
+    for (const list of groups.values()) {
+      // 版本家族優先用「基礎型號」當代表（ZBPIR50 而非 ZBPIR50V2.0），
+      // 否則用維修記錄筆數最多者。
+      const baseCandidate = list.find(k =>
+        k === stripVersionSuffix(k) && list.some(o => o !== k && stripVersionSuffix(o) === k));
+      let best = baseCandidate || null, bestN = -1;
+      if (!best) {
+        for (const k of list) {
+          const n = recordCounts.get(k) || 0;
+          if (n > bestN || (n === bestN && best !== null && k < best)) { best = k; bestN = n; }
+        }
+      }
+      for (const k of list) alias.set(k, best);
+      members.set(best, list.slice().sort());
+    }
+    return { alias, members };
+  }
+
+  function modelAliases(db) {
+    if (!db) return { alias: new Map(), members: new Map() };
+    if (aliasCache && aliasCache.has(db)) return aliasCache.get(db);
+    const built = buildModelAliases(db);
+    if (aliasCache) aliasCache.set(db, built);
+    return built;
+  }
+
+  // 正規化 + 別名解析：全站型號比對都應該走這裡
+  function canonicalModel(db, raw) {
+    const key = normalizeModel(raw);
+    if (!key || !db) return key;
+    return modelAliases(db).alias.get(key) || key;
+  }
+
+  // 某個代表型號底下實際出現過的所有寫法（供 UI 顯示「已合併」）
+  function modelVariants(db, modelName) {
+    const canon = canonicalModel(db, modelName);
+    const list = modelAliases(db).members.get(canon) || [canon];
+    return list.filter(k => k !== canon);
+  }
+
   // 易混淆字元折疊 — 僅供「相似度比對」，不改變實際儲存 key。
   // 只折疊「字母 vs 數字」這種視覺上真歧義、且型號命名不會用來區分產品的對：
   //   O↔0、I↔1、L↔1。
@@ -1331,6 +1503,9 @@
   window.RepairAnalyzer = {
     getRecords,
     normalizeModel,
+    canonicalModel,
+    modelVariants,
+    modelAliases,
     auditModels,
     getDenominators,
     computeKPIs,
