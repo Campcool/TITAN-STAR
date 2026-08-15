@@ -39,7 +39,10 @@ self.addEventListener('fetch', event => {
 
   if (isRuntimeFile) {
     event.respondWith(
-      fetch(event.request, { cache: 'no-store' })
+      // 'no-cache' 會帶 If-None-Match 做條件式請求：內容沒變時伺服器回 304、
+      // 不重傳 body（data.json 目前 2.6MB，用 'no-store' 等於每次全量下載）。
+      // 仍然是網路優先，離線時才退回 cache。
+      fetch(event.request, { cache: 'no-cache' })
         .then(response => {
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, response.clone()));
           return response;

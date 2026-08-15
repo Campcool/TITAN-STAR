@@ -282,7 +282,10 @@ window.App = (function () {
   // If GitHub has newer/more records than this browser, adopt it automatically.
   async function syncCloud() {
     try {
-      const res = await fetch(CLOUD_URL, { cache: 'no-store' });
+      // 'no-cache'（而非 'no-store'）：一律向伺服器驗證新鮮度，但會帶
+      // If-None-Match/If-Modified-Since。資料沒變時 GitHub Pages 回 304，
+      // 不重傳 body — 省下每次開啟的整包 data.json 流量（目前 2.6MB）。
+      const res = await fetch(CLOUD_URL, { cache: 'no-cache' });
       if (!res.ok) return null;
       try { localStorage.setItem(CLOUD_CHECK_KEY, currentMonthKey()); } catch(e) {}
       const cloud = await res.json();
@@ -4089,6 +4092,34 @@ window.App = (function () {
       return `<span class="supp-delta ${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : '-'}${Math.abs(d).toFixed(1)}pp</span>`;
     })();
 
+    // ── 判讀警語（避免把整新測試故障率當成維修故障率、或被小樣本誤導）──
+    const suppCaveats = (() => {
+      const notes = [];
+      // (a) 口徑不同：整新測試是產線攔截率，與維修報表的故障率分母完全不同
+      const repairCount = RepairAnalyzer.getRecords(state.db, { model: modelName }).length;
+      if (repairCount === 0) {
+        notes.push({ cls: 'info', t: '此型號沒有維修報表資料',
+          d: '下面數字全部來自整新測試表。這個型號本期沒有出現在月維修報表，不是資料遺漏，也不代表沒有故障。' });
+      } else {
+        notes.push({ cls: 'info', t: '兩種故障率不可直接比大小',
+          d: `整新測試故障率＝產線整新時攔下的比例；維修報表故障率＝維修件數÷整新數。此型號另有 ${fmt.int(repairCount)} 筆維修記錄，兩者分母不同，請分開看。` });
+      }
+      // (b) 小樣本：整新測試數太少時百分比跳動大
+      const sampleBase = isAll ? totalRefurbished : (scopedHistory[0] ? scopedHistory[0].refurbished : 0);
+      if (sampleBase > 0 && sampleBase < 100) {
+        notes.push({ cls: 'warn', t: `樣本數偏少（${fmt.int(sampleBase)} 台）`,
+          d: '樣本不足 100 台時，多壞幾台百分比就會大幅跳動，不建議單月就下結論，請對照其他月份趨勢。' });
+      }
+      // (c) 只有單月資料，看不出趨勢
+      if (history.length === 1) {
+        notes.push({ cls: 'warn', t: '只有單月資料，無法判斷趨勢',
+          d: `目前僅匯入 ${fmt.monthLabel(history[0].month)} 一個月，無法分辨這是常態還是異常。需累積多月後再判讀。` });
+      }
+      if (!notes.length) return '';
+      return `<div class="supp-caveats">${notes.map(n => `
+        <div class="supp-caveat ${n.cls}"><b>${escapeHtml(n.t)}</b><span>${escapeHtml(n.d)}</span></div>`).join('')}</div>`;
+    })();
+
     return `
       <div class="drawer-sec model-supp-sec">
         <div class="drawer-sec-t supp-heading">
@@ -4101,9 +4132,10 @@ window.App = (function () {
           <div class="supp-explain primary"><b>這頁先看什麼</b><span>先看整新測試故障率，再看原因碼是不是集中在同一個問題。</span></div>
           <div class="supp-explain warn"><b>數字口徑提醒</b><span>整新測試故障數和年度故障分佈是不同表格，不混在一起算故障率。</span></div>
         </div>
+        ${suppCaveats}
         <div class="supp-kpi-grid">
           <div class="supp-kpi k-blue"><div class="l">整新測試數</div><div class="v">${fmt.int(totalRefurbished)}</div><div class="d">測試正常 ${fmt.int(totalPassed)}</div></div>
-          <div class="supp-kpi k-red"><div class="l">整新測試故障</div><div class="v">${fmt.int(totalFailed)}</div><div class="d">故障率 ${fmt.pctRaw(totalRate)}</div></div>
+          <div class="supp-kpi k-red"><div class="l">整新測試故障</div><div class="v">${fmt.int(totalFailed)}</div><div class="d">整新測試故障率 ${fmt.pctRaw(totalRate)}<span class="supp-scope">此口徑≠維修故障率</span></div></div>
           <div class="supp-kpi k-warn"><div class="l">最新月份</div><div class="v">${fmt.monthLabel(latest.month)}</div><div class="d">${fmt.int(latest.failed)} / ${fmt.int(latest.refurbished)} · ${fmt.pctRaw(latest.faultRate)} ${latestDelta}</div></div>
           <div class="supp-kpi k-info"><div class="l">最高故障率月份</div><div class="v">${fmt.monthLabel(peak.month)}</div><div class="d">${fmt.int(peak.failed)} / ${fmt.int(peak.refurbished)} · ${fmt.pctRaw(peak.faultRate)}</div></div>
           ${annualTotal ? `<div class="supp-kpi k-purple"><div class="l">年度故障分佈總數</div><div class="v">${fmt.int(annualTotal)}</div><div class="d">2020-2025 歷史分佈；不作為整新故障率分母/分子</div></div>` : ''}

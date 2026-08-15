@@ -18,9 +18,10 @@ TITAN-STAR 是電子工廠維修資料分析網站。現在最重要的主流程
 
 - 線上網站：https://campcool.github.io/TITAN-STAR/
 - GitHub repo：https://github.com/Campcool/TITAN-STAR
-- 最新確認版本：`20260722-4`
+- 最新確認版本：`20260723-1`
 - 最新功能/UI 確認 commit：`084fc64 fix: keep cloud data visible when local storage fails`
 - 版本歷史（新到舊）：
+  - `20260723-1` 盤點優化：型號別名解析層、記錄瘦身、查詢快取、異常訊噪比校準（詳見文末「優化紀錄」）。
   - `2026-07 資料`：匯入 115年7月主維修報表（+1,179 筆）、ZBRT050 補充（更新至 7 月）、無線多機種一覽表（+12 機種 modelSupplements）。
   - `20260722-4` hotfix：修正部分瀏覽器登入後資料空白。雲端 data.json 現在即使 localStorage 寫入失敗，也會用 session 內的 cloudDb 直接顯示，並在 dashboard 空資料時自動重試同步。
   - `20260722-3` UX：整站閱讀優化，統一卡片/表格/摘要卡/異常卡/抽屜/篩選列/側欄/手機版字級與間距（非只針對 ZBRT050）。
@@ -28,7 +29,7 @@ TITAN-STAR 是電子工廠維修資料分析網站。現在最重要的主流程
   - `20260722-1`：新增 `modelSupplements` 資料與匯入腳本（首個機種 ZBRT050）。
 - 目前 `data.json` 內容：
   - 月份：`2026-03`、`2026-04`、`2026-05`、`2026-06`、`2026-07`
-  - 維修紀錄：`6,587` 筆
+  - 維修紀錄：`6,587` 筆（檔案 2.61MB，已移除全空選填欄位）
   - 料件主檔 `partsMaster`：`8,996` 筆（品號/品名/規格/大類代碼）
   - 型號補充 `modelSupplements`：目前 `13` 個機種（ZBRT050 為單機種完整版；ZBDIO90/ZSPMG51/ZSPMG31/ZSPMB31/ZSPMB51/ZBIRC50/ZBIRC5S/ZBSPC40/ZBPIR50/ZBPIR5P/ZBHD060/ZBSD060 為無線一覽表 2026-07 快照）
   - `publishedAt`：`2026-07-22T01:28:28.854Z`
@@ -281,6 +282,27 @@ node build.js
 - `modelDrillContent` 的「故障原因落點」永遠用全月份記錄，即使 drawer 聚焦單月 — 型號查詢主流程用 `__all__` 所以不影響，但 drawer 單月檢視時語意稍有不一致。
 - `sw.js` activate 時 `client.navigate()` 會強制重載所有分頁 — 這是刻意換新版的設計，但使用者若正在輸入會被打斷，屬已接受的取捨。
 - `quickModelSearchInput` 自動搜尋會把月份選擇重設為全部 — 符合「歷年落點」目標，屬刻意行為。
+
+## 優化紀錄（2026-07-23，版本 20260723-1）
+
+針對 7 月資料匯入後的全面盤點，10 項全部完成。下一個 AI 請勿回退這些設計：
+
+### 資料正確性
+1. **型號別名解析層**（`analyzer.js` → `buildModelAliases` / `canonicalModel`）。來源 Excel 對同一產品有多種寫法，造成歷年落點被拆散、分母對不上。用三段式資料驅動推導：版本尾碼→基礎型號、分頁名↔主要 model 綁定、易混淆字元折疊+編輯距離≤1（限唯一候選）。**不要改成寫死對照表**。實測合併 4 組（THS0010←THSM010/THS001A、ZWDI020←ZWDIO20/ZWDUO20/ZWIO20、ZBPIR50←V2.0/V2.0.2、SCL0200←SCL0020），分母失效 8→0，有故障率的機種 5→7。
+   - 注意：分頁名必須通過 `MODEL_CODE_RE`（純英數且含數字）才納入綁定，否則「立保保全」「主機」這類大類分頁會被誤綁成單一型號。
+   - 版本家族的代表寫法固定用「基礎型號」（ZBPIR50，不是筆數較多的 ZBPIR50V2.0）。
+2. **版本變體合併**：ZBPIR50 家族從 5 筆變 31 筆。記錄保留 `modelVariantKey` 供 UI 顯示合併前寫法。
+3. **選填欄位無資料時顯示「來源未填」**（`app.js` → `fieldHasData` / `optionalMetric`）。保固/技師/工時等 v2 模板欄位在所有來源報表都是空的，原本指標永遠顯示 0 會誤導。
+
+### 效能
+4. **條件式請求**：`app.js` 與 `sw.js` 的 `cache` 從 `'no-store'` 改 `'no-cache'`，帶 If-None-Match，內容沒變時回 304 不重傳 body。**不要改回 `no-store`**，那等於每次開啟全量下載 2.6MB。
+5. **記錄瘦身**（`parser.js` → `compactRecord`）：省略空值選填欄位，data.json 4.06MB→2.61MB（-36%），分析結果完全一致。讀取端一律 `r.x || ''` / `!= null`，undefined 與空字串等價。
+6. **查詢快取**（`analyzer.js` → `cached` / `filterKey`）：以 db 物件為 key 的 WeakMap，db 一換自動失效。getRecords / getDenominators / detectAnomalies 皆已包裹。實測 40 次 getRecords 750ms→4ms。**前提是回傳值不可就地修改**（已全檔掃描確認無 sort/push/splice）。
+
+### 判讀正確性
+7-8. **型號補充抽屜警語**（`app.js` → `suppCaveats`）：無維修記錄時明說「不是資料遺漏」；有維修記錄時明說兩種故障率分母不同不可比大小。故障率 KPI 加註「此口徑≠維修故障率」。
+9. **序號可信度**（`analyzer.js` → `unreliableSerialModels`）：ZSPMG31 序號重複 49 倍、ZSPMG51 23 倍（正常約 1.1 倍），該欄實際填的是批號。這些機種已排除在重複維修判定外，改用一則「序號欄疑似填成批號」提醒。7 月 critical 30→13、重複維修 KPI 164→91。**不要把這兩個機種放回重複維修分析**。
+10. **小樣本/單月警語**：整新測試數 <100 台或只有單月資料時，抽屜顯示明確警語（ZBIRC5S 僅 74 台、12 個無線機種都只有單月）。
 
 ## 下一步建議
 

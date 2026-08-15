@@ -4732,3 +4732,18 @@ body {
   display: block; font-size: 9.5px; color: var(--text3);
   font-weight: 500; letter-spacing: .02em; margin-top: 1px;
 }
+
+/* 型號補充資料 — 判讀警語（口徑差異／小樣本／單月） */
+.supp-caveats { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 14px; }
+.supp-caveat {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 9px 12px; border-radius: 9px; font-size: 12.5px; line-height: 1.55;
+  border-left: 3px solid var(--info); background: var(--surface2);
+}
+.supp-caveat b { font-size: 12.5px; font-weight: 700; color: var(--text); }
+.supp-caveat span { color: var(--text2); }
+.supp-caveat.warn { border-left-color: var(--warn); }
+.supp-scope {
+  display: block; margin-top: 2px; font-size: 10px; font-weight: 600;
+  color: var(--text3); letter-spacing: .02em;
+}

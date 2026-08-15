@@ -4748,6 +4748,21 @@ body {
   font-weight: 500; letter-spacing: .02em; margin-top: 1px;
 }
 
+/* 型號補充資料 — 判讀警語（口徑差異／小樣本／單月） */
+.supp-caveats { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 14px; }
+.supp-caveat {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 9px 12px; border-radius: 9px; font-size: 12.5px; line-height: 1.55;
+  border-left: 3px solid var(--info); background: var(--surface2);
+}
+.supp-caveat b { font-size: 12.5px; font-weight: 700; color: var(--text); }
+.supp-caveat span { color: var(--text2); }
+.supp-caveat.warn { border-left-color: var(--warn); }
+.supp-scope {
+  display: block; margin-top: 2px; font-size: 10px; font-weight: 600;
+  color: var(--text3); letter-spacing: .02em;
+}
+
 </style>
 <style>
 /* ════════════════════════════════════════════════════════════════════
@@ -6782,8 +6797,40 @@ body {
     return normalizePartName(raw || storedNorm);
   }
 
+  // ══════════════════════════════════════════════════════════════════
+  // 查詢結果快取
+  // ------------------------------------------------------------------
+  // 單次 renderAll 會重複呼叫 getRecords / getDenominators / detectAnomalies
+  // 數十次且參數多半相同（實測 app.js 有 37 處 getRecords、7 處
+  // detectAnomalies）。以 db 物件為 key 用 WeakMap 快取，db 一換就自動失效，
+  // 不需手動清除。回傳值全站都不會被就地修改（已掃描確認），可安全共用。
+  // ══════════════════════════════════════════════════════════════════
+  const queryCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+  function cached(db, ns, key, compute) {
+    if (!queryCache || !db) return compute();
+    let byDb = queryCache.get(db);
+    if (!byDb) { byDb = new Map(); queryCache.set(db, byDb); }
+    const ck = ns + ' ' + key;
+    if (byDb.has(ck)) return byDb.get(ck);
+    const val = compute();
+    byDb.set(ck, val);
+    return val;
+  }
+  function filterKey(filter) {
+    const f = filter || {};
+    return [
+      (f.months && f.months.length ? f.months.slice().sort().join(',') : '*'),
+      f.category || '*', f.model || '*',
+      f.dateFrom || '', f.dateTo || '', f.scrapOnly ? 1 : 0,
+    ].join('|');
+  }
+
   // ─── Filter records across months by selected month set + category + model + date
   function getRecords(db, filter) {
+    return cached(db, 'rec', filterKey(filter), () => getRecordsUncached(db, filter));
+  }
+
+  function getRecordsUncached(db, filter) {
     const { months, category, model, dateFrom, dateTo, scrapOnly } = filter || {};
     const monthKeys = months && months.length ? months : Object.keys(db.months);
     const aliasMap = modelAliases(db).alias;
@@ -6818,6 +6865,10 @@ body {
   // Get aggregated denominator (整新數) for selected months/models
   // Returns: { total, byModel: {model: denominator} }
   function getDenominators(db, filter) {
+    return cached(db, 'den', filterKey(filter), () => getDenominatorsUncached(db, filter));
+  }
+
+  function getDenominatorsUncached(db, filter) {
     const { months } = filter || {};
     const monthKeys = months && months.length ? months : Object.keys(db.months);
     const byModel = {}; // model → most-recent denominator across selected months
@@ -6844,9 +6895,11 @@ body {
     const total = records.length;
     const scrap = records.filter(r => r.isScrap).length;
     const models = new Set(records.map(r => r.model));
+    // 序號實為批號的機種要排除，否則「重複維修」會被灌水數倍
+    const badSerial = unreliableSerialModels(records);
     const serials = {};
     for (const r of records) {
-      if (!r.serial) continue;
+      if (!r.serial || badSerial.has(r.model)) continue;
       const k = `${r.model}|${r.serial}`;
       serials[k] = (serials[k] || 0) + 1;
     }
@@ -7326,6 +7379,41 @@ body {
   //   6. Repeated serials within recent month (≥3 visits)
   //   7. Concentrated failure reasons (single content ≥ 50% of model's failures)
   function detectAnomalies(db, currentMonth) {
+    return cached(db, 'anom', String(currentMonth || ''), () => detectAnomaliesUncached(db, currentMonth));
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // 序號可信度
+  // ------------------------------------------------------------------
+  // 部分機種的「機器序號」欄實際填的是批號/製令，導致同一個值對應到
+  // 幾十台不同機器。實測 ZSPMG31 = 1,718 筆 / 35 個序號（49 倍），
+  // ZSPMG51 23 倍，而正常機種約 1.1 倍。若照單全收，「重複維修」會產生
+  // 大量假警示（7 月 30 件 critical 中有 25 件來自這兩個機種）。
+  // 這裡標記出可信度不足的機種，重複維修相關分析一律排除，
+  // 改用單一則資料品質提醒告知使用者。
+  // ══════════════════════════════════════════════════════════════════
+  const SERIAL_RATIO_LIMIT = 3;    // 平均每個序號對應機器數的上限
+  const SERIAL_MIN_RECORDS = 30;   // 樣本太小不判定
+
+  function unreliableSerialModels(records) {
+    const byModel = new Map();
+    for (const r of records) {
+      if (!r.serial) continue;
+      let e = byModel.get(r.model);
+      if (!e) { e = { n: 0, serials: new Set() }; byModel.set(r.model, e); }
+      e.n++; e.serials.add(r.serial);
+    }
+    const out = new Map();
+    for (const [model, e] of byModel) {
+      const ratio = e.n / e.serials.size;
+      if (e.n >= SERIAL_MIN_RECORDS && ratio >= SERIAL_RATIO_LIMIT) {
+        out.set(model, { records: e.n, distinct: e.serials.size, ratio });
+      }
+    }
+    return out;
+  }
+
+  function detectAnomaliesUncached(db, currentMonth) {
     const monthKeys = Object.keys(db.months).sort();
     if (!monthKeys.length) return [];
     const curMonth = currentMonth || monthKeys[monthKeys.length - 1];
@@ -7454,7 +7542,9 @@ body {
     }
 
     // 6) Repeated serials (≥3 visits in single month)
-    const reps = repeatedSerials(curRecs);
+    // 排除序號實為批號的機種，否則會產生大量假的「重複維修」警示
+    const badSerialModels = unreliableSerialModels(getRecords(db, {}));
+    const reps = repeatedSerials(curRecs).filter(r => !badSerialModels.has(r.model));
     for (const r of reps.filter(r => r.count >= 3).slice(0, 10)) {
       anomalies.push({
         severity: r.count >= 4 ? 'critical' : 'warn',
@@ -7470,8 +7560,25 @@ body {
       });
     }
 
-    // 6b) CROSS-MONTH repeated serials
-    const crossMonth = crossMonthSerials(db);
+    // 6a) 資料品質：序號欄疑似填成批號 — 用一則提醒取代數十則假警示
+    if (badSerialModels.size) {
+      const list = [...badSerialModels.entries()].sort((a, b) => b[1].ratio - a[1].ratio);
+      const top = list.slice(0, 3).map(([m, v]) => `${m}（${v.records} 筆僅 ${v.distinct} 個序號）`).join('、');
+      anomalies.push({
+        severity: 'warn',
+        type: 'serial_quality',
+        icon: '⚠',
+        title: `序號欄疑似填成批號`,
+        subject: list.map(([m]) => m).join('、'),
+        message: `${top}。平均一個序號對應數十台機器，已排除在「重複維修」判定外，避免誤報。建議確認來源報表的機器序號欄。`,
+        metric: list.length,
+        metricLabel: '機種',
+        detail: { models: list.map(([m, v]) => ({ model: m, ...v })) },
+      });
+    }
+
+    // 6b) CROSS-MONTH repeated serials（同樣排除序號不可信的機種）
+    const crossMonth = crossMonthSerials(db).filter(r => !badSerialModels.has(r.model));
     for (const r of crossMonth.slice(0, 15)) {
       if (!r.monthsSpan.some(m => m <= curMonth)) continue;
       anomalies.push({
@@ -8593,7 +8700,10 @@ window.App = (function () {
   // If GitHub has newer/more records than this browser, adopt it automatically.
   async function syncCloud() {
     try {
-      const res = await fetch(CLOUD_URL, { cache: 'no-store' });
+      // 'no-cache'（而非 'no-store'）：一律向伺服器驗證新鮮度，但會帶
+      // If-None-Match/If-Modified-Since。資料沒變時 GitHub Pages 回 304，
+      // 不重傳 body — 省下每次開啟的整包 data.json 流量（目前 2.6MB）。
+      const res = await fetch(CLOUD_URL, { cache: 'no-cache' });
       if (!res.ok) return null;
       try { localStorage.setItem(CLOUD_CHECK_KEY, currentMonthKey()); } catch(e) {}
       const cloud = await res.json();
@@ -12400,6 +12510,34 @@ window.App = (function () {
       return `<span class="supp-delta ${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : '-'}${Math.abs(d).toFixed(1)}pp</span>`;
     })();
 
+    // ── 判讀警語（避免把整新測試故障率當成維修故障率、或被小樣本誤導）──
+    const suppCaveats = (() => {
+      const notes = [];
+      // (a) 口徑不同：整新測試是產線攔截率，與維修報表的故障率分母完全不同
+      const repairCount = RepairAnalyzer.getRecords(state.db, { model: modelName }).length;
+      if (repairCount === 0) {
+        notes.push({ cls: 'info', t: '此型號沒有維修報表資料',
+          d: '下面數字全部來自整新測試表。這個型號本期沒有出現在月維修報表，不是資料遺漏，也不代表沒有故障。' });
+      } else {
+        notes.push({ cls: 'info', t: '兩種故障率不可直接比大小',
+          d: `整新測試故障率＝產線整新時攔下的比例；維修報表故障率＝維修件數÷整新數。此型號另有 ${fmt.int(repairCount)} 筆維修記錄，兩者分母不同，請分開看。` });
+      }
+      // (b) 小樣本：整新測試數太少時百分比跳動大
+      const sampleBase = isAll ? totalRefurbished : (scopedHistory[0] ? scopedHistory[0].refurbished : 0);
+      if (sampleBase > 0 && sampleBase < 100) {
+        notes.push({ cls: 'warn', t: `樣本數偏少（${fmt.int(sampleBase)} 台）`,
+          d: '樣本不足 100 台時，多壞幾台百分比就會大幅跳動，不建議單月就下結論，請對照其他月份趨勢。' });
+      }
+      // (c) 只有單月資料，看不出趨勢
+      if (history.length === 1) {
+        notes.push({ cls: 'warn', t: '只有單月資料，無法判斷趨勢',
+          d: `目前僅匯入 ${fmt.monthLabel(history[0].month)} 一個月，無法分辨這是常態還是異常。需累積多月後再判讀。` });
+      }
+      if (!notes.length) return '';
+      return `<div class="supp-caveats">${notes.map(n => `
+        <div class="supp-caveat ${n.cls}"><b>${escapeHtml(n.t)}</b><span>${escapeHtml(n.d)}</span></div>`).join('')}</div>`;
+    })();
+
     return `
       <div class="drawer-sec model-supp-sec">
         <div class="drawer-sec-t supp-heading">
@@ -12412,9 +12550,10 @@ window.App = (function () {
           <div class="supp-explain primary"><b>這頁先看什麼</b><span>先看整新測試故障率，再看原因碼是不是集中在同一個問題。</span></div>
           <div class="supp-explain warn"><b>數字口徑提醒</b><span>整新測試故障數和年度故障分佈是不同表格，不混在一起算故障率。</span></div>
         </div>
+        ${suppCaveats}
         <div class="supp-kpi-grid">
           <div class="supp-kpi k-blue"><div class="l">整新測試數</div><div class="v">${fmt.int(totalRefurbished)}</div><div class="d">測試正常 ${fmt.int(totalPassed)}</div></div>
-          <div class="supp-kpi k-red"><div class="l">整新測試故障</div><div class="v">${fmt.int(totalFailed)}</div><div class="d">故障率 ${fmt.pctRaw(totalRate)}</div></div>
+          <div class="supp-kpi k-red"><div class="l">整新測試故障</div><div class="v">${fmt.int(totalFailed)}</div><div class="d">整新測試故障率 ${fmt.pctRaw(totalRate)}<span class="supp-scope">此口徑≠維修故障率</span></div></div>
           <div class="supp-kpi k-warn"><div class="l">最新月份</div><div class="v">${fmt.monthLabel(latest.month)}</div><div class="d">${fmt.int(latest.failed)} / ${fmt.int(latest.refurbished)} · ${fmt.pctRaw(latest.faultRate)} ${latestDelta}</div></div>
           <div class="supp-kpi k-info"><div class="l">最高故障率月份</div><div class="v">${fmt.monthLabel(peak.month)}</div><div class="d">${fmt.int(peak.failed)} / ${fmt.int(peak.refurbished)} · ${fmt.pctRaw(peak.faultRate)}</div></div>
           ${annualTotal ? `<div class="supp-kpi k-purple"><div class="l">年度故障分佈總數</div><div class="v">${fmt.int(annualTotal)}</div><div class="d">2020-2025 歷史分佈；不作為整新故障率分母/分子</div></div>` : ''}
