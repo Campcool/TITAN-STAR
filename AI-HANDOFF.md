@@ -18,9 +18,10 @@ TITAN-STAR 是電子工廠維修資料分析網站。現在最重要的主流程
 
 - 線上網站：https://campcool.github.io/TITAN-STAR/
 - GitHub repo：https://github.com/Campcool/TITAN-STAR
-- 最新確認版本：`20260723-5`
+- 最新確認版本：`20260724-2`
 - 最新功能/UI 確認 commit：`084fc64 fix: keep cloud data visible when local storage fails`
 - 版本歷史（新到舊）：
+  - `20260724-2` RWD 與可讀性：修正手機頂列被壓縮（rma-styles.css 串接順序問題）、整體字級上調一級。
   - `20260723-5` 第二輪盤點：非料件字串分離、共同機種切換、警示已讀狀態、粉紅流光。
   - `20260723-2` 序號語意修正（維修課確認）：生產序號＝製令批次號，不是機器序號；重複＝同批次而非重複維修。已改為 info 警示並新增製令落點分析。
   - `20260723-1` 盤點優化：型號別名解析層、記錄瘦身、查詢快取、異常訊噪比校準（詳見文末「優化紀錄」）。
@@ -50,6 +51,8 @@ TITAN-STAR 是電子工廠維修資料分析網站。現在最重要的主流程
 - `Iansui`（芫荽）字體只用在標題、提示、分區標籤等友善閱讀位置；表格、數字、型號、料號仍使用清楚的 Noto Sans TC / JetBrains Mono，避免報表可讀性下降。
 - UI 必須讓非工程人員、小學生也能大致看懂。避免功能名太抽象，避免使用者需要猜按鈕用途。
 - 手機 RWD 很重要。PC 可放長文字，但中尺寸與手機要收斂，不能把畫面撐爆。
+- **字級採固定 px、不做使用者可調**。使用者先前已要求移除右上角「大中小」控制項（理由：功能失效，改用手機捏合縮放即可），後續確認維持「固定格式優化可讀性」而非改成 rem。因此**字要多大由我們決定，最小字級必須自己顧好**。
+- 異常警示的粉紅流光只標記「本次登入尚未讀過」的項目，不是單純標記嚴重度。
 
 ## 現有文件分工
 
@@ -66,7 +69,8 @@ TITAN-STAR 是電子工廠維修資料分析網站。現在最重要的主流程
 | --- | --- |
 | `index.html` | SPA DOM 骨架、上方列、篩選區、頁面容器。 |
 | `styles.css` | 主樣式、RWD、卡片層次、型號查詢列、角色選單。 |
-| `styles-morandi.css` | 莫蘭迪主題覆蓋。 |
+| `styles-morandi.css` | 莫蘭迪主題覆蓋。**主題是靠注入/移除這個樣式表切換，不是 `data-theme` 屬性**，別用 `html[data-theme=...]` 選擇器。 |
+| `rma-styles.css` | RMA 模組樣式。**載入順序在 `styles.css` 之後**，此檔中未加 media 限制的規則會蓋掉 `styles.css` 的 `@media` 規則（曾造成手機版破版，見「RWD 與可讀性」段）。 |
 | `parser.js` | Excel 解析與維修資料標準化。 |
 | `analyzer.js` | 純分析函式，避免在這裡碰 DOM。 |
 | `app.js` | 主應用狀態、登入後流程、雲端同步、頁面渲染、型號查詢。 |
@@ -236,6 +240,8 @@ Remove-Item -LiteralPath gh-run.json, public-index.html, public-app.js, public-s
 - 不要把 `零件 Pareto` 的「佔故障件數比例」誤當成「故障率」。故障率/故障百分比要用 `整新數` 當分母。
 - 手機寬度曾有右側大量留白問題。改 CSS 時務必注意 `100vw`、`100dvw`、固定寬度與橫向 overflow。
 - service worker 若未升版，使用者手機可能一直看到舊畫面。
+- **改 RWD 不要只讀 CSS 判斷**：三個 CSS 檔交互覆蓋，`rma-styles.css` 無 media 的規則會蓋掉 `styles.css` 的 `@media`。請用 Playwright 實測（見「RWD 與可讀性」段）。
+- **字級固定 px，系統/瀏覽器字級設定對本站無效**，所以最小字級要自己顧；目前手機下限 13.5px。
 - `TITAN-STAR.html` 是 build 產物。改 JS/CSS 後若需要離線版同步，必須跑 `node build.js`。
 - 工作區可能有使用者或其他 AI 的變更；不要 `git reset --hard`，不要回復不相關改動。
 
@@ -351,11 +357,100 @@ node build.js
 ### 使用者未採納 / 待確認
 - `TS-1185-025C`（1,087 件）與 `TS-1185-025`（538 件）只差 C 尾碼、同為 TAC SW 按鍵開關，**使用者表示不確定，暫不合併**。若日後確認同料，加入 `parser.js` 的 `normalizeKnownPartAlias`。
 
+## RWD 與可讀性（版本 20260724-1 / -2）
+
+### ⚠️ CSS 串接順序的坑（曾造成手機版破版）
+
+`index.html` 的載入順序是 `styles.css` → `rma-styles.css` → `styles-morandi.css`。
+**後面檔案中「沒有 media 限制」的規則，會蓋掉前面檔案 `@media` 內的規則**
+（media query 不增加 specificity，同權重時看串接順序）。
+
+實際發生過的問題：`rma-styles.css` 的 `.mode-tabs { display: flex }`（無 media）
+壓過 `styles.css` 的 `@media (max-width:820px) { .mode-tabs { display: grid } }`，
+導致「型號查詢」與「角色觀點」在手機被擠成兩欄，**型號輸入框只剩 62px 寬**，
+placeholder 只看得到一個字。同時該檔還有一組遺留規則：先 `display:none` 隱藏
+主切換列、再用 `display:flex !important` 補救，那個 `!important` 是連鎖元兇。
+
+修正方式：移除遺留規則，並把手機版佈局補在 **`rma-styles.css` 的最末**
+（最後載入才贏得過）。**改動 `.mode-tabs`、`.mode-bar` 等共用 class 前，
+務必三個 CSS 檔一起看**。
+
+### 字級策略（使用者已定案）
+
+- 全站字級固定 `px`（409 處），**不用 rem**。實測瀏覽器字級從 16 調到 28px，
+  body 始終 16px —— 即系統/瀏覽器字級設定對本站**完全無效**。
+- 這是刻意取捨：版面永遠不會被使用者設定撐爆，代價是**最小字級必須自己顧好**。
+- 右上角「大中小」控制項已於更早版本移除，目前**不存在**，也沒有計畫加回。
+- 20260724-2 已把整體字級**逐階上調一級**（不是套倍率——倍率會把行高、間距、
+  圖示比例一起拉走）：
+
+  | 手機（≤820px） | 原 | 現 |
+  | --- | --- | --- |
+  | 小標籤 | 12.5px | 13.5px |
+  | 輔助文字 | 13 / 13.5px | 14.5px |
+  | 一般內文 | 14px | **15px** |
+  | 次要標題 | 15px | 16px |
+  | 說明區塊 | 16px | **17px** |
+  | 可點元素 | 12～13px | **15px + 42px 高** |
+
+  標題與大數字（20/30/36px）**維持不變**，否則手機卡片會被撐爆。
+  表格只上調一階（欄寬吃緊）。桌機最小輔助文字 12/12.5/13 → 13.5/14px。
+- 目前手機最小字級 **13.5px**（原 10px）；仍在 14px 以下的只剩純圖示字符
+  （下拉箭頭 ▾ 等），那是符號不是文字，放大會破壞對齊。
+- **若日後要再調大**：沿用「逐階上調」而非倍率，並跑下方的實機驗證。
+
+### 其他已修正的手機問題
+
+- 篩選列收合鈕原本重複顯示下方控制項已有的統計，佔掉一整行 →
+  展開時只留「篩選」二字（`.sbs-detail` 由 CSS 控制，見 `updateSubbarSummary`）。
+- 手機下拉選單可用寬度僅約 180px，原本文字含整新數會被截成
+  「大類：全部・維修(」→ 已縮短為「全部 5 個月」「全部大類 · 6587 筆」。
+- `.nav-toggle` 是 `position:fixed` 左下角 54px 浮動鈕，會蓋住最後一張卡片 →
+  `.content` 手機版加 `padding-bottom: 96px`。
+- `.role-sel-focus` 在 ~1024px 會被硬切 → 1024px 以下改為隱藏。
+
+### 實機驗證方式（改 CSS/RWD 後請照跑）
+
+**不要只讀 CSS 判斷版面**，本專案三個 CSS 檔交互覆蓋，讀原始碼很容易誤判
+（我第一次就判斷錯）。用真實瀏覽器量測：
+
+```bash
+npm install -D playwright          # 沙箱已預裝 chromium，勿執行 playwright install
+python3 -m http.server 8099 &      # 用 http 而非 file://，SW 與 fetch 才正常
+```
+
+驗證腳本重點（可自行重寫，這些是踩過的雷）：
+
+- `chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })`
+- **攔截外部 CDN**（jsdelivr / fonts.googleapis），沙箱連不出去會卡住 `networkidle`；
+  用 `waitUntil: 'domcontentloaded'` + 固定等待，不要用 `networkidle`
+- 登入態：`sessionStorage.setItem('titan_session', JSON.stringify({username:'031780', isAdmin:true}))`
+  然後**重新 goto** 一次
+- 截圖必須加 `animations: 'disabled'`，否則警示流光是 infinite 動畫會讓
+  `page.screenshot()` 逾時
+- 檢查項目：`document.documentElement.scrollWidth > innerWidth`（橫向溢出）、
+  `e.scrollWidth > e.clientWidth + 2`（文字截斷）、`getComputedStyle(e).fontSize`（字級分佈）
+- 驗證寬度：**360 / 390 / 412 / 480 / 600 / 768 / 820 / 1024 / 1280**
+  （目前這九種全部無橫向溢出、無文字截斷）
+- 模擬瀏覽器字級：CDP `Page.setFontSizes({ fontSizes: { standard, fixed } })`
+- 驗證完**記得刪掉暫存腳本**，也不要把 `playwright` 提交進 `package.json`
+
 ## 下一步建議
 
 1. 補一份正式 `TECHNICAL_HANDOFF.md` 給真人工程師閱讀，內容可從本文件整理成人類版。
-2. 針對型號查詢頁再做一次手機實機確認，重點看：
-   - 查詢列是否永遠在最上方。
-   - 查詢結果是否只顯示該型號。
-   - 長型號是否造成水平捲動。
+2. ~~型號查詢頁手機實機確認~~ → **20260724-1/-2 已用 Playwright 完成**：
+   查詢列固定在最上方、九種寬度無水平捲動、無文字截斷。若再改版請照
+   「RWD 與可讀性」段的流程重跑。
 3. 若後續要接交易別 5 換修率，先確認該 Excel 的型號與目前維修資料型號是否能對上。先前交集很少，不要硬塞成主功能。
+4. **來源資料品質**（已回報使用者，需工廠端配合，非程式可解）：
+   - `製令品號` 僅 15%、`製造日期` 22% 有值、`condition`（全新/整新）0% →
+     「全新/整新責任歸屬」分析無法啟用（製造批次頁仍顯示待解鎖提示）。
+   - 15% 記錄無序號，無法做重複維修追蹤。
+   - `ZWDIO20` 在來源「故障零件總數」頁的整新數表頭誤打成 `ZWDUO20`；
+     目前靠別名解析層自動修正，但根治要改 Excel。
+   - `TS-1185-025C`（1,087 件）與 `TS-1185-025`（538 件）疑似同料，
+     **使用者表示不確定、暫不合併**；若確認同料，加進 `parser.js` 的
+     `normalizeKnownPartAlias`。
+5. 各月機種涵蓋差異大（3月39種、5月24種、7月55種），共同機種僅 11 種。
+   月趨勢已預設「只看每月都有的機種」，但若之後月份持續增加、共同機種
+   繼續縮小，這個預設值可能要重新評估。
