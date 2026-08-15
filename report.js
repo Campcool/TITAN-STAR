@@ -52,7 +52,7 @@
       const prevDenom = RepairAnalyzer.getDenominators(db, { months: [prevMonth] });
       prevKpis = RepairAnalyzer.computeKPIs(prevRecords, prevDenom);
       prevRankMap = Object.fromEntries(RepairAnalyzer.modelRank(prevRecords, prevDenom).map(r => [r.model, r]));
-      prevPartMap = Object.fromEntries(RepairAnalyzer.partPareto(prevRecords).map(p => [p.name, p.count]));
+      prevPartMap = Object.fromEntries(RepairAnalyzer.partPareto(prevRecords, { db }).map(p => [p.name, p.count]));
     }
 
     // === Anomalies (latest month) ===
@@ -64,7 +64,7 @@
     const modelRank = RepairAnalyzer.modelRank(curRecords, curDenom).slice(0, 10);
 
     // === Top parts (latest month) ===
-    const topParts = RepairAnalyzer.partPareto(curRecords).slice(0, 15);
+    const topParts = RepairAnalyzer.partPareto(curRecords, { db }).slice(0, 15);
 
     // === Cross-month repeated serials ===
     const crossMonth = RepairAnalyzer.crossMonthSerials(db, {});
@@ -119,7 +119,7 @@
     const curRecords = latestMonth ? (db.months[latestMonth]?.records || []) : [];
     const curDenom = latestMonth ? (db.months[latestMonth]?.denominators || {}) : {};
     const modelRankData = RepairAnalyzer.modelRank(curRecords, curDenom).slice(0, 20);
-    const topPartsData = RepairAnalyzer.partPareto(curRecords).slice(0, 30);
+    const topPartsData = RepairAnalyzer.partPareto(curRecords, { db }).slice(0, 30);
     const trend = RepairAnalyzer.monthlyTrend(db, {});
     const fmt = (v) => v == null ? '' : v;
 

@@ -1233,7 +1233,7 @@ window.App = (function () {
 
     // Shared derived data
     const scrapRecs  = records.filter(r => r.isScrap);
-    const pareto     = RepairAnalyzer.partPareto(records);
+    const pareto     = RepairAnalyzer.partPareto(records, { db: state.db });
     const crossSerial = RepairAnalyzer.crossMonthSerials(state.db, {});
 
     // Keyword search helpers
@@ -2756,7 +2756,7 @@ window.App = (function () {
     if (ranks.length > 0) setupColResizers();
 
     // Top parts strip (top 8) - clickable
-    const pareto = RepairAnalyzer.partPareto(records).slice(0, 8);
+    const pareto = RepairAnalyzer.partPareto(records, { db: state.db }).slice(0, 8);
     const top1 = pareto[0]?.count || 1;
     $('topPartsGrid').innerHTML = pareto.map((p, i) => `
       <div class="barlist-row" style="cursor:pointer" onclick="App.openPartDrawer('${escapeAttr(p.name)}')">
@@ -2901,6 +2901,59 @@ window.App = (function () {
         ${a.message ? `<div class="amini-msg">${escapeHtml(a.message)}</div>` : ''}
         ${a.metric != null ? `<div class="amini-metric" style="color:${SEV_COLOR[a.severity] || 'var(--text)'}">${a.metric}<span>${a.metricLabel || ''}</span></div>` : ''}
       </div>`;
+  }
+
+  // 維修作業記錄 — 零件欄裡其實是作業指示/損壞描述的項目。
+  // 已從零件 Pareto 與備料建議排除，但保留在此供查詢（資訊不遺失）。
+  function renderWorkNotes(records) {
+    const el = document.getElementById('workNotePanel');
+    if (!el || !RepairAnalyzer.workNotePareto) return;
+    const notes = RepairAnalyzer.workNotePareto(records, state.db);
+    if (!notes.length) { el.innerHTML = ''; return; }
+    const total = notes.reduce((s, p) => s + p.count, 0);
+    const max = notes[0].count || 1;
+    el.innerHTML = `
+      <div class="card">
+        <div class="card-h">
+          <div>
+            <div class="card-t">維修作業記錄</div>
+            <div class="card-d">零件欄中屬於作業指示／損壞描述的項目，非實體料件</div>
+          </div>
+          <div class="card-meta">${notes.length} 項 · ${fmt.int(total)} 筆</div>
+        </div>
+        <div class="data-notice info" style="margin:0 0 12px">
+          <span class="dn-ico">ℹ</span>
+          <div>下列項目<b>不計入備料建議與零件 Pareto</b>，避免算出「建議備料 N 個取消C15」這種無意義數字；
+          但它們仍是有效的維修記錄，保留在此供查詢。</div>
+        </div>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr>
+            <th style="width:36px">#</th>
+            <th>作業內容</th>
+            <th>影響機種</th>
+            <th class="right" style="width:80px">筆數</th>
+            <th style="width:160px">分佈</th>
+          </tr></thead>
+          <tbody>
+            ${notes.map((p, i) => `
+              <tr>
+                <td class="num muted">${i + 1}</td>
+                <td>${escapeHtml(p.name)}</td>
+                <td><span class="tag">${p.models.length} 機種</span>
+                    <span class="muted" style="font-size:10.5px;font-family:var(--mono);margin-left:4px">${p.models.slice(0, 4).join(', ')}${p.models.length > 4 ? '…' : ''}</span></td>
+                <td class="right num" style="font-weight:700">${p.count}</td>
+                <td><div class="trend-bar"><div style="width:${(p.count / max * 100).toFixed(0)}%"></div></div></td>
+              </tr>`).join('')}
+          </tbody>
+        </table></div>
+      </div>`;
+  }
+
+  // 月趨勢：切換「只看每月都有的機種」（設定記在 localStorage）
+  function setTrendCommonOnly(on) {
+    state.trendCommonOnly = !!on;
+    try { localStorage.setItem('titan_trend_common_only', on ? '1' : '0'); } catch (e) {}
+    renderTrend();
   }
 
   // ─────────────── Parts (Pareto) ───────────────
@@ -3129,7 +3182,8 @@ window.App = (function () {
   function renderParts() {
     const f = currentFilter();
     const records = RepairAnalyzer.getRecords(state.db, f);
-    const pareto = RepairAnalyzer.partPareto(records);
+    const pareto = RepairAnalyzer.partPareto(records, { db: state.db });
+    renderWorkNotes(records);
     const total = pareto.reduce((s, p) => s + p.count, 0);
     $('partsMeta').textContent = `${pareto.length} 種零件 · 共 ${total.toLocaleString()} 件`;
 
@@ -3187,8 +3241,8 @@ window.App = (function () {
     let curPartMap = null, prevPartMap = null;
     if (partPrevMk) {
       const pf = { category: f.category, model: f.model };
-      curPartMap = Object.fromEntries(RepairAnalyzer.partPareto(RepairAnalyzer.getRecords(state.db, { ...pf, months: [partCurMk] })).map(p => [p.name, p.count]));
-      prevPartMap = Object.fromEntries(RepairAnalyzer.partPareto(RepairAnalyzer.getRecords(state.db, { ...pf, months: [partPrevMk] })).map(p => [p.name, p.count]));
+      curPartMap = Object.fromEntries(RepairAnalyzer.partPareto(RepairAnalyzer.getRecords(state.db, { ...pf, months: [partCurMk] }), { db: state.db }).map(p => [p.name, p.count]));
+      prevPartMap = Object.fromEntries(RepairAnalyzer.partPareto(RepairAnalyzer.getRecords(state.db, { ...pf, months: [partPrevMk] }), { db: state.db }).map(p => [p.name, p.count]));
     }
     const allMonthCount = Object.keys(state.db.months).length || 1;
     const tbody = $('paretoBody');
@@ -3343,8 +3397,31 @@ window.App = (function () {
 
     // Filter only by category/model (not by selected months — trend always shows all)
     const filterForTrend = { category: f.category, model: f.model };
-    const trend = RepairAnalyzer.monthlyTrend(state.db, filterForTrend);
-    $('trendMeta').textContent = `${allMonths.length} 個月 · ${state.selectedCategory === '全部' ? '全分類' : state.selectedCategory}`;
+    // 各月機種涵蓋差異大，預設只比較「每月都有的機種」，避免把
+    // 「納入更多機種」誤讀成「故障變多」。使用者可用開關切回全部。
+    const commonOnly = state.trendCommonOnly !== false;
+    const trend = RepairAnalyzer.monthlyTrend(state.db, filterForTrend, { commonOnly });
+    const cb = $('trendCommonOnly'); if (cb) cb.checked = commonOnly;
+    const commonCount = RepairAnalyzer.commonModels
+      ? RepairAnalyzer.commonModels(state.db, filterForTrend).size : 0;
+    $('trendMeta').textContent = `${allMonths.length} 個月 · ${state.selectedCategory === '全部' ? '全分類' : state.selectedCategory}`
+      + (commonOnly ? ` · 共同機種 ${commonCount} 種` : '');
+
+    // 涵蓋範圍提示：各月機種數落差大時說明為何預設只看共同機種
+    const noticeEl = $('trendCoverageNotice');
+    if (noticeEl) {
+      const counts = trend.map(t => t.modelCount);
+      const min = Math.min(...counts), max = Math.max(...counts);
+      const spread = min > 0 && max / min >= 1.5;
+      noticeEl.innerHTML = spread ? `
+        <div class="data-notice ${commonOnly ? 'info' : 'warn'}" style="margin:0 0 14px">
+          <span class="dn-ico">${commonOnly ? 'ℹ' : '⚠'}</span>
+          <div>各月納入的機種數不同（${trend.map(t => `${fmt.monthLabel(t.month)} ${t.modelCount}種`).join('、')}）。
+          ${commonOnly
+            ? `目前<b>只統計每月都有的 ${commonCount} 個機種</b>，件數與故障率可以直接比較。取消勾選可看全部機種。`
+            : `<b>件數上升有一部分只是納入更多機種，不代表故障變多</b>。建議勾選「只看每月都有的機種」再比較。`}</div>
+        </div>` : '';
+    }
 
     const labels = trend.map(t => fmt.monthLabel(t.month));
 
@@ -3399,7 +3476,7 @@ window.App = (function () {
     // Chart 3: top parts trend
     // Get top 6 parts from all months combined
     const allRecs = RepairAnalyzer.getRecords(state.db, filterForTrend);
-    const topParts = RepairAnalyzer.partPareto(allRecs).slice(0, 6);
+    const topParts = RepairAnalyzer.partPareto(allRecs, { db: state.db }).slice(0, 6);
     const datasets = topParts.map((p, i) => {
       const trend = RepairAnalyzer.partTrend(state.db, p.name, filterForTrend);
       return {
@@ -6100,6 +6177,7 @@ window.App = (function () {
     openDashboard, openDashboardDirect, openUpload, switchPage,
     toggleNav, closeNav,
     pdbSearch: pdbSearchRender, pdbOpenEdit, pdbCloseEdit, pdbSaveEdit, pdbDelete,
+    setTrendCommonOnly,
     setMonth, setMonthDirect, setCategory, setModel, quickModelSearch, quickModelSearchInput,
     setAnalysisRole,
     openCapaForm, saveCapaForm, setCapaStatus, deleteCapa,

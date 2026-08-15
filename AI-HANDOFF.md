@@ -18,9 +18,10 @@ TITAN-STAR 是電子工廠維修資料分析網站。現在最重要的主流程
 
 - 線上網站：https://campcool.github.io/TITAN-STAR/
 - GitHub repo：https://github.com/Campcool/TITAN-STAR
-- 最新確認版本：`20260723-2`
+- 最新確認版本：`20260723-5`
 - 最新功能/UI 確認 commit：`084fc64 fix: keep cloud data visible when local storage fails`
 - 版本歷史（新到舊）：
+  - `20260723-5` 第二輪盤點：非料件字串分離、共同機種切換、警示已讀狀態、粉紅流光。
   - `20260723-2` 序號語意修正（維修課確認）：生產序號＝製令批次號，不是機器序號；重複＝同批次而非重複維修。已改為 info 警示並新增製令落點分析。
   - `20260723-1` 盤點優化：型號別名解析層、記錄瘦身、查詢快取、異常訊噪比校準（詳見文末「優化紀錄」）。
   - `2026-07 資料`：匯入 115年7月主維修報表（+1,179 筆）、ZBRT050 補充（更新至 7 月）、無線多機種一覽表（+12 機種 modelSupplements）。
@@ -322,6 +323,33 @@ node build.js
 
 9b. **製令落點分析**（`analyzer.js` → `orderLotAnalysis`；`app.js` → `renderOrderLots`；`index.html` → `#orderLotPanel`）。這是製令號重複時**真正該用的分析**：依製令批次彙總，看哪一批故障集中、集中在哪個零件。實測 7 月 129 個製令，最集中的 `ZSPMG31 製令190218053` 82 件、83% 集中在 `ORD324`。位置在「製造批次」頁最上方。
 10. **小樣本/單月警語**：整新測試數 <100 台或只有單月資料時，抽屜顯示明確警語（ZBIRC5S 僅 74 台、12 個無線機種都只有單月）。
+
+## 第二輪優化（2026-07-23，版本 20260723-3~5）
+
+### 異常警示流光（依使用者指定行為）
+- **粉紅底 + 流光只出現在「本次登入尚未讀過」的 critical 警示**（`app.js` → `alertKey`/`isAlertUnseen`/`markAlertSeen`/`resetSeenAlerts`；CSS class `.alert-unseen`）。
+- 點開警示 → `markAlertSeen()` 立刻移除 class（不等重新渲染）並記入 `sessionStorage['titan_alert_seen_v1']`。
+- `doLogin()` 成功時呼叫 `App.resetSeenAlerts()` → 重新登入全部再亮。**注意 `doLogin` 在 Auth IIFE、`resetSeenAlerts` 在 App IIFE，必須透過 `App.` 呼叫**。
+- key 用 `type|subject`，總覽列與異常頁共用已讀狀態。
+- 流光 3 秒一輪（0.6s 掃、2.4s 停），`pointer-events:none` 不擋點擊，`prefers-reduced-motion` 時只留粉紅底。
+- 莫蘭迪版在 `styles-morandi.css`（主題是靠注入樣式表切換，**不是 `data-theme` 屬性**，別用 `html[data-theme=...]` 選擇器）。
+
+### 非料件字串分離（使用者確認：不算備料、保留在故障分析）
+- `analyzer.js` → `isWorkNote` / `workNotePareto`；`partPareto(records, {db})` 預設排除。
+- **雙重把關**（使用者指定）：含動作關鍵字（取消/破損/重燒/氧化…）**且**在 `partsMaster` 8,996 筆主檔找不到，才判為作業記錄。真料件品名帶「不良」字樣但主檔有登錄就不會誤判。
+- 實測分出 10 項 2,060 件（占 24%），最大宗「取消C15、C41、E1」1,746 件（寫在故障零件二欄）。修正前備料建議會算出「建議備料 699 個取消C15」。
+- 排除後會 `recomputeShares()` 重算佔比與累計，否則百分比加不到 100%。
+- UI：零件 Pareto 頁下方 `#workNotePanel`（`renderWorkNotes`），明示「不計入備料建議」但保留查詢。
+- **所有 `partPareto` 呼叫點都要傳 `{db}`**，否則排除不會生效。
+
+### 月趨勢「只看每月都有的機種」（使用者指定：預設開）
+- `analyzer.js` → `commonModels(db, filter)`、`monthlyTrend(db, filter, {commonOnly})`。
+- 原因：各月涵蓋差異大（3月39種、5月24種、7月55種），件數上升有一部分只是納入更多機種。共同機種目前 11 種。
+- **只看共同機種時分母也要同步只算這些機種**，否則故障率被低估。
+- 預設開（`state.trendCommonOnly`，存 `localStorage['titan_trend_common_only']`），開關在月趨勢頁 `#trendCommonOnly`，並在各月機種數落差 ≥1.5 倍時顯示 `#trendCoverageNotice` 說明。
+
+### 使用者未採納 / 待確認
+- `TS-1185-025C`（1,087 件）與 `TS-1185-025`（538 件）只差 C 尾碼、同為 TAC SW 按鍵開關，**使用者表示不確定，暫不合併**。若日後確認同料，加入 `parser.js` 的 `normalizeKnownPartAlias`。
 
 ## 下一步建議
 

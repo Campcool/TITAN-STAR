@@ -4813,6 +4813,17 @@ body {
   .amini.critical.alert-unseen::after { display: none; }
 }
 
+/* 月趨勢「只看每月都有的機種」切換 */
+.trend-toggle {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 12px; border-radius: 8px; cursor: pointer;
+  background: var(--surface2); border: 1px solid var(--border);
+  font-size: 12.5px; color: var(--text2); user-select: none;
+  transition: border-color .15s, color .15s;
+}
+.trend-toggle:hover, .trend-toggle:active { border-color: var(--accent); color: var(--text); }
+.trend-toggle input { accent-color: var(--accent); cursor: pointer; margin: 0; }
+
 </style>
 <style>
 /* ════════════════════════════════════════════════════════════════════
@@ -5683,6 +5694,8 @@ body {
               <tbody id="paretoBody"></tbody>
             </table>
           </div>
+          <!-- 維修作業記錄（非實體料件，不計入備料建議） -->
+          <div id="workNotePanel"></div>
         </div>
 
         <!-- Cross model -->
@@ -5708,9 +5721,16 @@ body {
               <div class="page-t">月份趨勢</div>
               <div class="page-d">維修件數 · 故障率 · 主要零件走勢（全月份）</div>
             </div>
-            <div class="page-meta" id="trendMeta"></div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <label class="trend-toggle" title="各月納入的機種數不同，開啟後只統計每個月都有的機種，件數才能直接比較">
+                <input type="checkbox" id="trendCommonOnly" checked onchange="App.setTrendCommonOnly(this.checked)">
+                <span>只看每月都有的機種</span>
+              </label>
+              <div class="page-meta" id="trendMeta"></div>
+            </div>
           </div>
           <div class="page-usage"><span class="pu-ico">💡</span><span><b>使用時機：</b>想看長期走勢、判斷問題正在惡化還是改善時使用 — 跨全月份比較維修件數、故障率與主要零件的月度變化。</span></div>
+          <div id="trendCoverageNotice"></div>
           <div class="card sec">
             <div class="card-h"><div class="card-t">維修件數 vs 報廢件數</div></div>
             <div class="chart-wrap"><canvas id="trendCountChart"></canvas></div>
@@ -6989,7 +7009,72 @@ body {
   }
 
   // ─── Pareto: top parts (using normalized name)
-  function partPareto(records) {
+  // ══════════════════════════════════════════════════════════════════
+  // 非料件字串辨識（維修作業記錄）
+  // ------------------------------------------------------------------
+  // 來源報表的「故障零件」欄常被寫入作業指示或損壞描述而非料號，
+  // 例如「取消C15、C41、E1」1,746 件、「電池座破損」271 件，
+  // 合計佔零件件數 24%。若照單計入，備料建議會算出
+  // 「建議備料 699 個取消C15、C41、E1」這種無意義結果。
+  //
+  // 判定採雙重把關，降低誤判：
+  //   (1) 含動作/狀態關鍵字（取消、破損、重燒、氧化…）
+  //   (2) 且在料件主檔（partsMaster）找不到對應品名/規格
+  // 兩者同時成立才視為「維修作業記錄」。真料件即使品名帶「不良」字樣，
+  // 只要主檔有登錄就不會被誤判。
+  // ══════════════════════════════════════════════════════════════════
+  const NON_PART_KEYWORDS = /取消|破損|重燒|重新燒錄|燒錄|重灌|程式更新|軟體更新|氧化|刮除|安裝不良|接觸不良|焦距|調整|清潔|補焊|重工|校正|拆裝|裝回|未更換|無更換|不良$/;
+
+  let _masterIndexCache = null;
+  function partsMasterIndex(db) {
+    if (!db) return null;
+    if (_masterIndexCache && _masterIndexCache.db === db) return _masterIndexCache.set;
+    const set = new Set();
+    for (const row of (db.partsMaster || [])) {
+      const [, name, spec] = row || [];
+      if (name) set.add(String(name).trim().toUpperCase());
+      if (spec) set.add(String(spec).trim().toUpperCase());
+    }
+    _masterIndexCache = { db, set };
+    return set;
+  }
+
+  // 這個零件名稱是否其實是「維修作業記錄」而非實體料件
+  function isWorkNote(partName, db) {
+    const t = String(partName || '').trim();
+    if (!t) return false;
+    if (!NON_PART_KEYWORDS.test(t)) return false;      // (1) 沒有動作關鍵字 → 是料件
+    const master = partsMasterIndex(db);
+    if (master && master.has(t.toUpperCase())) return false;  // (2) 主檔有登錄 → 是料件
+    return true;
+  }
+
+  // 拆出「維修作業記錄」清單（供 UI 另區顯示，不計入備料）
+  function workNotePareto(records, db) {
+    const all = partParetoRaw(records);
+    return all.filter(p => isWorkNote(p.name, db));
+  }
+
+  function partPareto(records, opts) {
+    const db = opts && opts.db;
+    const all = partParetoRaw(records);
+    // 預設排除維修作業記錄，讓 Pareto/備料建議只看真實料件
+    const kept = db ? all.filter(p => !isWorkNote(p.name, db)) : all;
+    if (kept.length === all.length) return recomputeShares(kept);
+    return recomputeShares(kept);
+  }
+
+  // 排除項目後重算佔比與累計，否則百分比會加不到 100%
+  function recomputeShares(list) {
+    const total = list.reduce((s, p) => s + p.count, 0) || 1;
+    let cum = 0;
+    return list.map(p => {
+      cum += p.count;
+      return { ...p, pct: p.count / total, cumPct: cum / total };
+    });
+  }
+
+  function partParetoRaw(records) {
     const map = new Map(); // normPart → { name, count, models:Set, dates:Set, raw:Set }
     for (const r of records) {
       [
@@ -7401,20 +7486,43 @@ body {
   }
 
   // ─── Monthly trend (for charts)
-  function monthlyTrend(db, filter) {
+  // 每月都有出現的機種（各月共同機種）。
+  // 各月涵蓋範圍差異很大（實測 3 月 39 種、5 月 24 種、7 月 55 種），
+  // 直接比件數會把「納入更多機種」誤讀成「故障變多」。
+  function commonModels(db, filter) {
     const monthKeys = Object.keys(db.months).sort();
+    if (!monthKeys.length) return new Set();
+    let common = null;
+    for (const mk of monthKeys) {
+      const set = new Set(getRecords(db, { ...filter, months: [mk] }).map(r => r.model));
+      common = common === null ? set : new Set([...common].filter(m => set.has(m)));
+    }
+    return common || new Set();
+  }
+
+  // opts.commonOnly：只統計每月都有的機種，讓跨月件數可以直接比較
+  function monthlyTrend(db, filter, opts) {
+    const monthKeys = Object.keys(db.months).sort();
+    const commonOnly = !!(opts && opts.commonOnly);
+    const common = commonOnly ? commonModels(db, filter) : null;
     return monthKeys.map(mk => {
       const f = { ...filter, months: [mk] };
-      const recs = getRecords(db, f);
-      const denom = getDenominators(db, f);
+      const allRecs = getRecords(db, f);
+      const recs = common ? allRecs.filter(r => common.has(r.model)) : allRecs;
+      const denomAll = getDenominators(db, f);
+      // 只看共同機種時，分母也要同步只算這些機種，否則故障率會被低估
+      const denomTotal = common
+        ? Object.entries(denomAll.byModel).reduce((s, [m, n]) => s + (common.has(m) ? n : 0), 0)
+        : denomAll.total;
       const scrap = recs.filter(r => r.isScrap).length;
       return {
         month: mk,
         count: recs.length,
         scrap,
         scrapPct: recs.length ? (scrap / recs.length) * 100 : 0,
-        denom: denom.total,
-        faultPct: denom.total ? (recs.length / denom.total) * 100 : 0,
+        denom: denomTotal,
+        faultPct: denomTotal ? (recs.length / denomTotal) * 100 : 0,
+        modelCount: new Set(allRecs.map(r => r.model)).size,   // 該月實際機種數（供提示）
       };
     });
   }
@@ -8506,6 +8614,8 @@ body {
     getDenominators,
     computeKPIs,
     partPareto,
+    workNotePareto,
+    isWorkNote,
     modelRank,
     modelHistory,
     getModelSupplement,
@@ -8521,6 +8631,7 @@ body {
     crossMonthSerials,
     scrapList,
     monthlyTrend,
+    commonModels,
     partTrend,
     detectAnomalies,
     // Advanced analytics
@@ -9777,7 +9888,7 @@ window.App = (function () {
 
     // Shared derived data
     const scrapRecs  = records.filter(r => r.isScrap);
-    const pareto     = RepairAnalyzer.partPareto(records);
+    const pareto     = RepairAnalyzer.partPareto(records, { db: state.db });
     const crossSerial = RepairAnalyzer.crossMonthSerials(state.db, {});
 
     // Keyword search helpers
@@ -11300,7 +11411,7 @@ window.App = (function () {
     if (ranks.length > 0) setupColResizers();
 
     // Top parts strip (top 8) - clickable
-    const pareto = RepairAnalyzer.partPareto(records).slice(0, 8);
+    const pareto = RepairAnalyzer.partPareto(records, { db: state.db }).slice(0, 8);
     const top1 = pareto[0]?.count || 1;
     $('topPartsGrid').innerHTML = pareto.map((p, i) => `
       <div class="barlist-row" style="cursor:pointer" onclick="App.openPartDrawer('${escapeAttr(p.name)}')">
@@ -11445,6 +11556,59 @@ window.App = (function () {
         ${a.message ? `<div class="amini-msg">${escapeHtml(a.message)}</div>` : ''}
         ${a.metric != null ? `<div class="amini-metric" style="color:${SEV_COLOR[a.severity] || 'var(--text)'}">${a.metric}<span>${a.metricLabel || ''}</span></div>` : ''}
       </div>`;
+  }
+
+  // 維修作業記錄 — 零件欄裡其實是作業指示/損壞描述的項目。
+  // 已從零件 Pareto 與備料建議排除，但保留在此供查詢（資訊不遺失）。
+  function renderWorkNotes(records) {
+    const el = document.getElementById('workNotePanel');
+    if (!el || !RepairAnalyzer.workNotePareto) return;
+    const notes = RepairAnalyzer.workNotePareto(records, state.db);
+    if (!notes.length) { el.innerHTML = ''; return; }
+    const total = notes.reduce((s, p) => s + p.count, 0);
+    const max = notes[0].count || 1;
+    el.innerHTML = `
+      <div class="card">
+        <div class="card-h">
+          <div>
+            <div class="card-t">維修作業記錄</div>
+            <div class="card-d">零件欄中屬於作業指示／損壞描述的項目，非實體料件</div>
+          </div>
+          <div class="card-meta">${notes.length} 項 · ${fmt.int(total)} 筆</div>
+        </div>
+        <div class="data-notice info" style="margin:0 0 12px">
+          <span class="dn-ico">ℹ</span>
+          <div>下列項目<b>不計入備料建議與零件 Pareto</b>，避免算出「建議備料 N 個取消C15」這種無意義數字；
+          但它們仍是有效的維修記錄，保留在此供查詢。</div>
+        </div>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr>
+            <th style="width:36px">#</th>
+            <th>作業內容</th>
+            <th>影響機種</th>
+            <th class="right" style="width:80px">筆數</th>
+            <th style="width:160px">分佈</th>
+          </tr></thead>
+          <tbody>
+            ${notes.map((p, i) => `
+              <tr>
+                <td class="num muted">${i + 1}</td>
+                <td>${escapeHtml(p.name)}</td>
+                <td><span class="tag">${p.models.length} 機種</span>
+                    <span class="muted" style="font-size:10.5px;font-family:var(--mono);margin-left:4px">${p.models.slice(0, 4).join(', ')}${p.models.length > 4 ? '…' : ''}</span></td>
+                <td class="right num" style="font-weight:700">${p.count}</td>
+                <td><div class="trend-bar"><div style="width:${(p.count / max * 100).toFixed(0)}%"></div></div></td>
+              </tr>`).join('')}
+          </tbody>
+        </table></div>
+      </div>`;
+  }
+
+  // 月趨勢：切換「只看每月都有的機種」（設定記在 localStorage）
+  function setTrendCommonOnly(on) {
+    state.trendCommonOnly = !!on;
+    try { localStorage.setItem('titan_trend_common_only', on ? '1' : '0'); } catch (e) {}
+    renderTrend();
   }
 
   // ─────────────── Parts (Pareto) ───────────────
@@ -11673,7 +11837,8 @@ window.App = (function () {
   function renderParts() {
     const f = currentFilter();
     const records = RepairAnalyzer.getRecords(state.db, f);
-    const pareto = RepairAnalyzer.partPareto(records);
+    const pareto = RepairAnalyzer.partPareto(records, { db: state.db });
+    renderWorkNotes(records);
     const total = pareto.reduce((s, p) => s + p.count, 0);
     $('partsMeta').textContent = `${pareto.length} 種零件 · 共 ${total.toLocaleString()} 件`;
 
@@ -11731,8 +11896,8 @@ window.App = (function () {
     let curPartMap = null, prevPartMap = null;
     if (partPrevMk) {
       const pf = { category: f.category, model: f.model };
-      curPartMap = Object.fromEntries(RepairAnalyzer.partPareto(RepairAnalyzer.getRecords(state.db, { ...pf, months: [partCurMk] })).map(p => [p.name, p.count]));
-      prevPartMap = Object.fromEntries(RepairAnalyzer.partPareto(RepairAnalyzer.getRecords(state.db, { ...pf, months: [partPrevMk] })).map(p => [p.name, p.count]));
+      curPartMap = Object.fromEntries(RepairAnalyzer.partPareto(RepairAnalyzer.getRecords(state.db, { ...pf, months: [partCurMk] }), { db: state.db }).map(p => [p.name, p.count]));
+      prevPartMap = Object.fromEntries(RepairAnalyzer.partPareto(RepairAnalyzer.getRecords(state.db, { ...pf, months: [partPrevMk] }), { db: state.db }).map(p => [p.name, p.count]));
     }
     const allMonthCount = Object.keys(state.db.months).length || 1;
     const tbody = $('paretoBody');
@@ -11887,8 +12052,31 @@ window.App = (function () {
 
     // Filter only by category/model (not by selected months — trend always shows all)
     const filterForTrend = { category: f.category, model: f.model };
-    const trend = RepairAnalyzer.monthlyTrend(state.db, filterForTrend);
-    $('trendMeta').textContent = `${allMonths.length} 個月 · ${state.selectedCategory === '全部' ? '全分類' : state.selectedCategory}`;
+    // 各月機種涵蓋差異大，預設只比較「每月都有的機種」，避免把
+    // 「納入更多機種」誤讀成「故障變多」。使用者可用開關切回全部。
+    const commonOnly = state.trendCommonOnly !== false;
+    const trend = RepairAnalyzer.monthlyTrend(state.db, filterForTrend, { commonOnly });
+    const cb = $('trendCommonOnly'); if (cb) cb.checked = commonOnly;
+    const commonCount = RepairAnalyzer.commonModels
+      ? RepairAnalyzer.commonModels(state.db, filterForTrend).size : 0;
+    $('trendMeta').textContent = `${allMonths.length} 個月 · ${state.selectedCategory === '全部' ? '全分類' : state.selectedCategory}`
+      + (commonOnly ? ` · 共同機種 ${commonCount} 種` : '');
+
+    // 涵蓋範圍提示：各月機種數落差大時說明為何預設只看共同機種
+    const noticeEl = $('trendCoverageNotice');
+    if (noticeEl) {
+      const counts = trend.map(t => t.modelCount);
+      const min = Math.min(...counts), max = Math.max(...counts);
+      const spread = min > 0 && max / min >= 1.5;
+      noticeEl.innerHTML = spread ? `
+        <div class="data-notice ${commonOnly ? 'info' : 'warn'}" style="margin:0 0 14px">
+          <span class="dn-ico">${commonOnly ? 'ℹ' : '⚠'}</span>
+          <div>各月納入的機種數不同（${trend.map(t => `${fmt.monthLabel(t.month)} ${t.modelCount}種`).join('、')}）。
+          ${commonOnly
+            ? `目前<b>只統計每月都有的 ${commonCount} 個機種</b>，件數與故障率可以直接比較。取消勾選可看全部機種。`
+            : `<b>件數上升有一部分只是納入更多機種，不代表故障變多</b>。建議勾選「只看每月都有的機種」再比較。`}</div>
+        </div>` : '';
+    }
 
     const labels = trend.map(t => fmt.monthLabel(t.month));
 
@@ -11943,7 +12131,7 @@ window.App = (function () {
     // Chart 3: top parts trend
     // Get top 6 parts from all months combined
     const allRecs = RepairAnalyzer.getRecords(state.db, filterForTrend);
-    const topParts = RepairAnalyzer.partPareto(allRecs).slice(0, 6);
+    const topParts = RepairAnalyzer.partPareto(allRecs, { db: state.db }).slice(0, 6);
     const datasets = topParts.map((p, i) => {
       const trend = RepairAnalyzer.partTrend(state.db, p.name, filterForTrend);
       return {
@@ -14644,6 +14832,7 @@ window.App = (function () {
     openDashboard, openDashboardDirect, openUpload, switchPage,
     toggleNav, closeNav,
     pdbSearch: pdbSearchRender, pdbOpenEdit, pdbCloseEdit, pdbSaveEdit, pdbDelete,
+    setTrendCommonOnly,
     setMonth, setMonthDirect, setCategory, setModel, quickModelSearch, quickModelSearchInput,
     setAnalysisRole,
     openCapaForm, saveCapaForm, setCapaStatus, deleteCapa,
@@ -15254,7 +15443,7 @@ window.Auth = (function () {
       const prevDenom = RepairAnalyzer.getDenominators(db, { months: [prevMonth] });
       prevKpis = RepairAnalyzer.computeKPIs(prevRecords, prevDenom);
       prevRankMap = Object.fromEntries(RepairAnalyzer.modelRank(prevRecords, prevDenom).map(r => [r.model, r]));
-      prevPartMap = Object.fromEntries(RepairAnalyzer.partPareto(prevRecords).map(p => [p.name, p.count]));
+      prevPartMap = Object.fromEntries(RepairAnalyzer.partPareto(prevRecords, { db }).map(p => [p.name, p.count]));
     }
 
     // === Anomalies (latest month) ===
@@ -15266,7 +15455,7 @@ window.Auth = (function () {
     const modelRank = RepairAnalyzer.modelRank(curRecords, curDenom).slice(0, 10);
 
     // === Top parts (latest month) ===
-    const topParts = RepairAnalyzer.partPareto(curRecords).slice(0, 15);
+    const topParts = RepairAnalyzer.partPareto(curRecords, { db }).slice(0, 15);
 
     // === Cross-month repeated serials ===
     const crossMonth = RepairAnalyzer.crossMonthSerials(db, {});
@@ -15321,7 +15510,7 @@ window.Auth = (function () {
     const curRecords = latestMonth ? (db.months[latestMonth]?.records || []) : [];
     const curDenom = latestMonth ? (db.months[latestMonth]?.denominators || {}) : {};
     const modelRankData = RepairAnalyzer.modelRank(curRecords, curDenom).slice(0, 20);
-    const topPartsData = RepairAnalyzer.partPareto(curRecords).slice(0, 30);
+    const topPartsData = RepairAnalyzer.partPareto(curRecords, { db }).slice(0, 30);
     const trend = RepairAnalyzer.monthlyTrend(db, {});
     const fmt = (v) => v == null ? '' : v;
 
