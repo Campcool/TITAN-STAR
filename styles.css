@@ -4859,3 +4859,66 @@ body {
   .ph-icon-btn { font-size: 13px; min-width: 26px; min-height: 26px; }
   .subbar-arrow { font-size: 13px; }
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   整體字級上調一級（使用者指定：維持固定格式，但整體再放大一階）
+   全站字級為固定 px，因此這裡逐階往上推一級，而非用縮放倍率
+   （倍率會讓行高、間距、圖示比例一起跑掉）。對應關係：
+     12.5 → 13.5   13/13.5 → 14.5   14 → 15   15 → 16   16 → 17
+   標題與數字（20/30/36px）維持不變，避免手機版被撐爆。
+   調整後於 360~1280px 九種寬度實測：無橫向溢出、無文字截斷。
+   ════════════════════════════════════════════════════════════════════ */
+@media (max-width: 820px) {
+  /* 小標籤／輔助文字 */
+  .sum-card-area { font-size: 13.5px; }
+  .page-simple-help-label,
+  .ph-icon-btn,
+  .subbar-arrow,
+  .sb-pill,
+  .sb-pill-stat { font-size: 14.5px; }
+
+  /* 一般內文與可點元素 */
+  .sum-card-go,
+  .sum-card-capa { font-size: 15px; min-height: 42px; }
+  .sum-card-detail,
+  .sum-card-action,
+  .card-d,
+  .page-meta,
+  .muted,
+  .tag,
+  .barlist-name,
+  .barlist-n { font-size: 15px; }
+
+  /* 主要閱讀區塊 */
+  .sum-card-title,
+  .page-d,
+  .page-usage,
+  .page-simple-help,
+  .data-notice div,
+  .empty-t { font-size: 17px; }
+  :root { --readable-size: 17px; }
+
+  /* 表格：資料密度高，只上調一階避免撐爆欄寬 */
+  .tbl th { font-size: 14.5px; }
+  .tbl td { font-size: 15px; }
+}
+
+/* 補齊上一階段漏掉的元素（實測後補校） */
+@media (max-width: 820px) {
+  .btn,
+  .page-simple-help-btn,
+  .sum-sec-n,
+  .sbs-label,
+  .sum-banner-meta { font-size: 15px; }
+  .btn.sm { font-size: 14px; }
+}
+/* 桌機／平板：把最小的一批輔助文字也往上帶一階，
+   純圖示（箭頭）維持原樣以免破版 */
+@media (min-width: 821px) {
+  .btn { font-size: 14px; }
+  .sum-banner-meta,
+  .role-sel-focus { font-size: 13.5px; }
+  .sum-sec-n { font-size: 14px; }
+}
+/* 主題切換為圖示按鈕，一併放大以利點擊辨識 */
+.sys-ctl-group .theme-toggle { font-size: 15px; }
