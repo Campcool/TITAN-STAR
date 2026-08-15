@@ -817,8 +817,9 @@ window.App = (function () {
     // Mobile month select（含整新數）
     const ms = $('monthSelect');
     if (ms) {
-      ms.innerHTML = `<option value="__ALL__">月份：全部 ${months.length}個月${allDenom ? ` · 整新${fmt.int(allDenom)}` : ''}</option>`
-        + months.map(mk => `<option value="${mk}">${fmt.monthLabel(mk)} · 維修${state.db.months[mk].records.length}${monthDenom[mk] ? ` · 整新${fmt.int(monthDenom[mk])}` : ''}</option>`).join('');
+      // 手機下拉可用寬度僅約 180px，文字過長會被截斷，因此只放必要資訊
+      ms.innerHTML = `<option value="__ALL__">全部 ${months.length} 個月</option>`
+        + months.map(mk => `<option value="${mk}">${fmt.monthLabel(mk)} · ${state.db.months[mk].records.length} 筆</option>`).join('');
       ms.value = selMonth;
     }
 
@@ -853,8 +854,8 @@ window.App = (function () {
       cs.innerHTML = cats.map(c => {
         const count = c === '全部' ? records.length : (catCounts[c] || 0);
         const den = catDen(c);
-        const label = c === '全部' ? '大類：全部' : c;
-        return `<option value="${c}">${label} · 維修${count}${den ? ` · 整新${fmt.int(den)}` : ''}</option>`;
+        const label = c === '全部' ? '全部大類' : c;
+        return `<option value="${c}">${label} · ${count} 筆</option>`;
       }).join('');
       cs.value = state.selectedCategory;
     }
@@ -1216,7 +1217,12 @@ window.App = (function () {
     const nMonths = state.selectedMonths.length;
     const statsLabel = `${nMonths}個月 · ${filteredRecords.length.toLocaleString()}筆紀錄${filteredRefurb > 0 ? ` · 整新數 ${filteredRefurb.toLocaleString()}` : ''}`;
 
-    el.innerHTML = `<span class="sb-pill">${monthLabel}</span><span class="sb-pill">${catLabel}</span><span class="sb-pill-stat">${filteredRecords.length.toLocaleString()}筆</span>`;
+    // 展開狀態下，下方控制項已呈現相同資訊，手機版會用 CSS 隱藏 .sbs-detail
+    // 只留「篩選」二字，避免同樣內容佔掉兩行。
+    el.innerHTML = `<span class="sbs-label">篩選</span>`
+      + `<span class="sbs-detail"><span class="sb-pill">${monthLabel}</span>`
+      + `<span class="sb-pill">${catLabel}</span>`
+      + `<span class="sb-pill-stat">${filteredRecords.length.toLocaleString()}筆</span></span>`;
   }
 
   function renderGlobalRoleBanner() {

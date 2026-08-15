@@ -4824,6 +4824,57 @@ body {
 .trend-toggle:hover, .trend-toggle:active { border-color: var(--accent); color: var(--text); }
 .trend-toggle input { accent-color: var(--accent); cursor: pointer; margin: 0; }
 
+/* ── 手機版三項修正（實機量測後）─────────────────────────────
+   1) 篩選列展開時，收合鈕不再重複顯示與下方控制項相同的統計文字
+   2) 內容底部保留浮動選單（.nav-toggle，fixed 左下 54px）的空間，
+      否則會蓋住最後一張卡片
+   3) 下拉選單文字過長被截斷 → 縮短標籤（見 app.js renderFilters）
+   ──────────────────────────────────────────────────────────── */
+@media (max-width: 820px) {
+  /* 展開狀態：收合鈕只留「篩選」二字，資訊由下方控制項提供 */
+  .subbar:not(.collapsed) #subbarSummaryText .sbs-detail { display: none; }
+  /* 浮動選單淨空區：54px 按鈕 + 20px 底距 + 呼吸空間 */
+  .content { padding-bottom: 96px; }
+}
+/* 收合狀態才顯示完整統計；展開時只顯示「篩選」 */
+.subbar:not(.collapsed) #subbarSummaryText .sbs-label { display: inline; }
+.subbar.collapsed #subbarSummaryText .sbs-label { display: none; }
+.sbs-detail { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+
+/* 角色焦點說明：中等寬度（~1024px）時空間不足會被硬切，
+   改為隨可用空間彈性收縮並以省略號結尾 */
+@media (max-width: 1180px) {
+  .role-sel-focus { max-width: 120px; flex-shrink: 1; min-width: 0; }
+}
+@media (max-width: 1024px) {
+  .role-sel-focus { display: none; }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   手機版可讀性下限（實機量測後校正）
+   全站字級採固定 px（不隨瀏覽器字級縮放），優點是版面永遠不會被撐爆，
+   代價是使用者調大系統字級時沒有效果 —— 因此「最小字級」必須自己顧好。
+   實測 412px 寬時有 187 個元素小於 14px，其中主管摘要卡片的分類標籤
+   僅 10.5px、兩個按鈕 12/12.5px（按鈕文字過小同時也影響點擊辨識）。
+   這裡把行動裝置的下限拉到：一般文字 ≥12.5px、可點元素 ≥14px。
+   ════════════════════════════════════════════════════════════════════ */
+@media (max-width: 820px) {
+  /* 摘要卡：分類標籤與兩個操作按鈕 */
+  .sum-card-area { font-size: 12.5px; letter-spacing: .04em; }
+  .sum-card-go,
+  .sum-card-capa {
+    font-size: 14px;
+    min-height: 40px;          /* 兼顧點擊面積 */
+    padding: 8px 12px;
+  }
+  .sum-card-btns { gap: 8px; }
+  /* 頁面說明標籤 */
+  .page-simple-help-label { font-size: 13.5px; }
+  /* 小圖示按鈕：放大到可辨識且好按 */
+  .ph-icon-btn { font-size: 13px; min-width: 26px; min-height: 26px; }
+  .subbar-arrow { font-size: 13px; }
+}
+
 </style>
 <style>
 /* ════════════════════════════════════════════════════════════════════
@@ -5249,7 +5300,6 @@ body {
   .rma-form-grid { grid-template-columns: 1fr 1fr; }
   .rma-detail-grid { grid-template-columns: 1fr; }
   .uz-mode-row { grid-template-columns: 1fr; }
-  .mode-tabs { display: none; }
 }
 
 @media (max-width: 700px) {
@@ -5316,8 +5366,10 @@ body {
 
 /* ════════════════ RWD ════════════════ */
 @media (max-width: 1100px) {
-  /* 主切換列務必保留可見（之前被隱藏）*/
-  .mode-tabs { display: flex !important; }
+  /* 注意：這裡不要再設 .mode-tabs 的 display。
+     styles.css 在 820px 以下會改成 grid 單欄堆疊，
+     若在此用 display:flex !important 會蓋掉它，
+     造成型號查詢／角色觀點在手機被擠成兩欄（輸入框僅剩 62px）。 */
   .mode-bar { padding: 0 12px; gap: 8px; }
   .mode-tab { padding: 8px 14px; font-size: 14px; }
   .rma-detail-grid { grid-template-columns: 1fr; }
@@ -5335,6 +5387,29 @@ body {
 
 @media (max-width: 420px) {
   .rma-kpi-row { grid-template-columns: 1fr !important; }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   手機版主控制列堆疊（必須放在本檔最後）
+   本檔在 styles.css 之後載入，且本檔 .mode-tabs 的基礎規則沒有 media
+   限制，會依 CSS 串接順序蓋掉 styles.css 中 @media(max-width:820px)
+   的單欄 grid 設定，導致「型號查詢」與「角色觀點」在手機被擠成兩欄、
+   輸入框只剩 62px 寬（實測）。這裡把手機版佈局補回來。
+   ════════════════════════════════════════════════════════════════════ */
+@media (max-width: 820px) {
+  .mode-tabs {
+    display: grid;
+    grid-template-columns: 1fr;   /* 兩個控制板各佔滿一行 */
+    gap: 8px;
+    width: 100%;
+    flex-basis: 100%;
+    order: 3;
+    background: none;             /* 手機不需要外層膠囊底 */
+    border: none;
+    padding: 0;
+  }
+  .top-control-model,
+  .top-control-role { width: 100%; min-width: 0; }
 }
 
 </style>
@@ -9472,8 +9547,9 @@ window.App = (function () {
     // Mobile month select（含整新數）
     const ms = $('monthSelect');
     if (ms) {
-      ms.innerHTML = `<option value="__ALL__">月份：全部 ${months.length}個月${allDenom ? ` · 整新${fmt.int(allDenom)}` : ''}</option>`
-        + months.map(mk => `<option value="${mk}">${fmt.monthLabel(mk)} · 維修${state.db.months[mk].records.length}${monthDenom[mk] ? ` · 整新${fmt.int(monthDenom[mk])}` : ''}</option>`).join('');
+      // 手機下拉可用寬度僅約 180px，文字過長會被截斷，因此只放必要資訊
+      ms.innerHTML = `<option value="__ALL__">全部 ${months.length} 個月</option>`
+        + months.map(mk => `<option value="${mk}">${fmt.monthLabel(mk)} · ${state.db.months[mk].records.length} 筆</option>`).join('');
       ms.value = selMonth;
     }
 
@@ -9508,8 +9584,8 @@ window.App = (function () {
       cs.innerHTML = cats.map(c => {
         const count = c === '全部' ? records.length : (catCounts[c] || 0);
         const den = catDen(c);
-        const label = c === '全部' ? '大類：全部' : c;
-        return `<option value="${c}">${label} · 維修${count}${den ? ` · 整新${fmt.int(den)}` : ''}</option>`;
+        const label = c === '全部' ? '全部大類' : c;
+        return `<option value="${c}">${label} · ${count} 筆</option>`;
       }).join('');
       cs.value = state.selectedCategory;
     }
@@ -9871,7 +9947,12 @@ window.App = (function () {
     const nMonths = state.selectedMonths.length;
     const statsLabel = `${nMonths}個月 · ${filteredRecords.length.toLocaleString()}筆紀錄${filteredRefurb > 0 ? ` · 整新數 ${filteredRefurb.toLocaleString()}` : ''}`;
 
-    el.innerHTML = `<span class="sb-pill">${monthLabel}</span><span class="sb-pill">${catLabel}</span><span class="sb-pill-stat">${filteredRecords.length.toLocaleString()}筆</span>`;
+    // 展開狀態下，下方控制項已呈現相同資訊，手機版會用 CSS 隱藏 .sbs-detail
+    // 只留「篩選」二字，避免同樣內容佔掉兩行。
+    el.innerHTML = `<span class="sbs-label">篩選</span>`
+      + `<span class="sbs-detail"><span class="sb-pill">${monthLabel}</span>`
+      + `<span class="sb-pill">${catLabel}</span>`
+      + `<span class="sb-pill-stat">${filteredRecords.length.toLocaleString()}筆</span></span>`;
   }
 
   function renderGlobalRoleBanner() {
