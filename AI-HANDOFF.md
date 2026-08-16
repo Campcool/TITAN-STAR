@@ -21,6 +21,7 @@ TITAN-STAR 是電子工廠維修資料分析網站。現在最重要的主流程
 - 最新確認版本：`20260724-2`
 - 最新功能/UI 確認 commit：`084fc64 fix: keep cloud data visible when local storage fails`
 - 版本歷史（新到舊）：
+  - `20260816-1` 滿分制第二輪（Manus）：新增 `tests/import-pipeline.test.mjs`（4 項：真實月度 Excel dry-run 結構驗證、合併後 analyzer 管線產出、實際寫入 data.json 副本、損壞 workbook 失敗斷言防假綠）；CI（site-check.yml）在測試步驟前新增 `pnpm install`（import pipeline 測試依賴 xlsx，原 workflow 只在 build 步驟安裝，會造成新測試在 CI 上靜默爆掉）。
   - `20260724-2` RWD 與可讀性：修正手機頂列被壓縮（rma-styles.css 串接順序問題）、整體字級上調一級。
   - `20260723-5` 第二輪盤點：非料件字串分離、共同機種切換、警示已讀狀態、粉紅流光。
   - `20260723-2` 序號語意修正（維修課確認）：生產序號＝製令批次號，不是機器序號；重複＝同批次而非重複維修。已改為 info 警示並新增製令落點分析。

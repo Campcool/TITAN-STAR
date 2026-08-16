@@ -17,6 +17,10 @@ jobs:
             node --check "$f" || exit 1
           done
           node --check scripts/build-version.mjs 2>/dev/null || true
+      - name: Install dependencies (import-pipeline tests need xlsx)
+        run: |
+          corepack enable >/dev/null 2>&1 || true
+          pnpm install --prefer-offline --silent
       - name: Data integrity + parser/analyzer smoke tests
         run: node --test tests/*.test.mjs
 
