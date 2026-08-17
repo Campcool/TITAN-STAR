@@ -32,4 +32,6 @@ npm run import:month -- "115年 06 月維修報表.xlsx"
 node build.js
 ```
 
-若尚未安裝 Node 套件，先執行一次 `npm install`。自動與手動流程都使用同一份 `parser.js` 解析 Excel，避免每個月因欄位小變動就另外修正模型。
+若尚未安裝 Node 套件，先執行一次 `pnpm install`（本專案以 `pnpm-lock.yaml` 凍結版本，
+CI 也是跑 pnpm；請勿改用 `npm install`，那會產生第二份 lockfile 而讓 CI 與本機版本漂移）。
+自動與手動流程都使用同一份 `parser.js` 解析 Excel，避免每個月因欄位小變動就另外修正模型。
