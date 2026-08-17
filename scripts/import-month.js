@@ -203,11 +203,17 @@ function main() {
   merged.publishedAt = new Date().toISOString();
   if (args.publishedBy) merged.publishedBy = args.publishedBy;
 
+  // 去識別化必須在寫檔前做，不能事後補。月報表 Excel 的分頁名稱本身就是
+  // 客戶名（例如「立O保全」的原名），只清理現有 data.json 的話，下個月匯入
+  // 就會把原名寫回公開的 data.json。詳見 AI-HANDOFF「公開曝光現況」。
+  const { maskData } = require('./mask-identifiers.cjs');
+  const { masked, stats: maskStats } = maskData(merged);
+
   const beforeSummary = summarize(before, Object.keys(before.months || {}).sort().pop());
-  const afterSummary = summarize(merged, monthData.monthLabel);
+  const afterSummary = summarize(masked, monthData.monthLabel);
 
   if (!args.dryRun) {
-    fs.writeFileSync(args.out, JSON.stringify(merged), 'utf8');
+    fs.writeFileSync(args.out, JSON.stringify(masked), 'utf8');
   }
 
   console.log(JSON.stringify({
@@ -216,6 +222,7 @@ function main() {
     reader,
     wrote: args.dryRun ? null : args.out,
     import: importCheck,
+    masked: maskStats,
     before: beforeSummary,
     after: afterSummary,
   }, null, 2));

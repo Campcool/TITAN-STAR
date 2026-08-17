@@ -20,6 +20,38 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const root = path.resolve(import.meta.dirname, '..');
 
+// ── 內部工具不得被搜尋引擎收錄 ──────────────────────────────────
+// 本站是工廠維修分析工具，部署在公開的 GitHub Pages 上。登入是純前端的，
+// 擋不住任何人——data.json 是獨立的公開網址，直接開就拿得到全部紀錄。
+// 因此唯一能降低曝光的手段就是不要被搜尋引擎收錄。
+//
+// 刻意不用 robots.txt：(1) 專案頁的 robots.txt 必須放在網域根目錄
+// campcool.github.io/robots.txt，那需要另一個 repo；(2) 對「已收錄、想移除」
+// 的情境，擋掉爬取會讓 Google 看不到 noindex，網址反而可能以「僅網址」
+// 形式留在索引裡。正解是只加 noindex、不擋爬取。
+//
+// ⚠️ 這一條不是完整的保護。data.json 無法加 meta 標籤，GitHub Pages 也不能
+// 設 X-Robots-Tag 標頭，所以它技術上仍可被抓取。要真正擋住需要換架構
+// （例如 Cloudflare Pages + Access）。詳見 AI-HANDOFF「公開曝光」章節。
+test('internal tool pages carry noindex', (t) => {
+  const pages = ['index.html', 'TITAN-STAR.html', 'TITAN-STAR-morandi.html'];
+  const checked = [];
+  for (const page of pages) {
+    const p = path.join(root, page);
+    if (!fs.existsSync(p)) continue;
+    const html = fs.readFileSync(p, 'utf8');
+    assert.match(
+      html,
+      /<meta[^>]+name=["']robots["'][^>]*content=["'][^"']*noindex/i,
+      page + ' 缺少 noindex——這是唯一擋住搜尋引擎收錄工廠維修資料的機制',
+    );
+    checked.push(page);
+  }
+  assert.equal(checked.length, pages.length, '應檢查 ' + pages.length + ' 個頁面，實際 ' + checked.length);
+  t.diagnostic('掃描範圍：' + checked.length + '/' + pages.length + ' 個 HTML（' + checked.join('、')
+    + '）。⚠️ data.json 無法加 meta，不在本斷言涵蓋範圍內');
+});
+
 // ── data.json 結構斷言 ──────────────────────────────────────────
 const data = JSON.parse(fs.readFileSync(path.join(root, 'data.json'), 'utf8'));
 

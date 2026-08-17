@@ -21,6 +21,10 @@ TITAN-STAR 是電子工廠維修資料分析網站。現在最重要的主流程
 - 最新確認版本：`20260724-2`
 - 最新功能/UI 確認 commit：`084fc64 fix: keep cloud data visible when local storage fails`
 - 版本歷史（新到舊）：
+  - `20260817-3` 加 noindex（Claude）：`index.html` / `TITAN-STAR.html` /
+    `TITAN-STAR-morandi.html` 三個頁面加上 `<meta name="robots" content="noindex,nofollow">`，
+    並新增 `internal tool pages carry noindex` 斷言防止被改掉（防假綠已驗）。
+    **詳細背景與未解決的部分見下方「公開曝光現況」章節——這一步只是止血，不是保護。**
   - `20260817-2` 斷言取樣範圍規則（Claude）：`tests/data-integrity.test.mjs` 檔頭新增
     「取樣範圍必須印出來」規則，各測試改用 `t.diagnostic()` 回報實際驗了幾筆。
     規則本身很小，但套上去立刻暴露三件原本看不見的事：
@@ -65,6 +69,59 @@ TITAN-STAR 是電子工廠維修資料分析網站。現在最重要的主流程
   - 料件主檔 `partsMaster`：`8,996` 筆（品號/品名/規格/大類代碼）
   - 型號補充 `modelSupplements`：目前 `13` 個機種（ZBRT050 為單機種完整版；ZBDIO90/ZSPMG51/ZSPMG31/ZSPMB31/ZSPMB51/ZBIRC50/ZBIRC5S/ZBSPC40/ZBPIR50/ZBPIR5P/ZBHD060/ZBSD060 為無線一覽表 2026-07 快照）
   - `publishedAt`：`2026-07-22T01:28:28.854Z`
+
+## 公開曝光現況（2026-08-17 盤點，**未完全解決**）
+
+這一節記錄本專案在公開網路上的真實暴露程度。不是待辦，是現況說明——
+之後任何人要評估「這樣放著行不行」，先讀完這節再判斷。
+
+### 事實
+
+- `data.json`（2.9 MB）**無需登入即可下載**：
+  `https://campcool.github.io/TITAN-STAR/data.json` → HTTP 200。
+  內含 6,587 筆維修紀錄（機種、生產序號、故障原因、故障內容）與
+  8,996 筆料件主檔。同一份檔案在公開 repo 內也可經 raw.githubusercontent 取得。
+- **資料含客戶／協力廠商名稱**：`中O防災科技`、`中O科技`、`立O電子`、
+  `多O凱拔電子`、`立O保全`（`立O保全` 另出現在 `analyzer.js`、
+  `TITAN-STAR.html`、本檔）。搭配 `category`（無線保全／傳統保全／車機系統／
+  監視器）與各機種故障率，可辨識產業鏈位置。
+- **登入不構成任何保護**，有兩層原因：
+  1. `doLogin()`（`app.js` 約 6381 行）只讀 `loginUser`，**從頭到尾沒有讀
+     `loginPwd`**。密碼欄位是裝飾，輸入什麼都能進、留空也能進。
+     `hashPwd()` 只在變更密碼時用到。
+  2. 就算登入邏輯寫對了，這是純靜態站——所有驗證都在瀏覽器裡跑，
+     而 `data.json` 是獨立網址，跳過畫面直接抓即可。
+  另外 `ADMIN_ID = '031780'` 寫死在公開的 `app.js` 裡；使用者清單存在
+  `localStorage`，只存在於各自的瀏覽器，因此在自己電腦上新增帳號
+  無法限制任何其他人。
+
+### 已做（止血，2026-08-17）
+
+三個 HTML 加上 `noindex,nofollow`，讓工具頁不會出現在搜尋結果。
+這處理掉最現實的曝光途徑——沒有人會去猜這個網址，但搜尋引擎會自己找到。
+新增 `internal tool pages carry noindex` 斷言防止回歸。
+
+**刻意不用 robots.txt**：(1) 專案頁的 robots.txt 必須位於網域根目錄
+`campcool.github.io/robots.txt`，需要另建 `Campcool.github.io` repo；
+(2) 對「已收錄、想移除」的情境，擋掉爬取會讓 Google 看不到 noindex，
+網址反而可能以「僅網址」形式留在索引。正解是只加 noindex、不擋爬取。
+
+### 未解決
+
+`noindex` 只擋搜尋引擎，**擋不住知道網址的人**。而且 `data.json` 無法加
+meta 標籤，GitHub Pages 也不允許設定 `X-Robots-Tag` 標頭，所以它本身
+仍可被抓取。repo 為公開，檔案也留在 git 歷史裡。
+
+要真正擋住需要換架構，成本由低到高：
+1. **Cloudflare Pages + Access**（建議）：一層真正的登入牆擋在檔案前，
+   驗證未過連 `data.json` 都送不出來。免費方案即有，設定約半小時。
+   本專案群已在用 Cloudflare Workers（灰汰郎表單），帳號現成。
+2. repo 轉私有：免費方案下 GitHub Pages 會一併停用，網站等於關閉。
+3. 從 git 歷史徹底移除 `data.json`：需重寫歷史，不可逆。
+
+業主（＝本工具唯一使用者）2026-08-17 的判斷是「維修分析資料、機敏度不高」，
+故先只做止血。**若日後資料範圍擴大（加入客戶聯絡人、報價、良率等），
+應重新評估。**
 
 ## 使用者偏好與重要決策
 
@@ -326,7 +383,7 @@ node build.js
 
 ### 資料正確性
 1. **型號別名解析層**（`analyzer.js` → `buildModelAliases` / `canonicalModel`）。來源 Excel 對同一產品有多種寫法，造成歷年落點被拆散、分母對不上。用三段式資料驅動推導：版本尾碼→基礎型號、分頁名↔主要 model 綁定、易混淆字元折疊+編輯距離≤1（限唯一候選）。**不要改成寫死對照表**。實測合併 4 組（THS0010←THSM010/THS001A、ZWDI020←ZWDIO20/ZWDUO20/ZWIO20、ZBPIR50←V2.0/V2.0.2、SCL0200←SCL0020），分母失效 8→0，有故障率的機種 5→7。
-   - 注意：分頁名必須通過 `MODEL_CODE_RE`（純英數且含數字）才納入綁定，否則「立保保全」「主機」這類大類分頁會被誤綁成單一型號。
+   - 注意：分頁名必須通過 `MODEL_CODE_RE`（純英數且含數字）才納入綁定，否則「立O保全」「主機」這類大類分頁會被誤綁成單一型號。
    - 版本家族的代表寫法固定用「基礎型號」（ZBPIR50，不是筆數較多的 ZBPIR50V2.0）。
 2. **版本變體合併**：ZBPIR50 家族從 5 筆變 31 筆。記錄保留 `modelVariantKey` 供 UI 顯示合併前寫法。
 3. **選填欄位無資料時顯示「來源未填」**（`app.js` → `fieldHasData` / `optionalMetric`）。保固/技師/工時等 v2 模板欄位在所有來源報表都是空的，原本指標永遠顯示 0 會誤導。

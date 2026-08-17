@@ -24,6 +24,11 @@ jobs:
       - name: Data integrity + parser/analyzer smoke tests
         run: node --test tests/*.test.mjs
 
+      # 去識別化：data.json 是公開可下載的（見 AI-HANDOFF「公開曝光現況」），
+      # 客戶名稱與使用者全名不得寫回。匯入流程已自動遮罩，這一步是防回歸。
+      - name: De-identification check (客戶名稱遮罩 + 姓名只留姓氏)
+        run: node scripts/mask-identifiers.cjs --check
+
       - name: Version anchor consistency (v= params == sw.js CACHE_NAME)
         run: node scripts/check-version-anchors.mjs
 
