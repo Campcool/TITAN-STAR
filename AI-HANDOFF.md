@@ -21,6 +21,22 @@ TITAN-STAR 是電子工廠維修資料分析網站。現在最重要的主流程
 - 最新確認版本：`20260724-2`
 - 最新功能/UI 確認 commit：`084fc64 fix: keep cloud data visible when local storage fails`
 - 版本歷史（新到舊）：
+  - `20260817-2` 斷言取樣範圍規則（Claude）：`tests/data-integrity.test.mjs` 檔頭新增
+    「取樣範圍必須印出來」規則，各測試改用 `t.diagnostic()` 回報實際驗了幾筆。
+    規則本身很小，但套上去立刻暴露三件原本看不見的事：
+    - **原本 13 項全過，其中 2 項從來沒驗過任何東西**。`parser.normalizePart merges
+      synonym variants` 與 `parser date parsing tolerates common formats` 都在找不到
+      對應函式時直接 `return`，被計為 pass。而 `RepairDB` 的公開介面只有
+      load/save/addMonth/removeMonth/clear，那些解析函式在內部 IIFE 不公開——
+      所以它們從加進來的第一天起就是空的。已改為 `t.skip()` 並附原因，
+      現在誠實顯示 **11 pass / 2 skipped**。CI 不會因 skipped 失敗，但看得見了。
+    - `partsMaster` 測試名稱寫 "entries are well-formed"，實際只驗前 200 筆
+      （共 8,996 筆）。取樣上限保留（全驗會拖慢 CI），但改為印出
+      「200/8996（取樣上限 200，其餘未驗）」。
+    - `modelSupplements` 原本 `slice(0, 13)` 剛好等於現有機種數，看起來像全驗，
+      但機種一增加就會靜默漏掉新的。機種數是十位數等級不需取樣，已改為全驗。
+    - 另註明 `publishedAt is recent ISO timestamp` 只驗格式沒驗新舊，測試名稱的
+      "recent" 沒有對應斷言（僅在 diagnostic 標示，未改行為）。
   - `20260817-1` 清理殘留（Claude 交叉複驗）：刪 `scripts/_gen-synthetic-month.py`
     與 `package-lock.json`。
     - `_gen-synthetic-month.py` 的檔頭第一行自己就寫著「不進版控」，卻在版控裡；
