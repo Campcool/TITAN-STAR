@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-
+  workflow_dispatch:
 permissions:
   contents: read
   pages: write
@@ -57,7 +57,7 @@ jobs:
           git diff --quiet TITAN-STAR.html || echo "::warning::TITAN-STAR.html 與原始碼不同步，請 node build.js 後一併 commit"
 
   deploy:
-    if: github.event_name == 'push'
+    if: github.event_name != 'pull_request'
     needs: check
     runs-on: ubuntu-latest
     environment:
