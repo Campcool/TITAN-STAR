@@ -21,6 +21,11 @@ TITAN-STAR 是電子工廠維修資料分析網站。現在最重要的主流程
 - 最新確認版本：`20260724-2`
 - 最新功能/UI 確認 commit：`084fc64 fix: keep cloud data visible when local storage fails`
 - 版本歷史（新到舊）：
+  - `20260821-1` Pages 部署門禁 PR（Codex）：依 `Campcool/AI-skill` 跨倉庫優化專案 P0-1，
+    將 `.github/workflows/site-check.yml` 從純 Site check 升級為 `Validate and deploy to GitHub Pages`。
+    PR 仍只跑既有 JS 語法、pnpm 測試、去識別化、版本錨點與離線 bundle build 檢查；main push 通過後才執行
+    `actions/deploy-pages`。此變更需搭配 GitHub Pages 設定從 legacy branch deploy 改為 GitHub Actions workflow；
+    合併後再切換 Pages source。本輪只改 workflow 與交接文件，未改資料、登入、noindex 或 UI。
   - `20260817-3` 加 noindex（Claude）：`index.html` / `TITAN-STAR.html` /
     `TITAN-STAR-morandi.html` 三個頁面加上 `<meta name="robots" content="noindex,nofollow">`，
     並新增 `internal tool pages carry noindex` 斷言防止被改掉（防假綠已驗）。
