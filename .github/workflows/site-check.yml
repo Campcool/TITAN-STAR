@@ -1,8 +1,19 @@
-name: Site check
+name: Validate and deploy to GitHub Pages
+
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -44,3 +55,19 @@ jobs:
         run: |
           # 打包單檔存在於 repo 內供離線使用，若內容被改動必須重新 build 後一併 commit
           git diff --quiet TITAN-STAR.html || echo "::warning::TITAN-STAR.html 與原始碼不同步，請 node build.js 後一併 commit"
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: check
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - id: deployment
+        uses: actions/deploy-pages@v4
