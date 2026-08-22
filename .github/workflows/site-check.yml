@@ -55,6 +55,8 @@ jobs:
         run: |
           # 打包單檔存在於 repo 內供離線使用，若內容被改動必須重新 build 後一併 commit
           git diff --quiet TITAN-STAR.html || echo "::warning::TITAN-STAR.html 與原始碼不同步，請 node build.js 後一併 commit"
+      - name: Pages artifact excludes internal docs
+        run: bash scripts/prepare-pages-artifact.sh
 
   deploy:
     if: github.event_name != 'pull_request'
@@ -66,8 +68,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      - name: Prepare public artifact
+        run: bash scripts/prepare-pages-artifact.sh
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4

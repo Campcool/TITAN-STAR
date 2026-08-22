@@ -21,6 +21,10 @@ TITAN-STAR 是電子工廠維修資料分析網站。現在最重要的主流程
 - 最新確認版本：`20260724-2`
 - 最新功能/UI 確認 commit：`084fc64 fix: keep cloud data visible when local storage fails`
 - 版本歷史（新到舊）：
+  - `20260822-1` Pages artifact 公開範圍收斂（Codex）：實測 `AI-HANDOFF.md` 與
+    `AI-REVIEW-PROMPT.md` 在線上皆為 HTTP 200；新增 `scripts/prepare-pages-artifact.sh`，
+    PR check 與 deploy 以同一邏輯建立 `_site`，排除所有 Markdown、Git metadata 與
+    `AI-Skills/`。不變更 `data.json`、登入、去識別化或業主已接受的公開資料取捨。
   - `20260821-1` Pages 部署門禁 PR（Codex）：依 `Campcool/AI-skill` 跨倉庫優化專案 P0-1，
     將 `.github/workflows/site-check.yml` 從純 Site check 升級為 `Validate and deploy to GitHub Pages`。
     PR 仍只跑既有 JS 語法、pnpm 測試、去識別化、版本錨點與離線 bundle build 檢查；main push 通過後才執行
