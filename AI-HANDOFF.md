@@ -21,6 +21,14 @@ TITAN-STAR 是電子工廠維修資料分析網站。現在最重要的主流程
 - 最新確認版本：`20260724-2`
 - 最新功能/UI 確認 commit：`084fc64 fix: keep cloud data visible when local storage fails`
 - 版本歷史（新到舊）：
+  - `20260825-1` 離線 bundle 可重現門禁（Codex）：定位 GitHub Actions 每次都警告
+    `TITAN-STAR.html` 不同步的根因為 Windows CRLF／Linux LF 差異；`build.js` 現在於讀入
+    每個文字來源時統一 LF，包含先正規化再 `JSON.stringify` 的莫蘭迪 CSS。Windows 連跑兩次
+    產物皆為 842,173 bytes、SHA256 `EA63ECD6898831CC1BDA138425B1C95B6870044CB979AB550EC2FF6C421C1E7C`。
+    CI 已將永遠成功的 `git diff ... || echo warning` 改為差異時 `exit 1`；反例修改 CSS 後
+    實測退出碼 1，恢復後退出碼 0。同一 PR 並將 GitHub 官方 Action 升至 Node 24 世代：
+    `checkout@v7`、`setup-node@v7`、`configure-pages@v6`、
+    `upload-pages-artifact@v5`、`deploy-pages@v5`；網站測試用 Node 版本仍為 22。
   - `20260822-1` Pages artifact 公開範圍收斂（Codex）：實測 `AI-HANDOFF.md` 與
     `AI-REVIEW-PROMPT.md` 在線上皆為 HTTP 200；新增 `scripts/prepare-pages-artifact.sh`，
     PR check 與 deploy 以明確公開白名單建立 `_site`，未列入白名單的 AI 文件、維修報表、
@@ -602,6 +610,6 @@ python3 -m http.server 8099 &      # 用 http 而非 file://，SW 與 fetch 才�
 1. **每次改版（含每月匯入新月份）必須跑 `node scripts/build-version.mjs <YYYYMMDD-N>`**，不要手動改 ?v= 或 CACHE_NAME；升版後同步更新本段版本歷史再 commit。
 2. **每月匯入新月份後必跑 `node --test tests/`**——測試已內建「每月筆數 < 5,000」合理性斷言，匯入腳本壞掉或資料欄位偏移會被抓到；若測試擋住合法變更，先改測試再改資料。
 3. **app.js 模組化留給下一輪**，但下一輪開始前必須先建立 UI 回歸測試（建議 Playwright 針對型號查詢/異常卡/手機 390×844 三條核心路徑截圖比對），沒有回歸網不拆。
-4. `TITAN-STAR.html` 離線單檔存在 repo 內供離線使用，build.js 產出後若內容變更需一併 commit；CI 會警告不同步。
+4. `TITAN-STAR.html` 離線單檔存在 repo 內供離線使用，build.js 產出後若內容變更需一併 commit；CI 會直接阻擋不同步的提交。
 5. parser/analyzer 的解析輔助函式（normalizePart 等）在 IIFE 內部 scope 不掛 window，測試用 vm 只能測公開介面——日後若想測內部函式，需在 parser.js 加測試用掛鉤（僅限開發環境）。
 6. data.json 2.6MB 每月成長，tests 裡 partsMaster/modelSupplements 數量下限（8,000 / 12）會隨新匯入自動通過；但若某天**筆數異常下降**（匯入腳本清掉舊月份）測試也會擋，屆時確認是預期行為再調下限。
