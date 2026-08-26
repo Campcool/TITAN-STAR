@@ -63,7 +63,7 @@ jobs:
             echo "|---|---|---|---|---|"
           } >> "$GITHUB_STEP_SUMMARY"
 
-          if [ "$build_type" = "workflow" ]; then
+          if [ "$build_type" = "MUTATION-EXPECT-FAIL" ]; then
             echo "| ${GITHUB_REPOSITORY} | ${build_type} | ${cname} | ${html_url} | OK |" >> "$GITHUB_STEP_SUMMARY"
             echo "Pages build_type=workflow — CI 門禁對本站有效。"
             exit 0
