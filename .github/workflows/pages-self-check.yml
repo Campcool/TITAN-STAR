@@ -1,0 +1,79 @@
+name: Pages source self-check
+
+# 為什麼是「每站檢查自己」而不是中央跨倉庫檢查：
+# GET /repos/{owner}/{repo}/pages 需要該倉庫的 admin/Pages 權限。中央倉庫要讀其他五站
+# 就得放一個跨倉庫 PAT，而 AI-skill 沒有任何 secret，導致原本的 pages-source-guard
+# 自 2026-08-22 起連續五次排程失敗 —— P0-1 的哨兵從設立起就沒站過崗。
+# 改成每站用自己的預設 GITHUB_TOKEN（只要宣告 pages: read）即可，完全不需要 PAT。
+#
+# 這個 workflow 只回報，不會去改任何 Pages 設定。
+
+on:
+  schedule:
+    # 09:20 Asia/Taipei，錯開其他排程。
+    - cron: "20 1 * * *"
+  workflow_dispatch:
+  # 同時在 PR 上跑：成本近乎為零（PR 本來就會跑 CI），且能在合併前就抓到漂移。
+  # 另有一個實務理由：workflow_dispatch 要求檔案已存在於預設分支，
+  # 新增這個 workflow 時無法先手動驗證，靠 pull_request 觸發才驗得到。
+  pull_request:
+
+permissions:
+  contents: read
+  pages: read
+
+concurrency:
+  group: pages-self-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Verify this repo's Pages build_type
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Read own Pages config
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          if ! pages_json="$(gh api "repos/${GITHUB_REPOSITORY}/pages" 2>/tmp/pages.err)"; then
+            err="$(tr '\n' ' ' < /tmp/pages.err)"
+            {
+              echo "## Pages source self-check"
+              echo
+              echo "無法讀取本倉庫的 Pages 設定：\`${err}\`"
+              echo
+              echo "若是權限問題，確認本 workflow 的 \`permissions\` 含 \`pages: read\`。"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error title=Pages API unavailable::${GITHUB_REPOSITORY}: ${err}"
+            exit 1
+          fi
+
+          build_type="$(jq -r '.build_type // "unknown"' <<< "$pages_json")"
+          cname="$(jq -r '.cname // "-"' <<< "$pages_json")"
+          html_url="$(jq -r '.html_url // "-"' <<< "$pages_json")"
+
+          {
+            echo "## Pages source self-check"
+            echo
+            echo "| Repository | build_type | cname | url | Status |"
+            echo "|---|---|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$build_type" = "workflow" ]; then
+            echo "| ${GITHUB_REPOSITORY} | ${build_type} | ${cname} | ${html_url} | OK |" >> "$GITHUB_STEP_SUMMARY"
+            echo "Pages build_type=workflow — CI 門禁對本站有效。"
+            exit 0
+          fi
+
+          echo "| ${GITHUB_REPOSITORY} | ${build_type} | ${cname} | ${html_url} | FAIL |" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo
+            echo "**build_type 不是 \`workflow\`，legacy 管線會繞過 CI 門禁直接發佈整個分支。**"
+            echo "請到 Settings → Pages → Source 改回 GitHub Actions。"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error title=Pages source drift::${GITHUB_REPOSITORY} build_type is ${build_type}, expected workflow"
+          exit 1
