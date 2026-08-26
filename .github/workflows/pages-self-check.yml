@@ -13,6 +13,10 @@ on:
     # 09:20 Asia/Taipei，錯開其他排程。
     - cron: "20 1 * * *"
   workflow_dispatch:
+  # 同時在 PR 上跑：成本近乎為零（PR 本來就會跑 CI），且能在合併前就抓到漂移。
+  # 另有一個實務理由：workflow_dispatch 要求檔案已存在於預設分支，
+  # 新增這個 workflow 時無法先手動驗證，靠 pull_request 觸發才驗得到。
+  pull_request:
 
 permissions:
   contents: read
