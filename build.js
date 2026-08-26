@@ -4,19 +4,23 @@
 // ════════════════════════════════════════════════════════════════════
 const fs = require('fs');
 
+function readText(path) {
+  return fs.readFileSync(path, 'utf8').replace(/\r\n?/g, '\n');
+}
+
 function safeInline(code) {
   return code.replace(/<\/script/gi, '<\\/script');
 }
 
-const indexHTML    = fs.readFileSync('index.html', 'utf8');
-const stylesCss    = fs.readFileSync('styles.css', 'utf8');
-const morandiCss   = fs.readFileSync('styles-morandi.css', 'utf8');
-const rmaStylesCss = fs.readFileSync('rma-styles.css', 'utf8');
-const parserJs     = safeInline(fs.readFileSync('parser.js', 'utf8'));
-const analyzerJs   = safeInline(fs.readFileSync('analyzer.js', 'utf8'));
-const appJs        = safeInline(fs.readFileSync('app.js', 'utf8'));
-const reportJs     = safeInline(fs.readFileSync('report.js', 'utf8'));
-const rmaJs        = safeInline(fs.readFileSync('rma.js', 'utf8'));
+const indexHTML    = readText('index.html');
+const stylesCss    = readText('styles.css');
+const morandiCss   = readText('styles-morandi.css');
+const rmaStylesCss = readText('rma-styles.css');
+const parserJs     = safeInline(readText('parser.js'));
+const analyzerJs   = safeInline(readText('analyzer.js'));
+const appJs        = safeInline(readText('app.js'));
+const reportJs     = safeInline(readText('report.js'));
+const rmaJs        = safeInline(readText('rma.js'));
 
 const inlineStyle  = (css)  => () => '<style>\n'  + css  + '\n</style>';
 const inlineScript = (code) => () => '<script>\n' + code + '\n</script>';
@@ -41,6 +45,10 @@ html = html.replace(/<script src="rma\.js(?:\?[^"]*)?"><\/script>/,
   inlineScript(rmaJs)()
 );
 html = html.replace(/<script src="app\.js(?:\?[^"]*)?"><\/script>/,      inlineScript(appJs));
+
+// GitHub Actions checks out text sources with LF while Windows may use CRLF.
+// Normalize the generated bundle so both environments produce identical bytes.
+html = html.replace(/\r\n?/g, '\n');
 
 fs.writeFileSync('TITAN-STAR.html', html, 'utf8');
 

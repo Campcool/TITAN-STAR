@@ -18,8 +18,8 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: JS syntax check (all app scripts + build tools)
@@ -43,18 +43,18 @@ jobs:
       - name: Version anchor consistency (v= params == sw.js CACHE_NAME)
         run: node scripts/check-version-anchors.mjs
 
-      - name: Offline bundle build check (TITAN-STAR.html 必須能由 build.js 產出且不爆)
+      - name: Offline bundle build check (TITAN-STAR.html 必須可重現且已提交)
         run: |
           # build.js 需要 xlsx（Excel 模板匯入工具鏈），CI 只驗證打包不報錯，
-          # 產出的 TITAN-STAR.html 由 pnpm-lock 凍結版本確保可重現
+          # 產出的 TITAN-STAR.html 由 pnpm-lock 凍結版本並由 build.js 統一 LF 換行
           corepack enable >/dev/null 2>&1 || true
           pnpm install --prefer-offline --silent
           node build.js
           ls -la TITAN-STAR.html
-      - name: 確認 TITAN-STAR.html 未帶入 working tree 變更（打包產物不 commit）
-        run: |
-          # 打包單檔存在於 repo 內供離線使用，若內容被改動必須重新 build 後一併 commit
-          git diff --quiet TITAN-STAR.html || echo "::warning::TITAN-STAR.html 與原始碼不同步，請 node build.js 後一併 commit"
+          if ! git diff --quiet -- TITAN-STAR.html; then
+            echo "::error::TITAN-STAR.html 與原始碼不同步，請執行 node build.js 後一併 commit"
+            exit 1
+          fi
       - name: Pages artifact excludes internal docs
         run: bash scripts/prepare-pages-artifact.sh
 
@@ -66,12 +66,12 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/configure-pages@v5
+      - uses: actions/checkout@v7
+      - uses: actions/configure-pages@v6
       - name: Prepare public artifact
         run: bash scripts/prepare-pages-artifact.sh
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
