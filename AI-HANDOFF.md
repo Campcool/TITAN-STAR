@@ -18,9 +18,12 @@ TITAN-STAR 是電子工廠維修資料分析網站。現在最重要的主流程
 
 - 線上網站：https://campcool.github.io/TITAN-STAR/
 - GitHub repo：https://github.com/Campcool/TITAN-STAR
-- 最新確認版本：`20260724-2`
+- 最新確認版本：`20260826-1`
 - 最新功能/UI 確認 commit：`084fc64 fix: keep cloud data visible when local storage fails`
 - 版本歷史（新到舊）：
+  - `20260826-1` 設計令牌三層架構（Claude，依 `Campcool/AI-skill` 的 `uiux-design`）：
+    三個 CSS 檔的 1,260 條硬編數值改為 token 引用，**逐一位置比對數值不符 0**、
+    681 個元素 computed style 完全一致。詳見文末「設計令牌三層架構」。
   - `20260825-1` 離線 bundle 可重現門禁（Codex）：定位 GitHub Actions 每次都警告
     `TITAN-STAR.html` 不同步的根因為 Windows CRLF／Linux LF 差異；`build.js` 現在於讀入
     每個文字來源時統一 LF，包含先正規化再 `JSON.stringify` 的莫蘭迪 CSS。Windows 連跑兩次
@@ -557,6 +560,58 @@ python3 -m http.server 8099 &      # 用 http 而非 file://，SW 與 fetch 才�
   （目前這九種全部無橫向溢出、無文字截斷）
 - 模擬瀏覽器字級：CDP `Page.setFontSizes({ fontSizes: { standard, fixed } })`
 - 驗證完**記得刪掉暫存腳本**，也不要把 `playwright` 提交進 `package.json`
+
+## 設計令牌三層架構（版本 20260826-1）
+
+依 `Campcool/AI-skill` → `uiux-design/references/nextlevelbuilder_ui-ux-pro-max-skill__design-system/`
+的 token-architecture 規範建立。令牌全部定義在 `styles.css` 最上方的 `:root`。
+
+### 三層各自的職責
+
+| 層 | 內容 | 什麼時候改 |
+|---|---|---|
+| **primitive** | `--fs-*`（字級階梯）、`--space-*`（2px 網格）、`--radius-*` | 幾乎不改，是基礎值 |
+| **semantic** | `--text-body`、`--text-caption`、`--space-card-pad`、`--radius-card`… | **整體調整字級／間距時改這裡** |
+| **component** | `--kpi-value-size`、`--btn-font-size`、`--tbl-cell-size`… | 單一元件的例外 |
+
+### 為什麼值得做
+
+20260724-2 要「整體字級調大一級」時，是在 media query 裡逐條硬編約 30 條規則。
+有了 semantic 層之後，同樣的需求只要改 `--text-body` 那一行指向的階梯。
+
+### 遷移方式與驗證（重要：這是可重跑的流程）
+
+**只做精確值對應，不做四捨五入** —— 例如 `13.5px` 就對 `--fs-13-5`，
+不會被吸收進 `--fs-14`。因此遷移本身保證零視覺變化。
+
+兩道獨立驗證，缺一不可：
+
+1. **位置比對**（強）：把每個 `font-size` / `padding` / `margin` / `gap` /
+   `border-radius` 宣告依出現順序與 `git show HEAD:<file>` 對齊，解析 token 後
+   比對數值。結果：三檔共 **1,260 條宣告，數值不符 0**。
+2. **實機 computed style 快照**（弱但能抓到串接順序問題）：Playwright 走訪
+   15 個分頁 × 2 種寬度，擷取 681 個元素的 fontSize/padding/margin/radius/gap/
+   color/background。結果 **681/681 完全一致**。
+
+### ⚠️ 踩過的坑（同樣的錯不要再犯）
+
+第一版接線用正則「只要是 `.page-t` 的 font-size 就換成 `--text-display`」，
+**不檢查原值**，結果把刻意的響應式階梯壓成同一個值：
+`.page-t` 30→24px、`.card-t` 15→14px、`.kpi-v` 34→36px，共 40 處。
+接著「還原」時又把 semantic 映射回它解析後的 primitive，
+於是原本 `25px` 的變成 `--fs-24`，**資訊永久遺失**。
+
+- **正確做法**：接 semantic 層時，只有「原值 == semantic 解析後的值」才替換；
+  不相符者保留 primitive，因為那是刻意的響應式覆寫。
+- **快照只抓到 40 處中的 5 處**（取樣沒涵蓋到其餘）。
+  **位置比對才是可靠的檢查**，不要只靠快照就宣稱沒問題。
+
+### 現況
+
+- 三檔硬編值已全部 token 化（剩餘 15 處 `border-radius` 為 `50%`／`999px` 等非階梯值）。
+- semantic 層目前接了 33 處（KPI、按鈕、表格、卡片標題、警示、摘要卡）。
+  其餘仍直接用 primitive —— 這是刻意的，多數是響應式階梯，不該被 semantic 壓平。
+- 要擴大 semantic 覆蓋率，沿用上面的「數值相符才接線」規則。
 
 ## 下一步建議
 

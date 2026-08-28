@@ -117,7 +117,7 @@ table td { border-bottom: 1px solid var(--border) !important; }
   border: 1px solid var(--border2) !important;
   box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;
 }
-.mrank-row + .mrank-row { margin-top: 6px; }
+.mrank-row + .mrank-row { margin-top: var(--space-6); }
 .mrank-top:hover { background: rgba(91,130,166,.08) !important; }
 
 /* ── 按鈕 ── */
@@ -220,7 +220,7 @@ input:focus, select:focus, textarea:focus {
 /* ── scroll bar（Webkit） ── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--surface2); }
-::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: var(--radius-3); }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-mute); }
 
 /* ─── New UI elements ─── */

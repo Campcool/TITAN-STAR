@@ -6,6 +6,7 @@
     "import:wireless": "node scripts/import-wireless-overview.js"
   },
   "devDependencies": {
+    "playwright": "^1.62.1",
     "xlsx": "^0.18.5"
   }
 }
