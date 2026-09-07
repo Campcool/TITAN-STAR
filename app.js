@@ -67,6 +67,7 @@ window.App = (function () {
     selectedModel: '全部',
     currentPage: 'summary',
     analysisRole: 'all',
+    summaryFocus: 'critical',
     charts: {},               // chart instance refs
     detailSearch: '',
     summaryBadgeDismissed: false,
@@ -1815,15 +1816,19 @@ window.App = (function () {
         <div class="sum-banner-meta">${state.analysisRole === 'all' ? '綜合視角：顯示本期追蹤事項' : `已過濾出 ${roleInfo.label}相關事項`}</div>
       </div>`;
 
+    const activeFocus = ['critical', 'warn', 'fault', 'scrap'].includes(state.summaryFocus) ? state.summaryFocus : 'critical';
+    const focusCard = (key, cls, label, icon, value, detail) => `
+      <button type="button" class="kpi summary-focus-kpi ${cls} ${activeFocus === key ? 'selected' : ''}"
+        onclick="App.setSummaryFocus('${key}')" aria-pressed="${activeFocus === key}" aria-controls="sumBody">
+        <div class="kpi-selected-mark">${activeFocus === key ? '目前查看' : '點擊查看'}</div>
+        <div class="kpi-h"><div class="kpi-l">${label}</div><div class="kpi-ico">${icon}</div></div>
+        <div class="kpi-v">${value}</div><div class="kpi-d"><span class="muted">${detail}</span></div>
+      </button>`;
     $('sumKpi').innerHTML = `
-      <div class="kpi k-red"><div class="kpi-h"><div class="kpi-l">立即處理</div><div class="kpi-ico">!</div></div>
-        <div class="kpi-v">${crit.length}</div><div class="kpi-d"><span class="muted">嚴重 · 需馬上行動</span></div></div>
-      <div class="kpi k-warn"><div class="kpi-h"><div class="kpi-l">本期關注</div><div class="kpi-ico">▲</div></div>
-        <div class="kpi-v">${warn.length}</div><div class="kpi-d"><span class="muted">警示 · 本期內處理</span></div></div>
-      <div class="kpi k-blue"><div class="kpi-h"><div class="kpi-l">整體故障率</div><div class="kpi-ico">%</div></div>
-        <div class="kpi-v">${kpis.denomTotal ? fmt.pct(kpis.denomPct) : '—'}</div><div class="kpi-d"><span class="muted">${fmt.int(kpis.totalRepairs)} / ${fmt.int(kpis.denomTotal)}</span></div></div>
-      <div class="kpi k-info"><div class="kpi-h"><div class="kpi-l">報廢率</div><div class="kpi-ico">✕</div></div>
-        <div class="kpi-v">${fmt.pct(kpis.scrapPct)}</div><div class="kpi-d"><span class="muted">${kpis.scrap} 件</span></div></div>
+      ${focusCard('critical', 'k-red', '立即處理', '!', crit.length, '嚴重事項 · 需馬上行動')}
+      ${focusCard('warn', 'k-warn', '本期關注', '▲', warn.length, '警示事項 · 本期內處理')}
+      ${focusCard('fault', 'k-blue', '整體故障率', '%', kpis.denomTotal ? fmt.pct(kpis.denomPct) : '—', `RMA ${fmt.int(kpis.totalRepairs)} 台／正常整新 ${fmt.int(kpis.denomTotal)} 台`)}
+      ${focusCard('scrap', 'k-info', '報廢率', '✕', fmt.pct(kpis.scrapPct), `報廢 ${fmt.int(kpis.scrap)} 台／RMA ${fmt.int(kpis.totalRepairs)} 台`)}
     `;
 
     const section = (label, items, cls) => {
@@ -1869,7 +1874,44 @@ window.App = (function () {
       execBriefHtml = `<div class="exec-brief"><div class="eb-label">本月重點摘要</div><div class="eb-text">${escapeHtml(execText)}</div></div>`;
     }
 
-    body.innerHTML = execBriefHtml + section('應立即追蹤', crit, 'critical') + section('本期應關注', warn, 'warn') + section('持續監控', info, 'info');
+    const focusText = (x) => `${x.area} ${x.title} ${x.detail}`;
+    const faultRelated = mine.filter(x => /故障率|高故障|異常|批次|零件|韌體|軟體|重複/.test(focusText(x)));
+    const scrapRelated = mine.filter(x => /報廢|品質成本|重複維修/.test(focusText(x)));
+    const focusMeta = {
+      critical: { cls:'critical', icon:'!', title:`立即處理：${crit.length} 項`, desc:'嚴重事項已排在最前面。先確認影響範圍，再指派負責人與完成期限。', action:'依嚴重度排列' },
+      warn: { cls:'warn', icon:'▲', title:`本期關注：${warn.length} 項`, desc:'本期應完成的警示事項已移到最前面，可逐項開立 CAPA 追蹤。', action:'依本期警示排列' },
+      fault: { cls:'info', icon:'%', title:`整體故障率：${kpis.denomTotal ? fmt.pct(kpis.denomPct) : '無法計算'}`, desc:`畫面以 RMA 返維修課 ${fmt.int(kpis.totalRepairs)} 台與正常整新流程 ${fmt.int(kpis.denomTotal)} 台呈現參考比率；兩者為不同作業流程，判讀時仍應搭配機種與月份趨勢。`, action:`優先顯示 ${faultRelated.length} 項相關發現` },
+      scrap: { cls:'scrap', icon:'✕', title:`報廢率：${fmt.pct(kpis.scrapPct)}`, desc:`RMA 返維修課 ${fmt.int(kpis.totalRepairs)} 台中，報廢 ${fmt.int(kpis.scrap)} 台。下方先列報廢、品質成本與重複維修相關發現。`, action:`優先顯示 ${scrapRelated.length} 項相關發現` },
+    }[activeFocus];
+    const focusBanner = `<div class="summary-focus-panel ${focusMeta.cls}" id="summaryFocusPanel" tabindex="-1">
+      <div class="summary-focus-icon">${focusMeta.icon}</div><div class="summary-focus-copy"><div class="summary-focus-eyebrow">已依你的選擇重新排列</div>
+      <div class="summary-focus-title">${focusMeta.title}</div><div class="summary-focus-desc">${focusMeta.desc}</div></div>
+      <div class="summary-focus-status">${focusMeta.action}</div></div>`;
+    let sectionsHtml = '';
+    if (activeFocus === 'warn') {
+      sectionsHtml = section('本期應關注', warn, 'warn') + section('應立即追蹤', crit, 'critical') + section('持續監控', info, 'info');
+    } else if (activeFocus === 'fault' || activeFocus === 'scrap') {
+      const related = activeFocus === 'fault' ? faultRelated : scrapRelated;
+      const relatedSet = new Set(related);
+      const remaining = mine.filter(x => !relatedSet.has(x));
+      sectionsHtml = section(activeFocus === 'fault' ? '故障率相關追蹤' : '報廢相關追蹤', related, activeFocus === 'fault' ? 'info' : 'critical') + section('其他追蹤事項', remaining, 'info');
+    } else {
+      sectionsHtml = section('應立即追蹤', crit, 'critical') + section('本期應關注', warn, 'warn') + section('持續監控', info, 'info');
+    }
+    body.innerHTML = focusBanner + execBriefHtml + sectionsHtml;
+  }
+
+  function setSummaryFocus(focus) {
+    if (!['critical', 'warn', 'fault', 'scrap'].includes(focus)) return;
+    state.summaryFocus = focus;
+    renderSummary();
+    requestAnimationFrame(() => {
+      const panel = $('summaryFocusPanel');
+      if (panel) {
+        panel.focus({ preventScroll: true });
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
   }
 
   function renderModelSummary(modelName, records, kpis) {
@@ -3852,15 +3894,19 @@ window.App = (function () {
     const d = $('drawer');
     return !!(d && d.classList.contains('open'));
   }
+  let drawerReturnFocus = null;
   // 實際關閉抽屜的 DOM 動作（不碰瀏覽歷史）
   function domCloseDrawer() {
     $('drawerMask').classList.remove('open');
     $('drawer').classList.remove('open');
     $('drawer').setAttribute('aria-hidden', 'true');
     document.body.style.overflow = '';
+    if (drawerReturnFocus && document.contains(drawerReturnFocus)) drawerReturnFocus.focus({ preventScroll: true });
+    drawerReturnFocus = null;
   }
   function openDrawer({ severity = 'info', icon = 'i', overline, title, bodyHtml, variant = '' }) {
     const drawer = $('drawer');
+    drawerReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     drawer.classList.remove('model-profile');
     if (variant) drawer.classList.add(variant);
     $('drawerIco').textContent = icon;
@@ -3873,6 +3919,7 @@ window.App = (function () {
     drawer.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
     $('drawerBody').scrollTop = 0;
+    requestAnimationFrame(() => drawer.querySelector('.drawer-close')?.focus({ preventScroll: true }));
   }
   function closeDrawer() {
     domCloseDrawer();
@@ -6192,7 +6239,7 @@ window.App = (function () {
     setTrendCommonOnly,
     refreshSource, setPeriod,
     setMonth, setMonthDirect, setCategory, setModel, quickModelSearch, quickModelSearchInput,
-    setAnalysisRole,
+    setAnalysisRole, setSummaryFocus,
     openCapaForm, saveCapaForm, setCapaStatus, deleteCapa,
     openCostConfig, saveCostConfig, quickEstimateCost,
     toggleRank, toggleRankRow,
@@ -6704,6 +6751,17 @@ window.Auth = (function () {
         }
         const ap = document.getElementById('adminPanel');
         if (ap && ap.style.display !== 'none') { App.closeAdminPanel(); return; }
+      }
+
+      // 抽屜開啟時，Tab 焦點留在抽屜內；關閉後由 domCloseDrawer 回到原觸發按鈕。
+      if (e.key === 'Tab' && isDrawerOpen()) {
+        const drawer = $('drawer');
+        const focusable = [...drawer.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')]
+          .filter(el => !el.disabled && el.getClientRects().length);
+        if (!focusable.length) { e.preventDefault(); drawer.focus(); return; }
+        const first = focusable[0], last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
       }
 
       // Alt+1..9 → switch pages
