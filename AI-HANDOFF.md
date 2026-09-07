@@ -22,9 +22,11 @@ TITAN-STAR 是電子工廠維修資料分析網站。現在最重要的主流程
 
 - 線上網站：https://campcool.github.io/TITAN-STAR/
 - GitHub repo：https://github.com/Campcool/TITAN-STAR
-- 最新確認版本：`20260826-1`
-- 最新功能/UI 確認 commit：`084fc64 fix: keep cloud data visible when local storage fails`
+- 最新確認版本：`20260907-3`
+- 最新功能/UI：明確區分「正常整新流程 N 台」與「RMA 返維修課 N 台」
 - 版本歷史（新到舊）：
+  - `20260907-3` 作業口徑標示（Codex）：月份、大類、機種與收合摘要均顯示完整流程名稱；
+    分析期間說明明示兩者是不同作業數量，避免使用者把 101,624 與 6,587 誤認為同一母體。
   - `20260826-1` 設計令牌三層架構（Claude，依 `Campcool/AI-skill` 的 `uiux-design`）：
     三個 CSS 檔的 1,260 條硬編數值改為 token 引用，**逐一位置比對數值不符 0**、
     681 個元素 computed style 完全一致。詳見文末「設計令牌三層架構」。
@@ -520,8 +522,9 @@ placeholder 只看得到一個字。同時該檔還有一組遺留規則：先 `
 
 - 篩選列收合鈕原本重複顯示下方控制項已有的統計，佔掉一整行 →
   展開時只留「篩選」二字（`.sbs-detail` 由 CSS 控制，見 `updateSubbarSummary`）。
-- 手機下拉選單在 480px 以下改為上下排列，完整顯示「115/08 · 維修 32 筆」
-  與「全部大類 · 維修 32 筆」；不可為了塞進並排版面而省略數字用途或單位。
+- 手機下拉選單在 480px 以下改為上下排列，完整顯示「115/08 · RMA 返維修課 32 台」
+  與「全部大類 · RMA 返維修課 32 台」；另一數量明確標成「正常整新流程 N 台」。
+  兩者是不同作業流程，不可只寫成模糊的「維修／整新」，也不可暗示能直接相除為故障率。
 - `.nav-toggle` 是 `position:fixed` 左下角 54px 浮動鈕，會蓋住最後一張卡片 →
   `.content` 手機版加 `padding-bottom: 96px`。
 - `.role-sel-focus` 在 ~1024px 會被硬切 → 1024px 以下改為隱藏。

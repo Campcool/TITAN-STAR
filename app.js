@@ -390,7 +390,7 @@ window.App = (function () {
     const gaps = [];
     for (let m = latest; m >= months[0]; m = RepairMonthlySource.calendarPrevious(m)) if (!months.includes(m)) gaps.push(fmt.monthLabel(m));
     $('monthlyContextTitle').textContent = '分析期間 ' + selectedLabel;
-    $('monthlyContextNote').textContent = '最新報表 ' + fmt.monthLabel(latest) + ' · ' + fmt.int(state.db.months[latest].records.length) + ' 筆維修紀錄' +
+    $('monthlyContextNote').textContent = '最新報表 ' + fmt.monthLabel(latest) + ' · RMA 返維修課 ' + fmt.int(state.db.months[latest].records.length) + ' 台。正常整新流程與 RMA 返維修課是兩種不同作業數量，請分開閱讀。' +
       (state.db.months[prev] ? ' · 可比較前月 ' + fmt.monthLabel(prev) : ' · 前月尚無資料，不計月增減') +
       (gaps.length ? ' · 缺月份：' + gaps.join('、') + '（不當作零）' : '');
     for (const button of el.querySelectorAll('[data-period]')) {
@@ -799,12 +799,12 @@ window.App = (function () {
     // Month chips（維修件數 + 整新數）
     const mc = $('monthChips');
     mc.innerHTML = '<div class="sb-label">月份</div>'
-      + `<button class="chip ${all ? 'active' : ''}" onclick="App.setMonth('__ALL__')">全部月份 <span class="num">${months.length} 個月</span>${allDenom ? `<span class="num-den" title="整新測試數：作為故障率計算基準">整新測試 ${fmt.int(allDenom)} 台</span>` : ''}</button>`
+      + `<button class="chip ${all ? 'active' : ''}" onclick="App.setMonth('__ALL__')">全部月份 <span class="num">${months.length} 個月</span>${allDenom ? `<span class="num-den" title="正常整新流程的作業數量">正常整新流程 ${fmt.int(allDenom)} 台</span>` : ''}</button>`
       + months.map(mk => {
         const sel = !all && state.selectedMonths.includes(mk);
         const m = state.db.months[mk];
         const den = monthDenom[mk];
-        return `<button class="chip ${sel ? 'active' : ''}" onclick="App.setMonth('${mk}')">${fmt.monthLabel(mk)} <span class="num">維修 ${fmt.int(m.records.length)} 筆</span>${den ? `<span class="num-den" title="整新測試數：作為故障率計算基準">整新測試 ${fmt.int(den)} 台</span>` : ''}</button>`;
+        return `<button class="chip ${sel ? 'active' : ''}" onclick="App.setMonth('${mk}')">${fmt.monthLabel(mk)} <span class="num">RMA 返維修課 ${fmt.int(m.records.length)} 台</span>${den ? `<span class="num-den" title="正常整新流程的作業數量">正常整新流程 ${fmt.int(den)} 台</span>` : ''}</button>`;
       }).join('');
 
     // Mobile month select（完整標示維修筆數；窄螢幕由 CSS 改為上下排列）
@@ -812,7 +812,7 @@ window.App = (function () {
     if (ms) {
       ms.innerHTML = `<option value="__ALL__">全部 ${months.length} 個月</option>`
         + (selMonth === '__RANGE__' ? `<option value="__RANGE__" disabled>已選 ${state.selectedMonths.length} 個月</option>` : '')
-        + months.map(mk => `<option value="${mk}">${fmt.monthLabel(mk)} · 維修 ${fmt.int(state.db.months[mk].records.length)} 筆</option>`).join('');
+        + months.map(mk => `<option value="${mk}">${fmt.monthLabel(mk)} · RMA 返維修課 ${fmt.int(state.db.months[mk].records.length)} 台</option>`).join('');
       ms.value = selMonth;
     }
 
@@ -839,7 +839,7 @@ window.App = (function () {
         const den = catDen(c);
         const color = c === '全部' ? COLORS.text3 : (CAT_COLOR[c] || COLORS.text3);
         const categoryLabel = c === '全部' ? '全部大類' : c;
-        return `<button class="chip cat-chip ${sel ? 'active' : ''}" style="--c:${color}" onclick="App.setCategory('${c}')">${categoryLabel} <span class="num">維修 ${fmt.int(count)} 筆</span>${den ? `<span class="num-den" title="整新測試數：作為故障率計算基準">整新測試 ${fmt.int(den)} 台</span>` : ''}</button>`;
+        return `<button class="chip cat-chip ${sel ? 'active' : ''}" style="--c:${color}" onclick="App.setCategory('${c}')">${categoryLabel} <span class="num">RMA 返維修課 ${fmt.int(count)} 台</span>${den ? `<span class="num-den" title="正常整新流程的作業數量">正常整新流程 ${fmt.int(den)} 台</span>` : ''}</button>`;
       }).join('');
 
     // Mobile category select（完整標示大類名稱與維修筆數）
@@ -849,7 +849,7 @@ window.App = (function () {
         const count = c === '全部' ? records.length : (catCounts[c] || 0);
         const den = catDen(c);
         const label = c === '全部' ? '全部大類' : c;
-        return `<option value="${c}">${label} · 維修 ${fmt.int(count)} 筆</option>`;
+        return `<option value="${c}">${label} · RMA 返維修課 ${fmt.int(count)} 台</option>`;
       }).join('');
       cs.value = state.selectedCategory;
     }
@@ -861,12 +861,12 @@ window.App = (function () {
     const allModels = Object.entries(allModelCounts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([m]) => m);
     const modelList = $('modelLookupList');
     if (modelList) {
-      modelList.innerHTML = allModels.map(m => `<option value="${m}">維修 ${fmt.int(allModelCounts[m])} 筆</option>`).join('');
+      modelList.innerHTML = allModels.map(m => `<option value="${m}">RMA 返維修課 ${fmt.int(allModelCounts[m])} 台</option>`).join('');
     }
     if (modelList) {
       modelList.innerHTML = allModels.map(m => {
         const sup = RepairAnalyzer.getModelSupplement ? RepairAnalyzer.getModelSupplement(state.db, m) : null;
-        const label = allModelCounts[m] ? `維修 ${fmt.int(allModelCounts[m])} 筆` : (sup ? '補充彙總資料' : '維修 0 筆');
+        const label = allModelCounts[m] ? `RMA 返維修課 ${fmt.int(allModelCounts[m])} 台` : (sup ? '補充彙總資料' : 'RMA 返維修課 0 台');
         return `<option value="${m}">${label}</option>`;
       }).join('');
     }
@@ -887,7 +887,7 @@ window.App = (function () {
         + `<button class="chip ${state.selectedModel === '全部' ? 'active' : ''}" onclick="App.setModel('全部')">全部</button>`
         + models.map(m => {
           const sel = state.selectedModel === m;
-          return `<button class="chip ${sel ? 'active' : ''}" onclick="App.setModel('${m}')">${m} <span class="num">維修 ${fmt.int(mCount[m])} 筆</span></button>`;
+          return `<button class="chip ${sel ? 'active' : ''}" onclick="App.setModel('${m}')">${m} <span class="num">RMA 返維修課 ${fmt.int(mCount[m])} 台</span></button>`;
         }).join('');
     } else {
       $('modelChips').style.display = 'none';
@@ -1211,14 +1211,14 @@ window.App = (function () {
 
     // Stats line
     const nMonths = state.selectedMonths.length;
-    const statsLabel = `${nMonths} 個月 · 維修紀錄 ${filteredRecords.length.toLocaleString()} 筆${filteredRefurb > 0 ? ` · 整新測試 ${filteredRefurb.toLocaleString()} 台` : ''}`;
+    const statsLabel = `${nMonths} 個月 · RMA 返維修課 ${filteredRecords.length.toLocaleString()} 台${filteredRefurb > 0 ? ` · 正常整新流程 ${filteredRefurb.toLocaleString()} 台` : ''}`;
 
     // 展開狀態下，下方控制項已呈現相同資訊，手機版會用 CSS 隱藏 .sbs-detail
     // 只留「篩選」二字，避免同樣內容佔掉兩行。
     el.innerHTML = `<span class="sbs-label">篩選</span>`
       + `<span class="sbs-detail"><span class="sb-pill">${monthLabel}</span>`
       + `<span class="sb-pill">${catLabel}</span>`
-      + `<span class="sb-pill-stat">維修紀錄 ${filteredRecords.length.toLocaleString()} 筆</span></span>`;
+      + `<span class="sb-pill-stat">RMA 返維修課 ${filteredRecords.length.toLocaleString()} 台</span></span>`;
   }
 
   function renderGlobalRoleBanner() {
