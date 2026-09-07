@@ -1819,7 +1819,8 @@ window.App = (function () {
     const activeFocus = ['critical', 'warn', 'fault', 'scrap'].includes(state.summaryFocus) ? state.summaryFocus : 'critical';
     const focusCard = (key, cls, label, icon, value, detail) => `
       <button type="button" class="kpi summary-focus-kpi ${cls} ${activeFocus === key ? 'selected' : ''}"
-        onclick="App.setSummaryFocus('${key}')" aria-pressed="${activeFocus === key}" aria-controls="sumBody">
+        onclick="App.setSummaryFocus('${key}')" aria-pressed="${activeFocus === key}" aria-controls="sumBody"
+        title="選取後會重新排列下方追蹤事項，優先顯示與「${label}」相關的內容">
         <div class="kpi-selected-mark">${activeFocus === key ? '目前查看' : '點擊查看'}</div>
         <div class="kpi-h"><div class="kpi-l">${label}</div><div class="kpi-ico">${icon}</div></div>
         <div class="kpi-v">${value}</div><div class="kpi-d"><span class="muted">${detail}</span></div>
@@ -1844,8 +1845,11 @@ window.App = (function () {
                 <div class="sum-card-detail">${escapeHtml(x.detail)}</div>
                 ${x.action ? `<div class="sum-card-action">💡 ${escapeHtml(x.action)}</div>` : ''}
                 <div class="sum-card-btns">
-                  <button class="sum-card-go" onclick="App.switchPage('${x.page}')">前往 ${PAGE_NAME[x.page] || x.page} →</button>
-                  <button class="sum-card-capa" onclick="App.openCapaForm(${escapeAttr(JSON.stringify({ problem: x.title, action: x.action || '', severity: x.sev }))})">＋CAPA</button>
+                  <button class="sum-card-go" onclick="App.switchPage('${x.page}')" title="前往對應分析頁查看資料來源、明細與趨勢">前往 ${PAGE_NAME[x.page] || x.page} →</button>
+                  <button class="sum-card-capa" onclick="App.openCapaForm(${escapeAttr(JSON.stringify({ problem: x.title, action: x.action || '', severity: x.sev }))})"
+                    title="把這項異常建立為 CAPA 改善追蹤：可指定負責人、截止日及處理狀態">建立 CAPA 追蹤</button>
+                  <button type="button" class="help-tip" aria-label="說明何時需要建立 CAPA"
+                    data-help="適合重大、重複發生、跨部門或無法立即結案的問題。建立後可保留問題與建議行動，指定負責人和期限，持續追蹤直到改善完成。">?</button>
                 </div>
               </div>`).join('')}
           </div>
@@ -5669,6 +5673,9 @@ window.App = (function () {
       severity: p.severity === 'critical' ? 'critical' : 'warn',
       icon: '✓', overline: 'CAPA', title: '新增矯正預防措施',
       bodyHtml: `
+        <div class="drawer-banner info capa-learning-note">
+          <strong>CAPA 是什麼？</strong> CAPA 是「矯正與預防措施」。當問題重大、反覆發生、需要跨部門合作，或必須追蹤到完成時建立。建立後可保留問題、行動計畫、負責人、截止日與狀態，避免改善事項只停留在口頭討論。
+        </div>
         <div class="cc-grid">
           <div class="cc-row" style="grid-column:1/-1"><label>問題描述 <span style="color:var(--critical)">*</span></label>
             <textarea id="capa_problem" class="ls-input" rows="3" style="resize:vertical">${escapeHtml(p.problem || '')}</textarea></div>

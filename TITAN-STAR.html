@@ -2941,6 +2941,28 @@ button, input, select { font-family: inherit; }
   font-size: var(--fs-12); font-weight: 600; padding: var(--space-5) var(--space-10); border-radius: var(--radius-8); transition: all .15s;
 }
 .sum-card-capa:hover { background: var(--ok); color: #fff; }
+.help-tip {
+  position: relative; width: 32px; height: 32px; display: inline-grid; place-items: center;
+  cursor: help; border: 1px solid var(--border2); border-radius: 50%;
+  background: var(--surface); color: var(--text2); font-size: var(--fs-14); font-weight: 800;
+}
+.help-tip::after {
+  content: attr(data-help); position: absolute; right: 0; bottom: calc(100% + 10px); z-index: 80;
+  width: min(320px, calc(100vw - 40px)); padding: var(--space-12) var(--space-14);
+  border: 1px solid var(--border2); border-radius: var(--radius-10);
+  background: #182433; color: #f7fbff; box-shadow: 0 14px 36px rgba(0,0,0,.3);
+  font-size: var(--fs-13-5); font-weight: 500; line-height: 1.6; text-align: left;
+  opacity: 0; visibility: hidden; transform: translateY(6px); pointer-events: none;
+  transition: opacity .16s ease, transform .16s ease, visibility .16s;
+}
+.help-tip:hover::after, .help-tip:focus::after {
+  opacity: 1; visibility: visible; transform: translateY(0);
+}
+.help-tip:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.capa-learning-note { font-size: var(--fs-15); line-height: 1.7; }
+@media (max-width: 480px) {
+  .help-tip::after { position: fixed; left: 16px; right: 16px; bottom: 88px; width: auto; }
+}
 .dq-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--space-12); margin-top: var(--space-12);
 }
@@ -5782,7 +5804,7 @@ body {
     <div class="sys-ctl-group">
       <button class="btn theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="切換色系">🌙</button>
     </div>
-    <button class="btn" id="adminPanelBtn" style="display:none" onclick="Auth.openAdminPanel()">⚙ 帳號管理</button>
+    <button class="btn" id="adminPanelBtn" style="display:none" onclick="Auth.openAdminPanel()" title="新增、停用或重設報表登入帳號">⚙ 帳號管理</button>
   </div>
 </div>
 
@@ -5934,16 +5956,16 @@ body {
 
         <section class="monthly-context" id="monthlyContext" aria-label="報表期間與更新狀態">
           <div class="monthly-context-heading"><div><h2 id="monthlyContextTitle">最新月份分析</h2><p id="monthlyContextNote"></p></div></div>
-          <details class="period-options"><summary>切換月份與歷史範圍</summary><div class="period-actions" aria-label="選擇分析期間">
-            <button type="button" data-period="1" onclick="App.setPeriod(1)">最新月份</button>
-            <button type="button" data-period="3" onclick="App.setPeriod(3)">近 3 個月</button>
-            <button type="button" data-period="6" onclick="App.setPeriod(6)">近 6 個月</button>
-            <button type="button" data-period="12" onclick="App.setPeriod(12)">近 12 個月</button>
-            <button type="button" data-period="all" onclick="App.setPeriod('all')">全部歷史</button>
+          <details class="period-options"><summary title="展開後可切換單月或跨月分析範圍">切換月份與歷史範圍</summary><div class="period-actions" aria-label="選擇分析期間">
+            <button type="button" data-period="1" onclick="App.setPeriod(1)" title="只分析目前最新月份">最新月份</button>
+            <button type="button" data-period="3" onclick="App.setPeriod(3)" title="合併最近 3 個已有資料的月份進行分析">近 3 個月</button>
+            <button type="button" data-period="6" onclick="App.setPeriod(6)" title="合併最近 6 個已有資料的月份進行分析">近 6 個月</button>
+            <button type="button" data-period="12" onclick="App.setPeriod(12)" title="合併最近 12 個已有資料的月份進行分析">近 12 個月</button>
+            <button type="button" data-period="all" onclick="App.setPeriod('all')" title="分析目前匯入的全部月份">全部歷史</button>
           </div></details>
-          <div class="source-status" id="sourceStatus" data-state="checking"><span id="sourceStatusText" role="status" aria-live="polite">正在檢查月份 Excel…</span><button type="button" id="sourceRefresh" onclick="App.refreshSource()">檢查更新</button></div>
+          <div class="source-status" id="sourceStatus" data-state="checking"><span id="sourceStatusText" role="status" aria-live="polite">正在檢查月份 Excel…</span><button type="button" id="sourceRefresh" onclick="App.refreshSource()" title="立即重新檢查 date 資料夾是否有新增或更正版 Excel">檢查更新</button></div>
           <p id="sourceWarnings" class="source-warnings"></p>
-          <nav class="report-reading" aria-label="報表閱讀順序"><button onclick="App.switchPage('summary')">1 本期重點</button><button onclick="App.switchPage('trend')">2 月份趨勢</button><button onclick="App.switchPage('detail')">3 維修明細</button></nav>
+          <nav class="report-reading" aria-label="報表閱讀順序"><button onclick="App.switchPage('summary')" title="先看系統整理出的本期優先事項">1 本期重點</button><button onclick="App.switchPage('trend')" title="再確認問題是單月事件或持續趨勢">2 月份趨勢</button><button onclick="App.switchPage('detail')" title="最後下鑽逐筆資料查證型號、原因與零件">3 維修明細</button></nav>
         </section>
 
         <!-- Global role switcher (persists across all analysis pages) -->
@@ -6259,7 +6281,7 @@ body {
             </div>
             <div style="display:flex;gap:8px;align-items:center">
               <div class="page-meta" id="capaMeta"></div>
-              <button class="btn primary" onclick="App.openCapaForm()">+ 新增 CAPA</button>
+              <button class="btn primary" onclick="App.openCapaForm()" title="建立一項需指定負責人、期限並持續追蹤的矯正預防措施">+ 新增 CAPA</button>
             </div>
           </div>
           <div class="page-usage"><span class="pu-ico">💡</span><span><b>使用時機：</b>針對重大異常或反覆故障開立「矯正預防措施」並追蹤到底時使用 — 從異常偵測 / 風險分析按「+CAPA」帶入問題，指派負責人與截止日，持續追蹤改善狀態直到關閉。</span></div>
@@ -11016,7 +11038,8 @@ window.App = (function () {
     const activeFocus = ['critical', 'warn', 'fault', 'scrap'].includes(state.summaryFocus) ? state.summaryFocus : 'critical';
     const focusCard = (key, cls, label, icon, value, detail) => `
       <button type="button" class="kpi summary-focus-kpi ${cls} ${activeFocus === key ? 'selected' : ''}"
-        onclick="App.setSummaryFocus('${key}')" aria-pressed="${activeFocus === key}" aria-controls="sumBody">
+        onclick="App.setSummaryFocus('${key}')" aria-pressed="${activeFocus === key}" aria-controls="sumBody"
+        title="選取後會重新排列下方追蹤事項，優先顯示與「${label}」相關的內容">
         <div class="kpi-selected-mark">${activeFocus === key ? '目前查看' : '點擊查看'}</div>
         <div class="kpi-h"><div class="kpi-l">${label}</div><div class="kpi-ico">${icon}</div></div>
         <div class="kpi-v">${value}</div><div class="kpi-d"><span class="muted">${detail}</span></div>
@@ -11041,8 +11064,11 @@ window.App = (function () {
                 <div class="sum-card-detail">${escapeHtml(x.detail)}</div>
                 ${x.action ? `<div class="sum-card-action">💡 ${escapeHtml(x.action)}</div>` : ''}
                 <div class="sum-card-btns">
-                  <button class="sum-card-go" onclick="App.switchPage('${x.page}')">前往 ${PAGE_NAME[x.page] || x.page} →</button>
-                  <button class="sum-card-capa" onclick="App.openCapaForm(${escapeAttr(JSON.stringify({ problem: x.title, action: x.action || '', severity: x.sev }))})">＋CAPA</button>
+                  <button class="sum-card-go" onclick="App.switchPage('${x.page}')" title="前往對應分析頁查看資料來源、明細與趨勢">前往 ${PAGE_NAME[x.page] || x.page} →</button>
+                  <button class="sum-card-capa" onclick="App.openCapaForm(${escapeAttr(JSON.stringify({ problem: x.title, action: x.action || '', severity: x.sev }))})"
+                    title="把這項異常建立為 CAPA 改善追蹤：可指定負責人、截止日及處理狀態">建立 CAPA 追蹤</button>
+                  <button type="button" class="help-tip" aria-label="說明何時需要建立 CAPA"
+                    data-help="適合重大、重複發生、跨部門或無法立即結案的問題。建立後可保留問題與建議行動，指定負責人和期限，持續追蹤直到改善完成。">?</button>
                 </div>
               </div>`).join('')}
           </div>
@@ -14866,6 +14892,9 @@ window.App = (function () {
       severity: p.severity === 'critical' ? 'critical' : 'warn',
       icon: '✓', overline: 'CAPA', title: '新增矯正預防措施',
       bodyHtml: `
+        <div class="drawer-banner info capa-learning-note">
+          <strong>CAPA 是什麼？</strong> CAPA 是「矯正與預防措施」。當問題重大、反覆發生、需要跨部門合作，或必須追蹤到完成時建立。建立後可保留問題、行動計畫、負責人、截止日與狀態，避免改善事項只停留在口頭討論。
+        </div>
         <div class="cc-grid">
           <div class="cc-row" style="grid-column:1/-1"><label>問題描述 <span style="color:var(--critical)">*</span></label>
             <textarea id="capa_problem" class="ls-input" rows="3" style="resize:vertical">${escapeHtml(p.problem || '')}</textarea></div>

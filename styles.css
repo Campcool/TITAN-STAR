@@ -2924,6 +2924,28 @@ button, input, select { font-family: inherit; }
   font-size: var(--fs-12); font-weight: 600; padding: var(--space-5) var(--space-10); border-radius: var(--radius-8); transition: all .15s;
 }
 .sum-card-capa:hover { background: var(--ok); color: #fff; }
+.help-tip {
+  position: relative; width: 32px; height: 32px; display: inline-grid; place-items: center;
+  cursor: help; border: 1px solid var(--border2); border-radius: 50%;
+  background: var(--surface); color: var(--text2); font-size: var(--fs-14); font-weight: 800;
+}
+.help-tip::after {
+  content: attr(data-help); position: absolute; right: 0; bottom: calc(100% + 10px); z-index: 80;
+  width: min(320px, calc(100vw - 40px)); padding: var(--space-12) var(--space-14);
+  border: 1px solid var(--border2); border-radius: var(--radius-10);
+  background: #182433; color: #f7fbff; box-shadow: 0 14px 36px rgba(0,0,0,.3);
+  font-size: var(--fs-13-5); font-weight: 500; line-height: 1.6; text-align: left;
+  opacity: 0; visibility: hidden; transform: translateY(6px); pointer-events: none;
+  transition: opacity .16s ease, transform .16s ease, visibility .16s;
+}
+.help-tip:hover::after, .help-tip:focus::after {
+  opacity: 1; visibility: visible; transform: translateY(0);
+}
+.help-tip:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.capa-learning-note { font-size: var(--fs-15); line-height: 1.7; }
+@media (max-width: 480px) {
+  .help-tip::after { position: fixed; left: 16px; right: 16px; bottom: 88px; width: auto; }
+}
 .dq-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--space-12); margin-top: var(--space-12);
 }

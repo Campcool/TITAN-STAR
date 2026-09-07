@@ -14,9 +14,9 @@
 <title>TITAN-STAR · 維修分析</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Iansui&family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=20260907-5">
-<link rel="stylesheet" href="rma-styles.css?v=20260907-5">
-<link rel="stylesheet" href="styles-morandi.css?v=20260907-5" id="morandiThemeLink">
+<link rel="stylesheet" href="styles.css?v=20260907-6">
+<link rel="stylesheet" href="rma-styles.css?v=20260907-6">
+<link rel="stylesheet" href="styles-morandi.css?v=20260907-6" id="morandiThemeLink">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
@@ -115,7 +115,7 @@
     <div class="sys-ctl-group">
       <button class="btn theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="切換色系">🌙</button>
     </div>
-    <button class="btn" id="adminPanelBtn" style="display:none" onclick="Auth.openAdminPanel()">⚙ 帳號管理</button>
+    <button class="btn" id="adminPanelBtn" style="display:none" onclick="Auth.openAdminPanel()" title="新增、停用或重設報表登入帳號">⚙ 帳號管理</button>
   </div>
 </div>
 
@@ -267,16 +267,16 @@
 
         <section class="monthly-context" id="monthlyContext" aria-label="報表期間與更新狀態">
           <div class="monthly-context-heading"><div><h2 id="monthlyContextTitle">最新月份分析</h2><p id="monthlyContextNote"></p></div></div>
-          <details class="period-options"><summary>切換月份與歷史範圍</summary><div class="period-actions" aria-label="選擇分析期間">
-            <button type="button" data-period="1" onclick="App.setPeriod(1)">最新月份</button>
-            <button type="button" data-period="3" onclick="App.setPeriod(3)">近 3 個月</button>
-            <button type="button" data-period="6" onclick="App.setPeriod(6)">近 6 個月</button>
-            <button type="button" data-period="12" onclick="App.setPeriod(12)">近 12 個月</button>
-            <button type="button" data-period="all" onclick="App.setPeriod('all')">全部歷史</button>
+          <details class="period-options"><summary title="展開後可切換單月或跨月分析範圍">切換月份與歷史範圍</summary><div class="period-actions" aria-label="選擇分析期間">
+            <button type="button" data-period="1" onclick="App.setPeriod(1)" title="只分析目前最新月份">最新月份</button>
+            <button type="button" data-period="3" onclick="App.setPeriod(3)" title="合併最近 3 個已有資料的月份進行分析">近 3 個月</button>
+            <button type="button" data-period="6" onclick="App.setPeriod(6)" title="合併最近 6 個已有資料的月份進行分析">近 6 個月</button>
+            <button type="button" data-period="12" onclick="App.setPeriod(12)" title="合併最近 12 個已有資料的月份進行分析">近 12 個月</button>
+            <button type="button" data-period="all" onclick="App.setPeriod('all')" title="分析目前匯入的全部月份">全部歷史</button>
           </div></details>
-          <div class="source-status" id="sourceStatus" data-state="checking"><span id="sourceStatusText" role="status" aria-live="polite">正在檢查月份 Excel…</span><button type="button" id="sourceRefresh" onclick="App.refreshSource()">檢查更新</button></div>
+          <div class="source-status" id="sourceStatus" data-state="checking"><span id="sourceStatusText" role="status" aria-live="polite">正在檢查月份 Excel…</span><button type="button" id="sourceRefresh" onclick="App.refreshSource()" title="立即重新檢查 date 資料夾是否有新增或更正版 Excel">檢查更新</button></div>
           <p id="sourceWarnings" class="source-warnings"></p>
-          <nav class="report-reading" aria-label="報表閱讀順序"><button onclick="App.switchPage('summary')">1 本期重點</button><button onclick="App.switchPage('trend')">2 月份趨勢</button><button onclick="App.switchPage('detail')">3 維修明細</button></nav>
+          <nav class="report-reading" aria-label="報表閱讀順序"><button onclick="App.switchPage('summary')" title="先看系統整理出的本期優先事項">1 本期重點</button><button onclick="App.switchPage('trend')" title="再確認問題是單月事件或持續趨勢">2 月份趨勢</button><button onclick="App.switchPage('detail')" title="最後下鑽逐筆資料查證型號、原因與零件">3 維修明細</button></nav>
         </section>
 
         <!-- Global role switcher (persists across all analysis pages) -->
@@ -592,7 +592,7 @@
             </div>
             <div style="display:flex;gap:8px;align-items:center">
               <div class="page-meta" id="capaMeta"></div>
-              <button class="btn primary" onclick="App.openCapaForm()">+ 新增 CAPA</button>
+              <button class="btn primary" onclick="App.openCapaForm()" title="建立一項需指定負責人、期限並持續追蹤的矯正預防措施">+ 新增 CAPA</button>
             </div>
           </div>
           <div class="page-usage"><span class="pu-ico">💡</span><span><b>使用時機：</b>針對重大異常或反覆故障開立「矯正預防措施」並追蹤到底時使用 — 從異常偵測 / 風險分析按「+CAPA」帶入問題，指派負責人與截止日，持續追蹤改善狀態直到關閉。</span></div>
@@ -739,13 +739,13 @@
 <!-- RMA Modal container -->
 <div id="rmaModal" style="display:none;position:fixed;inset:0;z-index:600;align-items:center;justify-content:center"></div>
 
-<script src="parser.js?v=20260907-5"></script>
-<script src="analyzer.js?v=20260907-5"></script>
-<script src="privacy.js?v=20260907-5"></script>
-<script src="monthly-source.js?v=20260907-5"></script>
-<script src="app.js?v=20260907-5"></script>
-<script src="report.js?v=20260907-5"></script>
-<script src="rma.js?v=20260907-5"></script>
+<script src="parser.js?v=20260907-6"></script>
+<script src="analyzer.js?v=20260907-6"></script>
+<script src="privacy.js?v=20260907-6"></script>
+<script src="monthly-source.js?v=20260907-6"></script>
+<script src="app.js?v=20260907-6"></script>
+<script src="report.js?v=20260907-6"></script>
+<script src="rma.js?v=20260907-6"></script>
 <script>
 // ─── Theme toggle（深色 ↔ 莫蘭迪淺色）───
 const THEME_KEY = 'titan_theme';
