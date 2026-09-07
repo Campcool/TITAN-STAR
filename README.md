@@ -16,22 +16,20 @@ AI 與 AI 之間的進度交接、目前狀態、修改注意事項請見 **[AI-
 想請其他 AI 分析本專案，可直接複製 **[AI-REVIEW-PROMPT.md](./AI-REVIEW-PROMPT.md)**
 內的文稿貼給對方（自足版，對方不需打開原始碼也能分析）。
 
-## 每月資料更新
+## 每月資料更新（2026-09-07 起）
 
-建議流程：
+1. 到 [Campcool/campcool-website 的 date 資料夾](https://github.com/Campcool/campcool-website/tree/main/date)，上傳月份 Excel 並 Commit changes。
+2. 開啟 https://campcool.github.io/TITAN-STAR/ 。每次開啟都檢查新增／更正版；已開啟時按「檢查更新」。
+3. 確认分析期間與更新狀態；不需要執行程式、改日期、重新部署或等待每月 1 號。
 
-1. 每月把 Excel 維修報表放到 `monthly-reports/`
-2. 檔名維持 `115年 07 月維修報表.xlsx`
-3. commit / push 到 GitHub
-4. 系統會在每月 1 號開啟時自動嘗試匯入「上個月」報表；其他日期不會自動讀取 Excel
+完整檔名規則與排錯步驟見 [接手者操作說明](https://github.com/Campcool/campcool-website/blob/main/date/README.md)。
+最新月份取報表月份最大值；同月更正版取代原月份，保留歷史。整批解析、資料驗證與檔案 SHA 比對通過後才套用。
+沒有變更只讀資料夾清單，不重抓 Excel。連線／格式／版本衝突時保留本機上一版，首次使用則保留隨站歷史快照並明示失敗。
 
-若需要立刻把資料併入 `data.json`，可用手動備用流程：
+標準月報之外的品號主檔、年度／機種補充表仍沿用既有獨立資料源，不能改名成月報混入 date。
 
-```bash
-npm run import:month -- "115年 06 月維修報表.xlsx"
-node build.js
-```
+## 工程驗證
 
-若尚未安裝 Node 套件，先執行一次 `pnpm install`（本專案以 `pnpm-lock.yaml` 凍結版本，
-CI 也是跑 pnpm；請勿改用 `npm install`，那會產生第二份 lockfile 而讓 CI 與本機版本漂移）。
-自動與手動流程都使用同一份 `parser.js` 解析 Excel，避免每個月因欄位小變動就另外修正模型。
+使用 Node 22、pnpm 10.4.1；執行 `pnpm install --frozen-lockfile`、`node --test tests/*.test.mjs`。
+檢查來源資料夾：`node scripts/check-source-dir.cjs <Excel資料夾>`，唯讀，不寫入 data.json。
+改網頁後執行 `node scripts/build-version.mjs YYYYMMDD-N`、`node build.js`，提交離線單檔並通過 Pages CI。

@@ -568,6 +568,7 @@
   function parseWorkbook(wb, fileName) {
     const records = [];
     const sheetMeta = {};
+    const importIssues = [];
 
     // 1) Summary sheet
     let summary = { denominators: {}, partCatalog: {}, monthLabel: null };
@@ -593,7 +594,12 @@
           headerIdx = i; break;
         }
       }
-      if (headerIdx < 0) return;
+      if (headerIdx < 0) {
+        if (raw.filter(row => row.some(c => String(c).trim())).length > 2) {
+          importIssues.push(`${sheetName}：找不到日期表頭，請保留標準維修表欄位`);
+        }
+        return;
+      }
 
       const headers = raw[headerIdx].map(c => String(c));
       const cols = {};
@@ -644,6 +650,7 @@
 
         records.push(compactRecord({
           sheet: sheetName,
+          sourceRow: i + 1,
           date,
           model,          // 正規化 key（無連字號/底線），用於所有 join
           modelDisplay,   // 顯示用（保留原始大小寫與格式）
@@ -726,6 +733,7 @@
       partCatalog: summary.partCatalog,
       records,
       sheetMeta,
+      importIssues,
     };
   }
 

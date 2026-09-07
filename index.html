@@ -14,9 +14,9 @@
 <title>TITAN-STAR · 維修分析</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Iansui&family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=20260826-1">
-<link rel="stylesheet" href="rma-styles.css?v=20260826-1">
-<link rel="stylesheet" href="styles-morandi.css?v=20260826-1" id="morandiThemeLink">
+<link rel="stylesheet" href="styles.css?v=20260907-1">
+<link rel="stylesheet" href="rma-styles.css?v=20260907-1">
+<link rel="stylesheet" href="styles-morandi.css?v=20260907-1" id="morandiThemeLink">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
@@ -262,6 +262,20 @@
     <!-- Content -->
     <main class="content">
       <div class="content-inner">
+
+        <section class="monthly-context" id="monthlyContext" aria-label="報表期間與更新狀態">
+          <div class="monthly-context-heading"><div><h2 id="monthlyContextTitle">最新月份分析</h2><p id="monthlyContextNote"></p></div></div>
+          <details class="period-options"><summary>切換月份與歷史範圍</summary><div class="period-actions" aria-label="選擇分析期間">
+            <button type="button" data-period="1" onclick="App.setPeriod(1)">最新月份</button>
+            <button type="button" data-period="3" onclick="App.setPeriod(3)">近 3 個月</button>
+            <button type="button" data-period="6" onclick="App.setPeriod(6)">近 6 個月</button>
+            <button type="button" data-period="12" onclick="App.setPeriod(12)">近 12 個月</button>
+            <button type="button" data-period="all" onclick="App.setPeriod('all')">全部歷史</button>
+          </div></details>
+          <div class="source-status" id="sourceStatus" data-state="checking"><span id="sourceStatusText" role="status" aria-live="polite">正在檢查月份 Excel…</span><button type="button" id="sourceRefresh" onclick="App.refreshSource()">檢查更新</button></div>
+          <p id="sourceWarnings" class="source-warnings"></p>
+          <nav class="report-reading" aria-label="報表閱讀順序"><button onclick="App.switchPage('summary')">1 本期重點</button><button onclick="App.switchPage('trend')">2 月份趨勢</button><button onclick="App.switchPage('detail')">3 維修明細</button></nav>
+        </section>
 
         <!-- Global role switcher (persists across all analysis pages) -->
         <div class="global-role" id="globalRole">
@@ -723,11 +737,13 @@
 <!-- RMA Modal container -->
 <div id="rmaModal" style="display:none;position:fixed;inset:0;z-index:600;align-items:center;justify-content:center"></div>
 
-<script src="parser.js?v=20260826-1"></script>
-<script src="analyzer.js?v=20260826-1"></script>
-<script src="app.js?v=20260826-1"></script>
-<script src="report.js?v=20260826-1"></script>
-<script src="rma.js?v=20260826-1"></script>
+<script src="parser.js?v=20260907-1"></script>
+<script src="analyzer.js?v=20260907-1"></script>
+<script src="privacy.js?v=20260907-1"></script>
+<script src="monthly-source.js?v=20260907-1"></script>
+<script src="app.js?v=20260907-1"></script>
+<script src="report.js?v=20260907-1"></script>
+<script src="rma.js?v=20260907-1"></script>
 <script>
 // ─── Theme toggle（深色 ↔ 莫蘭迪淺色）───
 const THEME_KEY = 'titan_theme';

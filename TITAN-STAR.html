@@ -36,6 +36,37 @@
    因此字級階梯集中在此，要整體調大一級只需改 semantic 層的對應行，
    不必再像 20260724-2 那樣在 media query 裡逐條硬編。
    ════════════════════════════════════════════════════════════════════ */
+.monthly-context {
+  padding: var(--space-card-pad);
+  margin-bottom: var(--space-section);
+  border: 1px solid var(--border2);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  color: var(--text);
+  min-width: 0;
+}
+.monthly-context h2 { margin: 0; font-size: var(--text-display); line-height: 1.4; }
+.monthly-context p { margin: var(--space-inline) 0; color: var(--text2); font-size: var(--text-body-lg); line-height: 1.7; overflow-wrap: anywhere; }
+.period-actions, .report-reading { display: flex; flex-wrap: wrap; gap: var(--space-inline); margin-top: var(--space-stack); }
+.monthly-context button { min-height: 44px; padding: var(--space-inline) var(--space-stack); border: 1px solid var(--border2); border-radius: var(--radius-control); color: var(--text); background: var(--surface2); font: inherit; font-size: var(--text-body-lg); cursor: pointer; }
+.monthly-context button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); font-weight: 700; }
+.monthly-context button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.monthly-context button:disabled { opacity: .6; cursor: wait; }
+.source-status { display: flex; align-items: center; justify-content: space-between; gap: var(--space-stack); margin-top: var(--space-stack); padding-top: var(--space-stack); border-top: 1px solid var(--border); font-size: var(--text-body-lg); line-height: 1.7; overflow-wrap: anywhere; }
+.source-status span { min-width: 0; }
+.source-status button { flex-shrink: 0; }
+.source-status[data-state="error"] { border-top-color: var(--warn); }
+.source-status[data-state="error"] span::before { content: '更新提醒：'; font-weight: 700; }
+.source-warnings:empty { display: none; }
+.report-reading { border-top: 1px solid var(--border); padding-top: var(--space-stack); }
+@media (max-width: 600px) {
+  .monthly-context h2 { font-size: var(--fs-20); }
+  .source-status { align-items: flex-start; flex-direction: column; }
+  .period-actions button { flex: 1 1 auto; }
+  .report-reading button { flex: 1 1 auto; }
+}
+
 :root {
   /* ── Layer 1 · Primitive：字級階梯（沿用現行實際值，重構不改變外觀） ── */
   --fs-9: 9px;     --fs-9-5: 9.5px;   --fs-10: 10px;     --fs-10-5: 10.5px;
@@ -5015,6 +5046,12 @@ body {
 /* 主題切換為圖示按鈕，一併放大以利點擊辨識 */
 .sys-ctl-group .theme-toggle { font-size: var(--fs-15); }
 
+/* The summary starts with decisions; detailed help remains available through the title info button. */
+#pageSummary .page-simple-help, #pageSummary .page-usage { display: none; }
+.period-options { margin-top: var(--space-inline); }
+.period-options summary { cursor: pointer; padding: var(--space-inline) 0; font-size: var(--text-body-lg); min-height: 44px; box-sizing: border-box; }
+.period-options summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 </style>
 <style>
 /* ════════════════════════════════════════════════════════════════════
@@ -5799,6 +5836,20 @@ body {
     <!-- Content -->
     <main class="content">
       <div class="content-inner">
+
+        <section class="monthly-context" id="monthlyContext" aria-label="報表期間與更新狀態">
+          <div class="monthly-context-heading"><div><h2 id="monthlyContextTitle">最新月份分析</h2><p id="monthlyContextNote"></p></div></div>
+          <details class="period-options"><summary>切換月份與歷史範圍</summary><div class="period-actions" aria-label="選擇分析期間">
+            <button type="button" data-period="1" onclick="App.setPeriod(1)">最新月份</button>
+            <button type="button" data-period="3" onclick="App.setPeriod(3)">近 3 個月</button>
+            <button type="button" data-period="6" onclick="App.setPeriod(6)">近 6 個月</button>
+            <button type="button" data-period="12" onclick="App.setPeriod(12)">近 12 個月</button>
+            <button type="button" data-period="all" onclick="App.setPeriod('all')">全部歷史</button>
+          </div></details>
+          <div class="source-status" id="sourceStatus" data-state="checking"><span id="sourceStatusText" role="status" aria-live="polite">正在檢查月份 Excel…</span><button type="button" id="sourceRefresh" onclick="App.refreshSource()">檢查更新</button></div>
+          <p id="sourceWarnings" class="source-warnings"></p>
+          <nav class="report-reading" aria-label="報表閱讀順序"><button onclick="App.switchPage('summary')">1 本期重點</button><button onclick="App.switchPage('trend')">2 月份趨勢</button><button onclick="App.switchPage('detail')">3 維修明細</button></nav>
+        </section>
 
         <!-- Global role switcher (persists across all analysis pages) -->
         <div class="global-role" id="globalRole">
@@ -6831,6 +6882,7 @@ body {
   function parseWorkbook(wb, fileName) {
     const records = [];
     const sheetMeta = {};
+    const importIssues = [];
 
     // 1) Summary sheet
     let summary = { denominators: {}, partCatalog: {}, monthLabel: null };
@@ -6856,7 +6908,12 @@ body {
           headerIdx = i; break;
         }
       }
-      if (headerIdx < 0) return;
+      if (headerIdx < 0) {
+        if (raw.filter(row => row.some(c => String(c).trim())).length > 2) {
+          importIssues.push(`${sheetName}：找不到日期表頭，請保留標準維修表欄位`);
+        }
+        return;
+      }
 
       const headers = raw[headerIdx].map(c => String(c));
       const cols = {};
@@ -6907,6 +6964,7 @@ body {
 
         records.push(compactRecord({
           sheet: sheetName,
+          sourceRow: i + 1,
           date,
           model,          // 正規化 key（無連字號/底線），用於所有 join
           modelDisplay,   // 顯示用（保留原始大小寫與格式）
@@ -6989,6 +7047,7 @@ body {
       partCatalog: summary.partCatalog,
       records,
       sheetMeta,
+      importIssues,
     };
   }
 
@@ -7705,7 +7764,7 @@ body {
   // 各月涵蓋範圍差異很大（實測 3 月 39 種、5 月 24 種、7 月 55 種），
   // 直接比件數會把「納入更多機種」誤讀成「故障變多」。
   function commonModels(db, filter) {
-    const monthKeys = Object.keys(db.months).sort();
+    const monthKeys = Object.keys(db.months).filter(m => !filter?.months?.length || filter.months.includes(m)).sort();
     if (!monthKeys.length) return new Set();
     let common = null;
     for (const mk of monthKeys) {
@@ -7717,7 +7776,7 @@ body {
 
   // opts.commonOnly：只統計每月都有的機種，讓跨月件數可以直接比較
   function monthlyTrend(db, filter, opts) {
-    const monthKeys = Object.keys(db.months).sort();
+    const monthKeys = Object.keys(db.months).filter(m => !filter?.months?.length || filter.months.includes(m)).sort();
     const commonOnly = !!(opts && opts.commonOnly);
     const common = commonOnly ? commonModels(db, filter) : null;
     return monthKeys.map(mk => {
@@ -7745,7 +7804,7 @@ body {
   // ─── Part trend across months (for a specific normalized part)
   function partTrend(db, partNorm, filter) {
     const targetPart = normalizePartName(partNorm);
-    const monthKeys = Object.keys(db.months).sort();
+    const monthKeys = Object.keys(db.months).filter(m => !filter?.months?.length || filter.months.includes(m)).sort();
     return monthKeys.map(mk => {
       const recs = getRecords(db, { ...filter, months: [mk] });
       let count = 0;
@@ -7823,7 +7882,9 @@ body {
     if (!monthKeys.length) return [];
     const curMonth = currentMonth || monthKeys[monthKeys.length - 1];
     const curIdx = monthKeys.indexOf(curMonth);
-    const prevMonth = curIdx > 0 ? monthKeys[curIdx - 1] : null;
+    const [year, month] = curMonth.split('-').map(Number);
+    const calendarPrev = month === 1 ? `${year - 1}-12` : `${year}-${String(month - 1).padStart(2, '0')}`;
+    const prevMonth = db.months[calendarPrev] ? calendarPrev : null;
 
     const anomalies = [];
     const curRecs = getRecords(db, { months: [curMonth] });
@@ -8868,6 +8929,177 @@ body {
 
 </script>
 <script>
+// The same masking policy applies to command-line and browser Excel imports.
+(function (root) {
+  const COMPANY_MASKS = [['中保', '中O'], ['立偉', '立O'], ['多瑪', '多O'], ['立保', '立O']];
+  function maskText(value) {
+    if (typeof value !== 'string') return value;
+    return COMPANY_MASKS.reduce((out, [from, to]) => out.split(from).join(to), value);
+  }
+  function maskName(name) { return typeof name === 'string' && name ? [...name][0] : name; }
+  function maskData(data) {
+    const stats = { values: 0, keys: 0, names: 0, sheets: new Set() };
+    function walk(node) {
+      if (typeof node === 'string') {
+        const masked = maskText(node);
+        if (masked !== node) stats.values++;
+        return masked;
+      }
+      if (Array.isArray(node)) return node.map(walk);
+      if (node && typeof node === 'object') {
+        const out = {};
+        for (const [key, value] of Object.entries(node)) {
+          const maskedKey = maskText(key);
+          if (maskedKey !== key) { stats.keys++; stats.sheets.add(maskedKey); }
+          Object.defineProperty(out, maskedKey, { value: walk(value), enumerable: true, writable: true, configurable: true });
+        }
+        return out;
+      }
+      return node;
+    }
+    const masked = walk(data);
+    for (const user of Object.values(masked.users || {})) {
+      if (!user || typeof user.name !== 'string') continue;
+      const surname = maskName(user.name);
+      if (surname !== user.name) { user.name = surname; stats.names++; }
+    }
+    return { masked, stats };
+  }
+  function findLeaks(text) {
+    return COMPANY_MASKS.map(([term]) => ({ term, count: text.split(term).length - 1 })).filter(x => x.count);
+  }
+  const api = { COMPANY_MASKS, maskText, maskName, maskData, findLeaks };
+  root.RepairPrivacy = api;
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+// Shared browser/Node contract: folder discovery, revision selection and atomic import.
+(function (root) {
+  'use strict';
+  const SOURCE = 'https://api.github.com/repos/Campcool/campcool-website/contents/date?ref=main';
+  const RAW = 'https://raw.githubusercontent.com/Campcool/campcool-website/main/';
+  const VERSION = 1;
+  const clone = value => JSON.parse(JSON.stringify(value));
+  function monthInfo(name) {
+    const m = name.normalize('NFKC').match(/^(\d{2,4})\s*年\s*(\d{1,2})\s*月維修報表(?:[-_\s]*(更正版|修正版|v)(\d*)?)?\.xlsx$/i);
+    if (!m) throw new Error(`檔名無法辨識：${name}。請使用「115年 08 月維修報表.xlsx」或「115年 08 月維修報表-更正版.xlsx」。`);
+    let year = Number(m[1]);
+    if (year < 1911) year += 1911;
+    const month = Number(m[2]);
+    if (year < 2000 || year > 2200 || month < 1 || month > 12) throw new Error(`檔名年月不正確：${name}`);
+    return { month: `${year}-${String(month).padStart(2, '0')}`, revision: m[3] ? Number(m[4] || 1) : 0,
+      parserName: `${year - 1911}年 ${String(month).padStart(2, '0')} 月維修報表.xlsx` };
+  }
+  function selectFiles(entries) {
+    if (!Array.isArray(entries) || entries.length >= 1000) throw new Error('無法完整讀取 date 資料夾，請稍後重試或聯絡維護人員。');
+    const selected = new Map();
+    for (const entry of entries) {
+      if (entry.name.startsWith('~$') || !/\.xlsx?$/i.test(entry.name)) continue;
+      if (entry.type !== 'file' || !/^[a-f0-9]{40}$/.test(entry.sha || '')) throw new Error(`檔案版本不完整：${entry.name}`);
+      if (entry.size > 25 * 1024 * 1024) throw new Error(`檔案超過 25 MB：${entry.name}。請移除圖片與多餘格式後再上傳。`);
+      const file = { ...entry, ...monthInfo(entry.name) };
+      const old = selected.get(file.month);
+      if (old && old.revision === file.revision) throw new Error(`${file.month} 有兩份相同優先序的報表，請只保留一份或使用「更正版2」標示版本。`);
+      if (!old || file.revision > old.revision) selected.set(file.month, file);
+    }
+    if (!selected.size) throw new Error('date 資料夾沒有可用的月份 Excel，保留上一版資料。');
+    return [...selected.values()].sort((a, b) => a.month.localeCompare(b.month));
+  }
+  function validDate(value) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return false;
+    const d = new Date(value + 'T00:00:00Z');
+    return Number.isFinite(d.getTime()) && d.toISOString().slice(0, 10) === value;
+  }
+  function validate(month, file) {
+    if (month.monthLabel !== file.month || !month.records?.length) throw new Error(`${file.name} 沒有解析到正確月份的維修資料。`);
+    const errors = [];
+    for (const issue of month.importIssues || []) errors.push(issue);
+    month.records.forEach((r, i) => {
+      const where = `${r.sheet || '工作表'} 第 ${r.sourceRow || i + 1} 列`;
+      if (!validDate(r.date)) errors.push(`${where}：日期不正確`);
+      if (!r.model) errors.push(`${where}：缺少型號`);
+      for (const key of ['qty1', 'qty2', 'qty3']) if (r[key] != null && (!Number.isFinite(r[key]) || r[key] < 0)) errors.push(`${where}：零件數量不可為負數或非數字`);
+    });
+    if (errors.length) throw new Error(`${file.name}：${errors.slice(0, 5).join('；')}${errors.length > 5 ? `；另有 ${errors.length - 5} 項` : ''}`);
+    const inMonth = month.records.filter(r => r.date.startsWith(file.month)).length;
+    if (inMonth < month.records.length / 2) throw new Error(`${file.name}：多數維修日期不在 ${file.month}，請確認不是把舊報表改名。`);
+    return inMonth === month.records.length ? [] : [`${file.month} 有 ${month.records.length - inMonth} 筆跨月維修日期，仍依報表月份歸屬。`];
+  }
+  // Deliberately no persistence here. A failed file leaves the original object untouched.
+  async function merge(db, entries, readWorkbook, parseWorkbook, onProgress = () => {}) {
+    const files = selectFiles(entries);
+    const previous = db.sourceImport?.version === VERSION ? db.sourceImport.files || {} : {};
+    for (const [month, old] of Object.entries(previous)) {
+      const file = files.find(f => f.month === month);
+      if (!file) throw new Error(`${month} 的來源 Excel 被移除。請放回 date 資料夾，避免遺失歷史月份。`);
+      if (file.revision < old.revision) throw new Error(`${month} 的更正版被移除，請放回相同或較新的版本。`);
+    }
+    const next = clone(db);
+    next.months ||= {};
+    const manifest = {};
+    const warnings = [];
+    let updated = 0;
+    for (const file of files) {
+      if (!next.months[file.month] || previous[file.month]?.sha !== file.sha) {
+        onProgress(`正在讀取 ${file.name}`);
+        const wb = await readWorkbook(file);
+        const month = parseWorkbook(wb, file.parserName);
+        warnings.push(...validate(month, file));
+        month.fileName = file.name;
+        next.months[file.month] = month;
+        updated++;
+      } else warnings.push(...(previous[file.month].warnings || []));
+      manifest[file.month] = { name: file.name, sha: file.sha, revision: file.revision,
+        warnings: warnings.filter(w => w.startsWith(file.month)) };
+    }
+    next.sourceImport = { version: VERSION, files: manifest, checkedAt: new Date().toISOString(),
+      latestMonth: Object.keys(next.months).sort().pop(), warnings };
+    return { db: next, updated, warnings, files: files.length };
+  }
+  async function request(url, fetcher) {
+    const response = await fetcher(url, { cache: 'no-store', signal: AbortSignal.timeout(20000) });
+    if (!response.ok) throw new Error(response.status === 403 || response.status === 429
+      ? 'GitHub 暫時限制查詢次數，請稍後按「檢查更新」。上一版資料仍可使用。'
+      : `讀取來源失敗（HTTP ${response.status}），請確認 date 資料夾及網路連線。`);
+    return response;
+  }
+  async function gitHash(buffer) {
+    const bytes = new Uint8Array(buffer);
+    const header = new TextEncoder().encode(`blob ${bytes.length}\0`);
+    const content = new Uint8Array(header.length + bytes.length);
+    content.set(header); content.set(bytes, header.length);
+    return [...new Uint8Array(await crypto.subtle.digest('SHA-1', content))].map(x => x.toString(16).padStart(2, '0')).join('');
+  }
+  async function sync(db, { fetcher = fetch, xlsx = root.XLSX, parser = root.RepairParser, onProgress } = {}) {
+    const entries = await (await request(SOURCE, fetcher)).json();
+    return merge(db, entries, async file => {
+      if (!xlsx || !parser) throw new Error('Excel 解析器尚未載入，請確認網路後重試。');
+      const url = RAW + 'date/' + encodeURIComponent(file.name);
+      const buffer = await (await request(url, fetcher)).arrayBuffer();
+      if (await gitHash(buffer) !== file.sha) throw new Error(`${file.name} 正在更新或快取尚未同步，請稍後重新檢查。`);
+      return xlsx.read(buffer, { type: 'array', cellDates: true });
+    }, (wb, name) => parser.parseWorkbook(wb, name), onProgress);
+  }
+  function calendarPrevious(month) {
+    if (!month) return null;
+    const [y, m] = month.split('-').map(Number);
+    return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
+  }
+  function range(months, count) {
+    const sorted = [...months].sort();
+    if (!sorted.length || count === 'all') return sorted;
+    let start = sorted[sorted.length - 1];
+    for (let i = 1; i < Number(count); i++) start = calendarPrevious(start);
+    return sorted.filter(m => m >= start);
+  }
+  root.RepairMonthlySource = { sync, merge, selectFiles, monthInfo, validate, calendarPrevious, range, gitHash };
+  if (typeof module !== 'undefined' && module.exports) module.exports = root.RepairMonthlySource;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
 // ════════════════════════════════════════════════════════════════════
 // App — state, rendering, charts
 // ════════════════════════════════════════════════════════════════════
@@ -8971,9 +9203,8 @@ window.App = (function () {
   }
   // 取目前選擇範圍最新月份的「上一個月」(從全部資料找，不限選擇範圍)
   function prevMonthOf(curMk) {
-    const all = Object.keys(state.db.months).sort();
-    const i = all.indexOf(curMk);
-    return i > 0 ? all[i - 1] : null;
+    const prev = RepairMonthlySource.calendarPrevious(curMk);
+    return state.db.months[prev] ? prev : null;
   }
 
   function showLoad(msg, sub = '') {
@@ -9067,28 +9298,8 @@ window.App = (function () {
   const CLOUD_URL = './data.json';
   const CLOUD_SEEN_KEY = 'repair_cloud_seen';
   const CLOUD_CHECK_KEY = 'repair_cloud_checked_month';
-  const AUTO_REPORT_DIR = './monthly-reports/';
-  const AUTO_REPORT_CHECK_KEY = 'repair_auto_report_checked_month';
-
   function currentMonthKey(d = new Date()) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  }
-
-  function isMonthlySyncDay(d = new Date()) {
-    return d.getDate() === 1;
-  }
-
-  function previousMonthReportInfo(d = new Date()) {
-    const prev = new Date(d.getFullYear(), d.getMonth() - 1, 1);
-    const y = prev.getFullYear();
-    const m = String(prev.getMonth() + 1).padStart(2, '0');
-    const roc = y - 1911;
-    const fileName = `${roc}年 ${m} 月維修報表.xlsx`;
-    return {
-      monthLabel: `${y}-${m}`,
-      fileName,
-      url: AUTO_REPORT_DIR + encodeURIComponent(fileName),
-    };
   }
 
   function countDbRecords(db) {
@@ -9114,6 +9325,7 @@ window.App = (function () {
 
   function loadBestDb() {
     const localDb = RepairDB.load();
+    if (state.sourceDb) return state.sourceDb;
     return (!countDbRecords(localDb) && countDbRecords(state.cloudDb)) ? state.cloudDb : localDb;
   }
 
@@ -9136,6 +9348,7 @@ window.App = (function () {
   }
 
   function shouldAdoptCloudData(cloud, localDb, seen) {
+    if (localDb.sourceImport) return false; // Never replace validated folder revisions with the bundled snapshot.
     const cloudStats = dbStats(cloud);
     const localStats = dbStats(localDb);
     if (!cloudStats.monthCount) return false;
@@ -9148,7 +9361,7 @@ window.App = (function () {
     return false;
   }
 
-  // Fetch shared data.json on boot; monthly Excel parsing still runs only on day 1.
+  // Load the baseline (parts, supplements, accounts), then check the source folder on every open.
   // If GitHub has newer/more records than this browser, adopt it automatically.
   async function syncCloud() {
     try {
@@ -9197,7 +9410,7 @@ window.App = (function () {
             const latestMonth = Object.keys(cloud.months || {}).sort().pop();
             if (latestMonth) {
               const anom = RepairAnalyzer.detectAnomalies({ months: cloud.months }, latestMonth);
-              notifyNewAnomalies(anom);
+              Auth.notifyNewAnomalies(anom);
             }
           } catch(e) {}
         }, 2000);
@@ -9214,53 +9427,80 @@ window.App = (function () {
   }
 
   async function syncMonthlyWorkbook() {
+    state.sourceStatus = { kind: 'checking', message: '正在檢查月份 Excel…' };
+    renderSourceStatus();
     try {
-      if (!isMonthlySyncDay()) return null;
-      const checkedMonth = currentMonthKey();
-      if (localStorage.getItem(AUTO_REPORT_CHECK_KEY) === checkedMonth) return null;
-
-      const report = previousMonthReportInfo();
-      const db = RepairDB.load();
-      if (db.months && db.months[report.monthLabel]) {
-        localStorage.setItem(AUTO_REPORT_CHECK_KEY, checkedMonth);
-        state.autoReportMeta = { skipped: true, reason: 'already-imported', ...report };
-        return null;
-      }
-      if (!window.XLSX || !RepairParser || !RepairParser.parseWorkbook) {
-        state.autoReportMeta = { skipped: true, reason: 'xlsx-not-ready', ...report };
-        return null;
-      }
-
-      const res = await fetch(report.url, { cache: 'no-store' });
-      localStorage.setItem(AUTO_REPORT_CHECK_KEY, checkedMonth);
-      if (!res.ok) {
-        state.autoReportMeta = { skipped: true, reason: 'not-found', status: res.status, ...report };
-        return null;
-      }
-
-      const buf = await res.arrayBuffer();
-      const wb = XLSX.read(buf, { type: 'array', cellDates: true });
-      const monthData = RepairParser.parseWorkbook(wb, report.fileName);
-      if (!monthData || !monthData.monthLabel || !(monthData.records || []).length) {
-        state.autoReportMeta = { skipped: true, reason: 'empty-parse', ...report };
-        return null;
-      }
-
-      const nextDb = RepairDB.load();
-      nextDb.months[monthData.monthLabel] = monthData;
-      RepairDB.save(nextDb);
-      state.autoReportMeta = {
-        imported: true,
-        monthLabel: monthData.monthLabel,
-        fileName: report.fileName,
-        records: monthData.records.length,
-      };
-      return monthData;
+      const result = await RepairMonthlySource.sync(loadBestDb(), {
+        onProgress: message => { state.sourceStatus.message = message; renderSourceStatus(); if ($('loadOv')?.style.display === 'flex') $('loadM').textContent = message; },
+      });
+      const latestFilter = { months: [result.db.sourceImport.latestMonth] };
+      RepairAnalyzer.computeKPIs(RepairAnalyzer.getRecords(result.db, latestFilter), RepairAnalyzer.getDenominators(result.db, latestFilter));
+      RepairAnalyzer.detectAnomalies(result.db, result.db.sourceImport.latestMonth);
+      state.sourceDb = RepairPrivacy.maskData(result.db).masked;
+      state.sourceStatus = { kind: 'ok', message: result.updated
+        ? `已更新 ${result.updated} 個月份，最新資料為 ${fmt.monthLabel(result.db.sourceImport.latestMonth)}`
+        : '已檢查來源，沒有新檔案或更正版', warnings: result.warnings };
+      try { localStorage.setItem('repair_db_v2', JSON.stringify(state.sourceDb)); }
+      catch (e) { state.sourceStatus.message += '；本次已更新，但瀏覽器空間不足，重新開啟時會再讀取'; }
+      return result;
     } catch (e) {
-      state.autoReportMeta = { skipped: true, reason: e.message };
-      console.warn('Monthly workbook sync skipped:', e.message);
+      state.sourceStatus = { kind: 'error', message: '更新未完成，保留上一版。' + (e.message || '請檢查網路連線後重試。') };
       return null;
+    } finally { renderSourceStatus(); }
+  }
+
+  function renderSourceStatus() {
+    const box = $('sourceStatus');
+    if (!box) return;
+    const status = state.sourceStatus || { kind: 'checking', message: '正在檢查月份 Excel…' };
+    box.dataset.state = status.kind;
+    const label = $('sourceStatusText');
+    if (label) label.textContent = status.message;
+    const button = $('sourceRefresh');
+    if (button) { button.disabled = status.kind === 'checking'; button.textContent = status.kind === 'checking' ? '檢查中…' : '檢查更新'; }
+  }
+
+  async function refreshSource() {
+    if (state.sourceStatus?.kind === 'checking') return;
+    const result = await syncMonthlyWorkbook();
+    if (result) {
+      state.db = loadBestDb();
+      if (result.updated) state.selectedMonths = RepairMonthlySource.range(Object.keys(state.db.months), 1);
+      renderAll();
     }
+  }
+
+  function saveFilterState() {
+    try { sessionStorage.setItem('titan_filter_v1', JSON.stringify({ months: state.selectedMonths, category: state.selectedCategory, model: state.selectedModel, page: state.currentPage })); } catch (e) {}
+  }
+
+  function setPeriod(count) {
+    state.selectedMonths = RepairMonthlySource.range(Object.keys(state.db.months), count);
+    renderAll();
+  }
+
+  function renderMonthlyContext() {
+    const el = $('monthlyContext');
+    if (!el) return;
+    const months = Object.keys(state.db.months).sort();
+    const latest = months[months.length - 1];
+    if (!latest) { el.hidden = true; return; }
+    el.hidden = false;
+    const prev = RepairMonthlySource.calendarPrevious(latest);
+    const selected = state.selectedMonths.length ? state.selectedMonths.slice().sort() : months;
+    const selectedLabel = selected.length === 1 ? fmt.monthLabel(selected[0]) : fmt.monthLabel(selected[0]) + ' – ' + fmt.monthLabel(selected[selected.length - 1]);
+    const gaps = [];
+    for (let m = latest; m >= months[0]; m = RepairMonthlySource.calendarPrevious(m)) if (!months.includes(m)) gaps.push(fmt.monthLabel(m));
+    $('monthlyContextTitle').textContent = '分析期間 ' + selectedLabel;
+    $('monthlyContextNote').textContent = '最新報表 ' + fmt.monthLabel(latest) + ' · ' + fmt.int(state.db.months[latest].records.length) + ' 筆維修紀錄' +
+      (state.db.months[prev] ? ' · 可比較前月 ' + fmt.monthLabel(prev) : ' · 前月尚無資料，不計月增減') +
+      (gaps.length ? ' · 缺月份：' + gaps.join('、') + '（不當作零）' : '');
+    for (const button of el.querySelectorAll('[data-period]')) {
+      const target = RepairMonthlySource.range(months, button.dataset.period);
+      button.setAttribute('aria-pressed', String(JSON.stringify(target) === JSON.stringify(selected)));
+    }
+    const warnings = state.sourceStatus?.warnings || state.db.sourceImport?.warnings || [];
+    $('sourceWarnings').textContent = warnings.join(' ');
   }
 
   // Maintainer action: produce a data.json to commit to the repo.
@@ -9308,24 +9548,7 @@ window.App = (function () {
 
   function cloudStatusHtml() {
     const m = state.cloudMeta;
-    const auto = state.autoReportMeta;
-    const autoHtml = (() => {
-      if (!auto) {
-        if (!isMonthlySyncDay()) return `<div class="uz-cloud-bar ok">📁 自動月報：僅每月 1 號檢查 GitHub monthly-reports/</div>`;
-        return '';
-      }
-      if (auto.imported) {
-        return `<div class="uz-cloud-bar ok">📁 自動月報已匯入：${auto.monthLabel} · ${auto.records.toLocaleString()} 筆 · ${auto.fileName}</div>`;
-      }
-      const reasonMap = {
-        'already-imported': `已存在 ${auto.monthLabel}，本月不重複匯入`,
-        'not-found': `找不到 ${auto.fileName}，請確認已放到 monthly-reports/`,
-        'empty-parse': `${auto.fileName} 沒有解析到維修資料`,
-        'xlsx-not-ready': 'Excel 解析器尚未載入',
-      };
-      const msg = reasonMap[auto.reason] || auto.reason || '未執行';
-      return `<div class="uz-cloud-bar none">📁 自動月報：${msg}</div>`;
-    })();
+    const autoHtml = '<div class="uz-cloud-bar ok">每次開啟網站都會檢查 date/ 的新增與更正版 Excel。</div>';
     if (!m || !m.publishedAt) {
       return `<div class="uz-cloud-bar none">☁ 雲端尚無共用資料 — 上傳後按「發布到雲端」即可讓所有人同步</div>${autoHtml}`;
     }
@@ -9552,14 +9775,14 @@ window.App = (function () {
     }
     // 有資料：登入後直接回到乾淨的主管摘要，不沿用可能卡住的舊篩選。
     state.currentPage = 'summary';
-    state.selectedMonths = Object.keys(state.db.months).sort();
+    state.selectedMonths = RepairMonthlySource.range(Object.keys(state.db.months), 1);
     state.selectedCategory = '全部';
     state.selectedModel = '全部';
     renderAnalysisRoleBar();
     renderAll();
     window.scrollTo(0, 0);
     // B5: request notification permission (deferred, non-blocking)
-    setTimeout(() => requestNotificationPermission(), 3000);
+    setTimeout(() => Auth.requestNotificationPermission().catch(() => {}), 3000);
     // 設定瀏覽歷史基準頁，作為手機「上一頁」的返回終點
     try { history.replaceState({ __page: state.currentPage }, ''); } catch (e) {}
   }
@@ -9593,8 +9816,8 @@ window.App = (function () {
         if (miniBtn) miniBtn.textContent = '▷';
       }
     } catch(e) {}
-    // Default: select all months, all categories
-    state.selectedMonths = Object.keys(state.db.months).sort();
+    // Default: latest report month, all categories
+    state.selectedMonths = RepairMonthlySource.range(Object.keys(state.db.months), 1);
     state.selectedCategory = '全部';
     state.selectedModel = '全部';
     renderAnalysisRoleBar();
@@ -9610,6 +9833,8 @@ window.App = (function () {
   // 純切換頁面 DOM（不動瀏覽歷史）
   function switchPageDom(name) {
     state.currentPage = name;
+    if (name === 'trend' && state.selectedMonths.length === 1) { state.selectedMonths = RepairMonthlySource.range(Object.keys(state.db.months), 12); renderFilters(); }
+    renderMonthlyContext();
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.snav-item').forEach(b => b.classList.toggle('active', b.dataset.page === name));
     $(`page${name.charAt(0).toUpperCase() + name.slice(1)}`).classList.add('active');
@@ -9662,7 +9887,7 @@ window.App = (function () {
   function renderFilters() {
     const months = Object.keys(state.db.months).sort();
     const all = state.selectedMonths.length === 0 || state.selectedMonths.length === months.length;
-    const selMonth = all ? '__ALL__' : (state.selectedMonths[0] || '__ALL__');
+    const selMonth = all ? '__ALL__' : state.selectedMonths.length > 1 ? '__RANGE__' : (state.selectedMonths[0] || '__ALL__');
 
     // 各月整新數（分母）
     const monthDenom = {};
@@ -9689,6 +9914,7 @@ window.App = (function () {
     if (ms) {
       // 手機下拉可用寬度僅約 180px，文字過長會被截斷，因此只放必要資訊
       ms.innerHTML = `<option value="__ALL__">全部 ${months.length} 個月</option>`
+        + (selMonth === '__RANGE__' ? `<option value="__RANGE__" disabled>已選 ${state.selectedMonths.length} 個月</option>` : '')
         + months.map(mk => `<option value="${mk}">${fmt.monthLabel(mk)} · ${state.db.months[mk].records.length} 筆</option>`).join('');
       ms.value = selMonth;
     }
@@ -9879,7 +10105,7 @@ window.App = (function () {
     lastAutoModelSearch = fuzzy;
     state.selectedCategory = '全部';
     state.selectedModel = fuzzy;
-    state.selectedMonths = Object.keys(state.db.months).sort();
+    state.selectedMonths = RepairMonthlySource.range(Object.keys(state.db.months), 1);
     // 必須真正切換頁面 DOM（.page.active / 導覽高亮），
     // 否則在其他分頁搜尋時結果會渲染進隱藏的摘要頁，看起來像沒反應
     if (state.currentPage !== 'summary') {
@@ -9892,7 +10118,7 @@ window.App = (function () {
     }
     saveFilterState();
     collapseSubbar();
-    setTimeout(() => openModelDrawer(fuzzy, '__all__'), 80);
+    setTimeout(() => openModelDrawer(fuzzy, state.selectedMonths.slice().sort().pop()), 80);
   }
 
   // ─────────────── Render orchestration ───────────────
@@ -9943,6 +10169,8 @@ window.App = (function () {
   function renderAll() {
     // 資料庫摘要在 subbar 第二列，hdrSub 不再使用
 
+    safeRenderStep('monthly context', renderMonthlyContext);
+    safeRenderStep('source status', renderSourceStatus);
     safeRenderStep('filters', renderFilters);
     safeRenderStep('role bar', renderAnalysisRoleBar);
     safeRenderStep('alert badge', updateAlertBadge);
@@ -10105,7 +10333,7 @@ window.App = (function () {
   function computeRoleInsights(role, records, kpis, anoms, allRecords) {
     const allMonths = state.selectedMonths.slice().sort();
     const curMonthKey = allMonths[allMonths.length - 1];
-    const prevMonthKey = allMonths[allMonths.length - 2];
+    const prevMonthKey = prevMonthOf(curMonthKey);
 
     // Shared derived data
     const scrapRecs  = records.filter(r => r.isScrap);
@@ -10682,7 +10910,7 @@ window.App = (function () {
           <div class="sum-banner-t">${roleInfo.label} · 應追蹤摘要</div>
           <div class="sum-banner-d">${roleInfo.desc}　·　重點關注：${ROLE_FOCUS[role] || ''}</div>
         </div>
-        <div class="sum-banner-meta">${state.analysisRole === 'all' ? '綜合視角：顯示全部findings' : `已過濾出 ${roleInfo.label}相關事項`}</div>
+        <div class="sum-banner-meta">${state.analysisRole === 'all' ? '綜合視角：顯示本期追蹤事項' : `已過濾出 ${roleInfo.label}相關事項`}</div>
       </div>`;
 
     $('sumKpi').innerHTML = `
@@ -10691,7 +10919,7 @@ window.App = (function () {
       <div class="kpi k-warn"><div class="kpi-h"><div class="kpi-l">本期關注</div><div class="kpi-ico">▲</div></div>
         <div class="kpi-v">${warn.length}</div><div class="kpi-d"><span class="muted">警示 · 本期內處理</span></div></div>
       <div class="kpi k-blue"><div class="kpi-h"><div class="kpi-l">整體故障率</div><div class="kpi-ico">%</div></div>
-        <div class="kpi-v">${fmt.pct(kpis.denomPct)}</div><div class="kpi-d"><span class="muted">${fmt.int(kpis.totalRepairs)} / ${fmt.int(kpis.denomTotal)}</span></div></div>
+        <div class="kpi-v">${kpis.denomTotal ? fmt.pct(kpis.denomPct) : '—'}</div><div class="kpi-d"><span class="muted">${fmt.int(kpis.totalRepairs)} / ${fmt.int(kpis.denomTotal)}</span></div></div>
       <div class="kpi k-info"><div class="kpi-h"><div class="kpi-l">報廢率</div><div class="kpi-ico">✕</div></div>
         <div class="kpi-v">${fmt.pct(kpis.scrapPct)}</div><div class="kpi-d"><span class="muted">${kpis.scrap} 件</span></div></div>
     `;
@@ -10726,13 +10954,12 @@ window.App = (function () {
     // CEO 本月一句話摘要
     let execBriefHtml = '';
     if (role === 'ceo' && mine.length) {
-      const allMonthsSorted = Object.keys(state.db.months).sort();
-      const n = allMonthsSorted.length;
       let trendWord = '';
-      if (n >= 2) {
-        const cur = (state.db.months[allMonthsSorted[n-1]]?.records || []).length;
-        const prv = (state.db.months[allMonthsSorted[n-2]]?.records || []).length;
-        const d = cur - prv;
+      const selected = state.selectedMonths.slice().sort();
+      const prev = selected.length === 1 ? prevMonthOf(selected[0]) : null;
+      if (prev) {
+        const previousRecords = RepairAnalyzer.getRecords(state.db, { ...f, months: [prev] });
+        const d = records.length - previousRecords.length;
         trendWord = d > 0 ? `較上月 ▲${d} 件` : d < 0 ? `較上月 ▼${Math.abs(d)} 件` : '與上月持平';
       }
       const topCrit = crit[0];
@@ -12261,9 +12488,13 @@ window.App = (function () {
   // ─────────────── Trend ───────────────
   function renderTrend() {
     const f = currentFilter();
-    const allMonths = Object.keys(state.db.months).sort();
+    const allMonths = (state.selectedMonths.length ? state.selectedMonths : Object.keys(state.db.months)).slice().sort();
     if (allMonths.length < 2) {
-      $('trendMeta').textContent = '需要至少 2 個月份的資料';
+      $('trendMeta').textContent = '請選擇近 3／6／12 個月以比較趨勢';
+      if ($('trendMomTable')) $('trendMomTable').innerHTML = '';
+      if ($('trendCoverageNotice')) $('trendCoverageNotice').innerHTML = '';
+      Object.values(state.charts).forEach(chart => chart?.destroy());
+      state.charts = {};
       ['trendCountChart','trendRateChart','partTrendChart'].forEach(id => {
         const c = $(id).getContext('2d');
         c.clearRect(0, 0, $(id).width, $(id).height);
@@ -12271,8 +12502,8 @@ window.App = (function () {
       return;
     }
 
-    // Filter only by category/model (not by selected months — trend always shows all)
-    const filterForTrend = { category: f.category, model: f.model };
+    // Trend respects the selected calendar window, including common-model denominators.
+    const filterForTrend = { category: f.category, model: f.model, months: allMonths };
     // 各月機種涵蓋差異大，預設只比較「每月都有的機種」，避免把
     // 「納入更多機種」誤讀成「故障變多」。使用者可用開關切回全部。
     const commonOnly = state.trendCommonOnly !== false;
@@ -12389,8 +12620,9 @@ window.App = (function () {
       const rows = trend.map((t, i) => {
         if (i === 0) return null;
         const prev = trend[i - 1];
+        if (RepairMonthlySource.calendarPrevious(t.month) !== prev.month) return `<tr><td>${fmt.monthLabel(t.month)}</td><td class="right">${t.count}</td><td colspan="5">前月缺資料，不計月增減</td></tr>`;
         const cntDelta = t.count - prev.count;
-        const rateDelta = (t.faultPct - prev.faultPct).toFixed(2);
+        const rateDelta = t.denom && prev.denom ? (t.faultPct - prev.faultPct).toFixed(2) : null;
         const scrapDelta = t.scrap - prev.scrap;
         const cntCls = cntDelta > 0 ? 'mom-up' : cntDelta < 0 ? 'mom-dn' : '';
         const rateCls = parseFloat(rateDelta) > 0 ? 'mom-up' : parseFloat(rateDelta) < 0 ? 'mom-dn' : '';
@@ -12400,8 +12632,8 @@ window.App = (function () {
           <td>${fmt.monthLabel(t.month)}</td>
           <td class="right">${t.count}</td>
           <td class="right">${fmt_delta(cntDelta)}</td>
-          <td class="right">${t.faultPct.toFixed(2)}%</td>
-          <td class="right">${fmt_delta(parseFloat(rateDelta), '%')}</td>
+          <td class="right">${t.denom ? t.faultPct.toFixed(2) + '%' : '—'}</td>
+          <td class="right">${rateDelta === null ? '—' : fmt_delta(parseFloat(rateDelta), '百分點')}</td>
           <td class="right">${t.scrap}</td>
           <td class="right">${fmt_delta(scrapDelta)}</td>
         </tr>`;
@@ -14996,8 +15228,10 @@ window.App = (function () {
 
   async function init() {
     syncCloudPromise = (async () => {
+      showLoad('正在載入維修報表…', '每次開啟都會檢查新增與更正版 Excel');
       const cloud = await syncCloud();
       await syncMonthlyWorkbook();
+      hideLoad();
       return cloud;
     })();
     const cloud = await syncCloudPromise;
@@ -15054,6 +15288,7 @@ window.App = (function () {
     toggleNav, closeNav,
     pdbSearch: pdbSearchRender, pdbOpenEdit, pdbCloseEdit, pdbSaveEdit, pdbDelete,
     setTrendCommonOnly,
+    refreshSource, setPeriod,
     setMonth, setMonthDirect, setCategory, setModel, quickModelSearch, quickModelSearchInput,
     setAnalysisRole,
     openCapaForm, saveCapaForm, setCapaStatus, deleteCapa,
@@ -15645,7 +15880,8 @@ window.Auth = (function () {
     if (!months.length) return alert('沒有資料可生成報告');
 
     const latestMonth = months[months.length - 1];
-    const prevMonth = months.length >= 2 ? months[months.length - 2] : null;
+    const candidate = RepairMonthlySource.calendarPrevious(latestMonth);
+    const prevMonth = db.months[candidate] ? candidate : null;
 
     // === Aggregate ALL months for executive summary ===
     const allRecords = RepairAnalyzer.getRecords(db, { months });
@@ -15720,7 +15956,7 @@ window.Auth = (function () {
     const months = Object.keys(db.months).sort();
     return {
       latestMonth: months[months.length - 1] || null,
-      prevMonth: months.length >= 2 ? months[months.length - 2] : null,
+      prevMonth: db.months[RepairMonthlySource.calendarPrevious(months[months.length - 1])] ? RepairMonthlySource.calendarPrevious(months[months.length - 1]) : null,
       months,
     };
   }

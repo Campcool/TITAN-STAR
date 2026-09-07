@@ -19,6 +19,8 @@ const rmaStylesCss = readText('rma-styles.css');
 const parserJs     = safeInline(readText('parser.js'));
 const analyzerJs   = safeInline(readText('analyzer.js'));
 const appJs        = safeInline(readText('app.js'));
+const privacyJs = safeInline(readText('privacy.js'));
+const monthlyJs = safeInline(readText('monthly-source.js'));
 const reportJs     = safeInline(readText('report.js'));
 const rmaJs        = safeInline(readText('rma.js'));
 
@@ -46,6 +48,9 @@ html = html.replace(/<script src="rma\.js(?:\?[^"]*)?"><\/script>/,
 );
 html = html.replace(/<script src="app\.js(?:\?[^"]*)?"><\/script>/,      inlineScript(appJs));
 
+html = html.replace(/<script src="privacy\.js(?:\?[^"]*)?"><\/script>/, inlineScript(privacyJs));
+html = html.replace(/<script src="monthly-source\.js(?:\?[^"]*)?"><\/script>/, inlineScript(monthlyJs));
+
 // GitHub Actions checks out text sources with LF while Windows may use CRLF.
 // Normalize the generated bundle so both environments produce identical bytes.
 html = html.replace(/\r\n?/g, '\n');
@@ -54,7 +59,7 @@ fs.writeFileSync('TITAN-STAR.html', html, 'utf8');
 
 // ── 驗證 ──
 const leftoverCss = ['styles.css', 'rma-styles.css'].filter(f => new RegExp(`href="${f.replace('.', '\\.')}(?:\\?|")`).test(html));
-const leftoverJs  = ['parser.js','analyzer.js','report.js','rma.js','app.js'].filter(f => new RegExp(`src="${f.replace('.', '\\.')}(?:\\?|")`).test(html));
+const leftoverJs  = ['parser.js','analyzer.js','report.js','rma.js','privacy.js','monthly-source.js','app.js'].filter(f => new RegExp(`src="${f.replace('.', '\\.')}(?:\\?|")`).test(html));
 if (leftoverCss.length || leftoverJs.length) {
   console.error('✗ 未內嵌：', [...leftoverCss, ...leftoverJs].join(', '));
   process.exit(1);

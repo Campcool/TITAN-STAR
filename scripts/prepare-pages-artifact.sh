@@ -27,6 +27,8 @@ readonly -a public_rules=(
 readonly -a required_paths=(
   'index.html'
   'app.js'
+  'monthly-source.js'
+  'privacy.js'
   'data.json'
   'manifest.json'
   'styles.css'

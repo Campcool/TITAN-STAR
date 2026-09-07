@@ -1,5 +1,9 @@
 # TITAN-STAR AI 交接 README
 
+> 2026-09-07：更新機制已改為「每次開啟檢查 date」。下方舊版本歷史中每月 1 號的描述已被取代，請以「每月資料更新」章節為準。
+
+新增 monthly-source.js（來源／版本／整批驗證）、privacy.js（共用遮罩）、scripts/check-source-dir.cjs（CI 唯讀檢查）。首頁預設最新月、歷史範圍按日曆計算、前月缺資料不做月增減。sourceImport 保存在 repair_db_v2；更新失敗不覆蓋，儲存失敗仍使用 session 內已驗證資料。新來源不依賴 data.json 每月重新發佈。
+
 > ⚠️ 存檔請務必用 **UTF-8（不要 BOM）**。曾發生某 AI 在 Big5/Windows 環境存檔，把本文件 2/3 中文變亂碼（`20260722-4` 版本時修復）。編輯後可用 `python3 -c "open('AI-HANDOFF.md',encoding='utf-8').read()"` 確認不報錯。
 
 這份文件是給 Claude、Codex 或其他 AI 工程代理閱讀的交接文件。目標是讓下一個 AI 能快速知道目前做到哪裡、使用者真正想要什麼、哪些地方不要再走回頭路。
@@ -166,7 +170,7 @@ meta 標籤，GitHub Pages 也不允許設定 `X-Robots-Tag` 標頭，所以它�
 ## 使用者偏好與重要決策
 
 - 使用者不希望每次登入後還要手動上傳資料。
-- 每月資料由使用者放到 GitHub 指定位置，網站每月 1 號才自動嘗試讀取，其他日期不要自動讀 Excel。
+- 2026-09-07 使用者更新決策：每次開啟網頁都檢查 Campcool/campcool-website/date，新增／更正版立即讀取；取消每月 1 號限制。
 - 型號查詢是最重要入口，必須放在最上面，PC 與手機都一樣。
 - 型號查詢結果要「只針對這個型號」，不要混入其他設備、其他零件或全廠異常卡。
 - 目前已改成型號查詢結果直接顯示在頁面下方，不再依賴彈跳視窗。
@@ -269,30 +273,17 @@ meta 標籤，GitHub Pages 也不允許設定 `X-Robots-Tag` 標頭，所以它�
 
 **注意**：這是「單機種補充摘要」，與主流程的月度維修記錄（`months`）、料件主檔（`partsMaster`）都是獨立資料源，改動時不要互相污染。
 
-## 每月資料更新
+## 每月資料更新（2026-09-07 起）
 
-使用者會把每月維修 Excel 放進：
+1. 到 [Campcool/campcool-website 的 date 資料夾](https://github.com/Campcool/campcool-website/tree/main/date)，上傳月份 Excel 並 Commit changes。
+2. 開啟 https://campcool.github.io/TITAN-STAR/ 。每次開啟都檢查新增／更正版；已開啟時按「檢查更新」。
+3. 確认分析期間與更新狀態；不需要執行程式、改日期、重新部署或等待每月 1 號。
 
-```text
-monthly-reports/
-```
+完整檔名規則與排錯步驟見 [接手者操作說明](https://github.com/Campcool/campcool-website/blob/main/date/README.md)。
+最新月份取報表月份最大值；同月更正版取代原月份，保留歷史。整批解析、資料驗證與檔案 SHA 比對通過後才套用。
+沒有變更只讀資料夾清單，不重抓 Excel。連線／格式／版本衝突時保留本機上一版，首次使用則保留隨站歷史快照並明示失敗。
 
-檔名格式範例：
-
-```text
-115年 07 月維修報表.xlsx
-```
-
-網站邏輯：
-
-- 每月 1 號開啟時，自動嘗試讀取上個月 Excel。
-- 其他日期不自動讀取 monthly-reports，避免不必要請求。
-- 若需要立即合併資料，使用手動流程：
-
-```bash
-npm run import:month -- "115年 07 月維修報表.xlsx"
-node build.js
-```
+標準月報之外的品號主檔、年度／機種補充表仍沿用既有獨立資料源，不能改名成月報混入 date。
 
 ## 修改後必做檢查
 

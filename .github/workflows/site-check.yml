@@ -24,14 +24,14 @@ jobs:
           node-version: 22
       - name: JS syntax check (all app scripts + build tools)
         run: |
-          for f in parser.js analyzer.js app.js report.js rma.js sw.js build.js; do
+          for f in parser.js analyzer.js app.js report.js rma.js sw.js build.js monthly-source.js privacy.js scripts/check-source-dir.cjs; do
             node --check "$f" || exit 1
           done
-          node --check scripts/build-version.mjs 2>/dev/null || true
+          node --check scripts/build-version.mjs
       - name: Install dependencies (import-pipeline tests need xlsx)
         run: |
           corepack enable >/dev/null 2>&1 || true
-          pnpm install --prefer-offline --silent
+          pnpm install --frozen-lockfile --ignore-scripts --silent
       - name: Data integrity + parser/analyzer smoke tests
         run: node --test tests/*.test.mjs
 
@@ -48,7 +48,7 @@ jobs:
           # build.js 需要 xlsx（Excel 模板匯入工具鏈），CI 只驗證打包不報錯，
           # 產出的 TITAN-STAR.html 由 pnpm-lock 凍結版本並由 build.js 統一 LF 換行
           corepack enable >/dev/null 2>&1 || true
-          pnpm install --prefer-offline --silent
+          pnpm install --frozen-lockfile --ignore-scripts --silent
           node build.js
           ls -la TITAN-STAR.html
           if ! git diff --quiet -- TITAN-STAR.html; then

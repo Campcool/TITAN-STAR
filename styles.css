@@ -19,6 +19,37 @@
    因此字級階梯集中在此，要整體調大一級只需改 semantic 層的對應行，
    不必再像 20260724-2 那樣在 media query 裡逐條硬編。
    ════════════════════════════════════════════════════════════════════ */
+.monthly-context {
+  padding: var(--space-card-pad);
+  margin-bottom: var(--space-section);
+  border: 1px solid var(--border2);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  color: var(--text);
+  min-width: 0;
+}
+.monthly-context h2 { margin: 0; font-size: var(--text-display); line-height: 1.4; }
+.monthly-context p { margin: var(--space-inline) 0; color: var(--text2); font-size: var(--text-body-lg); line-height: 1.7; overflow-wrap: anywhere; }
+.period-actions, .report-reading { display: flex; flex-wrap: wrap; gap: var(--space-inline); margin-top: var(--space-stack); }
+.monthly-context button { min-height: 44px; padding: var(--space-inline) var(--space-stack); border: 1px solid var(--border2); border-radius: var(--radius-control); color: var(--text); background: var(--surface2); font: inherit; font-size: var(--text-body-lg); cursor: pointer; }
+.monthly-context button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); font-weight: 700; }
+.monthly-context button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.monthly-context button:disabled { opacity: .6; cursor: wait; }
+.source-status { display: flex; align-items: center; justify-content: space-between; gap: var(--space-stack); margin-top: var(--space-stack); padding-top: var(--space-stack); border-top: 1px solid var(--border); font-size: var(--text-body-lg); line-height: 1.7; overflow-wrap: anywhere; }
+.source-status span { min-width: 0; }
+.source-status button { flex-shrink: 0; }
+.source-status[data-state="error"] { border-top-color: var(--warn); }
+.source-status[data-state="error"] span::before { content: '更新提醒：'; font-weight: 700; }
+.source-warnings:empty { display: none; }
+.report-reading { border-top: 1px solid var(--border); padding-top: var(--space-stack); }
+@media (max-width: 600px) {
+  .monthly-context h2 { font-size: var(--fs-20); }
+  .source-status { align-items: flex-start; flex-direction: column; }
+  .period-actions button { flex: 1 1 auto; }
+  .report-reading button { flex: 1 1 auto; }
+}
+
 :root {
   /* ── Layer 1 · Primitive：字級階梯（沿用現行實際值，重構不改變外觀） ── */
   --fs-9: 9px;     --fs-9-5: 9.5px;   --fs-10: 10px;     --fs-10-5: 10.5px;
@@ -4997,3 +5028,9 @@ body {
 }
 /* 主題切換為圖示按鈕，一併放大以利點擊辨識 */
 .sys-ctl-group .theme-toggle { font-size: var(--fs-15); }
+
+/* The summary starts with decisions; detailed help remains available through the title info button. */
+#pageSummary .page-simple-help, #pageSummary .page-usage { display: none; }
+.period-options { margin-top: var(--space-inline); }
+.period-options summary { cursor: pointer; padding: var(--space-inline) 0; font-size: var(--text-body-lg); min-height: 44px; box-sizing: border-box; }
+.period-options summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

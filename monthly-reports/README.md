@@ -1,11 +1,5 @@
-# 每月維修報表放置處
+# 歷史測試用月報
 
-請把每月 Excel 維修報表放在此資料夾，檔名維持：
+此資料夾保留既有匯入測試的 Excel，正式月份更新請改到 [Campcool/campcool-website/date](https://github.com/Campcool/campcool-website/tree/main/date)。
 
-```text
-115年 07 月維修報表.xlsx
-```
-
-系統會在每月 1 號開啟時自動嘗試匯入「上個月」報表。例：2026/08/01 會讀取 `115年 07 月維修報表.xlsx`。
-
-其他日期不會自動讀取此資料夾，以減少不必要的 GitHub 請求。
+網站每次開啟檢查 date；不再從此資料夾執行每月 1 號匯入。

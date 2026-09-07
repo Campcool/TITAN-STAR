@@ -33,7 +33,8 @@
     if (!months.length) return alert('沒有資料可生成報告');
 
     const latestMonth = months[months.length - 1];
-    const prevMonth = months.length >= 2 ? months[months.length - 2] : null;
+    const candidate = RepairMonthlySource.calendarPrevious(latestMonth);
+    const prevMonth = db.months[candidate] ? candidate : null;
 
     // === Aggregate ALL months for executive summary ===
     const allRecords = RepairAnalyzer.getRecords(db, { months });
@@ -108,7 +109,7 @@
     const months = Object.keys(db.months).sort();
     return {
       latestMonth: months[months.length - 1] || null,
-      prevMonth: months.length >= 2 ? months[months.length - 2] : null,
+      prevMonth: db.months[RepairMonthlySource.calendarPrevious(months[months.length - 1])] ? RepairMonthlySource.calendarPrevious(months[months.length - 1]) : null,
       months,
     };
   }
