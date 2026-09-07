@@ -108,9 +108,13 @@ window.App = (function () {
   function showLoad(msg, sub = '') {
     $('loadM').textContent = msg;
     $('loadS').textContent = sub;
+    $('loadOv').setAttribute('aria-busy', 'true');
     $('loadOv').style.display = 'flex';
   }
-  function hideLoad() { $('loadOv').style.display = 'none'; }
+  function hideLoad() {
+    $('loadOv').style.display = 'none';
+    $('loadOv').setAttribute('aria-busy', 'false');
+  }
 
   // ─────────────── File upload ───────────────
   function setupUpload() {
