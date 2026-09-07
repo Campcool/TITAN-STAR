@@ -776,9 +776,9 @@ button, input, select { font-family: inherit; }
   flex-shrink: 0;
 }
 .chip:hover { color: var(--text); border-color: var(--border2); }
-.chip .num { font-family: var(--mono); font-size: var(--fs-14); color: var(--text3); }
+.chip .num { font-family: var(--sans); font-size: var(--fs-14); color: var(--text3); }
 .chip .num-den {
-  font-family: var(--mono); font-size: var(--fs-11); color: var(--text3);
+  font-family: var(--sans); font-size: var(--fs-12-5); color: var(--text3);
   margin-left: var(--space-5); padding-left: var(--space-6); border-left: 1px solid var(--border);
   opacity: .85;
 }
@@ -3337,6 +3337,10 @@ button, input, select { font-family: inherit; }
 @media (max-width: 820px) {
   .subbar-mobile-row { display: flex; }
   .subbar-chips-row  { display: none !important; }
+}
+@media (max-width: 480px) {
+  .subbar-mobile-row { flex-direction: column; align-items: stretch; }
+  .sb-select { width: 100%; }
 }
 
 /* ③ 側邊抽屜：開啟時恢復完整寬度 + 強制顯示文字標籤 */
@@ -9901,21 +9905,20 @@ window.App = (function () {
     // Month chips（維修件數 + 整新數）
     const mc = $('monthChips');
     mc.innerHTML = '<div class="sb-label">月份</div>'
-      + `<button class="chip ${all ? 'active' : ''}" onclick="App.setMonth('__ALL__')">全部 <span class="num">${months.length}</span>${allDenom ? `<span class="num-den" title="整新數">整新 ${fmt.int(allDenom)}</span>` : ''}</button>`
+      + `<button class="chip ${all ? 'active' : ''}" onclick="App.setMonth('__ALL__')">全部月份 <span class="num">${months.length} 個月</span>${allDenom ? `<span class="num-den" title="整新測試數：作為故障率計算基準">整新測試 ${fmt.int(allDenom)} 台</span>` : ''}</button>`
       + months.map(mk => {
         const sel = !all && state.selectedMonths.includes(mk);
         const m = state.db.months[mk];
         const den = monthDenom[mk];
-        return `<button class="chip ${sel ? 'active' : ''}" onclick="App.setMonth('${mk}')">${fmt.monthLabel(mk)} <span class="num">${m.records.length}</span>${den ? `<span class="num-den" title="整新數">整新 ${fmt.int(den)}</span>` : ''}</button>`;
+        return `<button class="chip ${sel ? 'active' : ''}" onclick="App.setMonth('${mk}')">${fmt.monthLabel(mk)} <span class="num">維修 ${fmt.int(m.records.length)} 筆</span>${den ? `<span class="num-den" title="整新測試數：作為故障率計算基準">整新測試 ${fmt.int(den)} 台</span>` : ''}</button>`;
       }).join('');
 
-    // Mobile month select（含整新數）
+    // Mobile month select（完整標示維修筆數；窄螢幕由 CSS 改為上下排列）
     const ms = $('monthSelect');
     if (ms) {
-      // 手機下拉可用寬度僅約 180px，文字過長會被截斷，因此只放必要資訊
       ms.innerHTML = `<option value="__ALL__">全部 ${months.length} 個月</option>`
         + (selMonth === '__RANGE__' ? `<option value="__RANGE__" disabled>已選 ${state.selectedMonths.length} 個月</option>` : '')
-        + months.map(mk => `<option value="${mk}">${fmt.monthLabel(mk)} · ${state.db.months[mk].records.length} 筆</option>`).join('');
+        + months.map(mk => `<option value="${mk}">${fmt.monthLabel(mk)} · 維修 ${fmt.int(state.db.months[mk].records.length)} 筆</option>`).join('');
       ms.value = selMonth;
     }
 
@@ -9941,17 +9944,18 @@ window.App = (function () {
         const count = c === '全部' ? records.length : (catCounts[c] || 0);
         const den = catDen(c);
         const color = c === '全部' ? COLORS.text3 : (CAT_COLOR[c] || COLORS.text3);
-        return `<button class="chip cat-chip ${sel ? 'active' : ''}" style="--c:${color}" onclick="App.setCategory('${c}')">${c} <span class="num">${count}</span>${den ? `<span class="num-den" title="整新數">整新 ${fmt.int(den)}</span>` : ''}</button>`;
+        const categoryLabel = c === '全部' ? '全部大類' : c;
+        return `<button class="chip cat-chip ${sel ? 'active' : ''}" style="--c:${color}" onclick="App.setCategory('${c}')">${categoryLabel} <span class="num">維修 ${fmt.int(count)} 筆</span>${den ? `<span class="num-den" title="整新測試數：作為故障率計算基準">整新測試 ${fmt.int(den)} 台</span>` : ''}</button>`;
       }).join('');
 
-    // Mobile category select（含整新數）
+    // Mobile category select（完整標示大類名稱與維修筆數）
     const cs = $('catSelect');
     if (cs) {
       cs.innerHTML = cats.map(c => {
         const count = c === '全部' ? records.length : (catCounts[c] || 0);
         const den = catDen(c);
         const label = c === '全部' ? '全部大類' : c;
-        return `<option value="${c}">${label} · ${count} 筆</option>`;
+        return `<option value="${c}">${label} · 維修 ${fmt.int(count)} 筆</option>`;
       }).join('');
       cs.value = state.selectedCategory;
     }
@@ -9963,12 +9967,12 @@ window.App = (function () {
     const allModels = Object.entries(allModelCounts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([m]) => m);
     const modelList = $('modelLookupList');
     if (modelList) {
-      modelList.innerHTML = allModels.map(m => `<option value="${m}">${allModelCounts[m]} 筆</option>`).join('');
+      modelList.innerHTML = allModels.map(m => `<option value="${m}">維修 ${fmt.int(allModelCounts[m])} 筆</option>`).join('');
     }
     if (modelList) {
       modelList.innerHTML = allModels.map(m => {
         const sup = RepairAnalyzer.getModelSupplement ? RepairAnalyzer.getModelSupplement(state.db, m) : null;
-        const label = allModelCounts[m] ? `${allModelCounts[m]} 筆` : (sup ? '補充彙總資料' : '0 筆');
+        const label = allModelCounts[m] ? `維修 ${fmt.int(allModelCounts[m])} 筆` : (sup ? '補充彙總資料' : '維修 0 筆');
         return `<option value="${m}">${label}</option>`;
       }).join('');
     }
@@ -9989,7 +9993,7 @@ window.App = (function () {
         + `<button class="chip ${state.selectedModel === '全部' ? 'active' : ''}" onclick="App.setModel('全部')">全部</button>`
         + models.map(m => {
           const sel = state.selectedModel === m;
-          return `<button class="chip ${sel ? 'active' : ''}" onclick="App.setModel('${m}')">${m} <span class="num">${mCount[m]}</span></button>`;
+          return `<button class="chip ${sel ? 'active' : ''}" onclick="App.setModel('${m}')">${m} <span class="num">維修 ${fmt.int(mCount[m])} 筆</span></button>`;
         }).join('');
     } else {
       $('modelChips').style.display = 'none';
@@ -10313,14 +10317,14 @@ window.App = (function () {
 
     // Stats line
     const nMonths = state.selectedMonths.length;
-    const statsLabel = `${nMonths}個月 · ${filteredRecords.length.toLocaleString()}筆紀錄${filteredRefurb > 0 ? ` · 整新數 ${filteredRefurb.toLocaleString()}` : ''}`;
+    const statsLabel = `${nMonths} 個月 · 維修紀錄 ${filteredRecords.length.toLocaleString()} 筆${filteredRefurb > 0 ? ` · 整新測試 ${filteredRefurb.toLocaleString()} 台` : ''}`;
 
     // 展開狀態下，下方控制項已呈現相同資訊，手機版會用 CSS 隱藏 .sbs-detail
     // 只留「篩選」二字，避免同樣內容佔掉兩行。
     el.innerHTML = `<span class="sbs-label">篩選</span>`
       + `<span class="sbs-detail"><span class="sb-pill">${monthLabel}</span>`
       + `<span class="sb-pill">${catLabel}</span>`
-      + `<span class="sb-pill-stat">${filteredRecords.length.toLocaleString()}筆</span></span>`;
+      + `<span class="sb-pill-stat">維修紀錄 ${filteredRecords.length.toLocaleString()} 筆</span></span>`;
   }
 
   function renderGlobalRoleBanner() {

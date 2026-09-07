@@ -759,9 +759,9 @@ button, input, select { font-family: inherit; }
   flex-shrink: 0;
 }
 .chip:hover { color: var(--text); border-color: var(--border2); }
-.chip .num { font-family: var(--mono); font-size: var(--fs-14); color: var(--text3); }
+.chip .num { font-family: var(--sans); font-size: var(--fs-14); color: var(--text3); }
 .chip .num-den {
-  font-family: var(--mono); font-size: var(--fs-11); color: var(--text3);
+  font-family: var(--sans); font-size: var(--fs-12-5); color: var(--text3);
   margin-left: var(--space-5); padding-left: var(--space-6); border-left: 1px solid var(--border);
   opacity: .85;
 }
@@ -3320,6 +3320,10 @@ button, input, select { font-family: inherit; }
 @media (max-width: 820px) {
   .subbar-mobile-row { display: flex; }
   .subbar-chips-row  { display: none !important; }
+}
+@media (max-width: 480px) {
+  .subbar-mobile-row { flex-direction: column; align-items: stretch; }
+  .sb-select { width: 100%; }
 }
 
 /* ③ 側邊抽屜：開啟時恢復完整寬度 + 強制顯示文字標籤 */
