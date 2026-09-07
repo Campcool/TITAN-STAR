@@ -6,14 +6,18 @@
   const VERSION = 1;
   const clone = value => JSON.parse(JSON.stringify(value));
   function monthInfo(name) {
-    const m = name.normalize('NFKC').match(/^(\d{2,4})\s*年\s*(\d{1,2})\s*月維修報表(?:[-_\s]*(更正版|修正版|v)(\d*)?)?\.xlsx$/i);
-    if (!m) throw new Error(`檔名無法辨識：${name}。請使用「115年 08 月維修報表.xlsx」或「115年 08 月維修報表-更正版.xlsx」。`);
-    let year = Number(m[1]);
+    const normalized = name.normalize('NFKC');
+    const m = normalized.match(/^(\d{2,4})\s*年\s*(\d{1,2})\s*月維修報表(?:[-_\s]*(更正版|修正版|v)(\d*)?)?\.xlsx$/i);
+    const refurb = normalized.match(/^(\d{2,4})\s*年\s*(\d{1,2})\s*月整新故障(?:[-_\s]*(更正版|修正版|v)(\d*)?)?\.xlsx$/i);
+    const match = m || refurb;
+    if (!match) throw new Error(`檔名無法辨識：${name}。請使用「115年 08 月維修報表.xlsx」或「115年8月整新故障.xlsx」。`);
+    let year = Number(match[1]);
     if (year < 1911) year += 1911;
-    const month = Number(m[2]);
+    const month = Number(match[2]);
     if (year < 2000 || year > 2200 || month < 1 || month > 12) throw new Error(`檔名年月不正確：${name}`);
-    return { month: `${year}-${String(month).padStart(2, '0')}`, revision: m[3] ? Number(m[4] || 1) : 0,
-      parserName: `${year - 1911}年 ${String(month).padStart(2, '0')} 月維修報表.xlsx` };
+    return { kind: refurb ? 'refurbishment' : 'repair', month: `${year}-${String(month).padStart(2, '0')}`,
+      revision: match[3] ? Number(match[4] || 1) : 0,
+      parserName: refurb ? name : `${year - 1911}年 ${String(month).padStart(2, '0')} 月維修報表.xlsx` };
   }
   function selectFiles(entries) {
     if (!Array.isArray(entries) || entries.length >= 1000) throw new Error('無法完整讀取 date 資料夾，請稍後重試或聯絡維護人員。');
@@ -23,12 +27,13 @@
       if (entry.type !== 'file' || !/^[a-f0-9]{40}$/.test(entry.sha || '')) throw new Error(`檔案版本不完整：${entry.name}`);
       if (entry.size > 25 * 1024 * 1024) throw new Error(`檔案超過 25 MB：${entry.name}。請移除圖片與多餘格式後再上傳。`);
       const file = { ...entry, ...monthInfo(entry.name) };
-      const old = selected.get(file.month);
-      if (old && old.revision === file.revision) throw new Error(`${file.month} 有兩份相同優先序的報表，請只保留一份或使用「更正版2」標示版本。`);
-      if (!old || file.revision > old.revision) selected.set(file.month, file);
+      const key = `${file.kind}:${file.month}`;
+      const old = selected.get(key);
+      if (old && old.revision === file.revision) throw new Error(`${file.month} 有兩份相同類型與優先序的報表，請只保留一份或使用「更正版2」標示版本。`);
+      if (!old || file.revision > old.revision) selected.set(key, file);
     }
     if (!selected.size) throw new Error('date 資料夾沒有可用的月份 Excel，保留上一版資料。');
-    return [...selected.values()].sort((a, b) => a.month.localeCompare(b.month));
+    return [...selected.values()].sort((a, b) => a.month.localeCompare(b.month) || a.kind.localeCompare(b.kind));
   }
   function validDate(value) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return false;
@@ -55,7 +60,7 @@
     const files = selectFiles(entries);
     const previous = db.sourceImport?.version === VERSION ? db.sourceImport.files || {} : {};
     for (const [month, old] of Object.entries(previous)) {
-      const file = files.find(f => f.month === month);
+      const file = files.find(f => (f.kind === 'repair' ? f.month : `refurbishment:${f.month}`) === month);
       if (!file) throw new Error(`${month} 的來源 Excel 被移除。請放回 date 資料夾，避免遺失歷史月份。`);
       if (file.revision < old.revision) throw new Error(`${month} 的更正版被移除，請放回相同或較新的版本。`);
     }
@@ -65,16 +70,41 @@
     const warnings = [];
     let updated = 0;
     for (const file of files) {
-      if (!next.months[file.month] || previous[file.month]?.sha !== file.sha) {
+      const manifestKey = file.kind === 'repair' ? file.month : `refurbishment:${file.month}`;
+      const needsUpdate = file.kind === 'repair'
+        ? (!next.months[file.month] || previous[manifestKey]?.sha !== file.sha)
+        : previous[manifestKey]?.sha !== file.sha;
+      if (needsUpdate) {
         onProgress(`正在讀取 ${file.name}`);
         const wb = await readWorkbook(file);
-        const month = parseWorkbook(wb, file.parserName);
-        warnings.push(...validate(month, file));
-        month.fileName = file.name;
-        next.months[file.month] = month;
+        if (file.kind === 'refurbishment') {
+          if (!parseWorkbook.parseRefurbishment) throw new Error('網站版本尚未支援整新故障表，請重新整理後再試。');
+          const parsed = parseWorkbook.parseRefurbishment(wb, file.parserName, file.month);
+          if (parsed.month !== file.month || !parsed.supplements?.length) throw new Error(`${file.name} 沒有解析到正確月份的整新故障資料。`);
+          next.modelSupplements ||= {};
+          for (const sup of parsed.supplements) {
+            const existing = next.modelSupplements[sup.model];
+            if (existing?.sourceType === 'model-supplement-v1') continue;
+            if (existing?.sourceType === 'wireless-overview-v1') {
+              sup.monthly = [...(existing.monthly || []).filter(x => x.month !== file.month), ...sup.monthly]
+                .sort((a,b) => a.month.localeCompare(b.month) || String(a.variant).localeCompare(String(b.variant)));
+              sup.reasons = [...(existing.reasons || []).filter(x => x.month !== file.month), ...sup.reasons]
+                .sort((a,b) => a.month.localeCompare(b.month) || b.count - a.count);
+              sup.annual = existing.annual || [];
+              sup.sourceFiles = [...new Set([...(existing.sourceFiles || []), ...(sup.sourceFiles || [])])];
+            }
+            next.modelSupplements[sup.model] = sup;
+          }
+          next.modelSupplementsUpdatedAt = new Date().toISOString();
+        } else {
+          const month = parseWorkbook(wb, file.parserName);
+          warnings.push(...validate(month, file));
+          month.fileName = file.name;
+          next.months[file.month] = month;
+        }
         updated++;
-      } else warnings.push(...(previous[file.month].warnings || []));
-      manifest[file.month] = { name: file.name, sha: file.sha, revision: file.revision,
+      } else warnings.push(...(previous[manifestKey]?.warnings || []));
+      manifest[manifestKey] = { name: file.name, sha: file.sha, revision: file.revision, kind:file.kind,
         warnings: warnings.filter(w => w.startsWith(file.month)) };
     }
     next.sourceImport = { version: VERSION, files: manifest, checkedAt: new Date().toISOString(),
@@ -103,7 +133,9 @@
       const buffer = await (await request(url, fetcher)).arrayBuffer();
       if (await gitHash(buffer) !== file.sha) throw new Error(`${file.name} 正在更新或快取尚未同步，請稍後重新檢查。`);
       return xlsx.read(buffer, { type: 'array', cellDates: true });
-    }, (wb, name) => parser.parseWorkbook(wb, name), onProgress);
+    }, Object.assign((wb, name) => parser.parseWorkbook(wb, name), {
+      parseRefurbishment: (wb, name, month) => parser.parseWirelessOverviewWorkbook(wb, name, month)
+    }), onProgress);
   }
   function calendarPrevious(month) {
     if (!month) return null;

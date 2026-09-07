@@ -13,12 +13,26 @@ context.window = context;
 vm.createContext(context);
 vm.runInContext(fs.readFileSync(new URL('../parser.js', import.meta.url), 'utf8'), context);
 vm.runInContext(fs.readFileSync(new URL('../analyzer.js', import.meta.url), 'utf8'), context);
-const parser = (wb, name) => context.RepairParser.parseWorkbook(wb, name);
+const parser = Object.assign((wb, name) => context.RepairParser.parseWorkbook(wb, name), {
+  parseRefurbishment: (wb, name, month) => context.RepairParser.parseWirelessOverviewWorkbook(wb, name, month),
+});
 const entry = (month, revision = '', sha = 'a'.repeat(40)) => ({ name: `115年 ${month} 月維修報表${revision}.xlsx`, type: 'file', sha, size: 1024 });
+const refurbEntry = (month, revision = '', sha = 'c'.repeat(40)) => ({ name: `115年${Number(month)}月整新故障${revision}.xlsx`, type: 'file', sha, size: 1024 });
 function workbook(date = '2026/08/03', rows = 1, header = '檢修日期') {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([[header, '器材品號', '故障原因', '故障零件一', '數量'],
     ...Array.from({ length: rows }, () => [date, 'TEST01', '測試故障', '測試零件', 1])]), 'TEST01');
+  return wb;
+}
+function refurbishmentWorkbook() {
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+    ['', '', '', '115年 8 月整新機器與數量'],
+    [], ['', '', '機器型號', 'TEST01(1.0)', 'TEST01(2.0)'],
+    ['', '', '整新測試數', 100, 50], ['', '', '測試正常數', 90, 45],
+    ['', '', '可用率', .9, .9], ['', '', '整新故障數', 10, 5], ['', '', '故障比例', .1, .1],
+    ['', '', '電器故障類'], ['', '1', '電源不良', 6, 2], ['', '2', '通訊不良', 4, 3],
+  ]), '整新故障一覽表');
   return wb;
 }
 test('new month, revision, unchanged cache, and historical metadata survive atomically', async t => {
@@ -43,6 +57,18 @@ test('duplicate revisions, invalid filename/month, deletion and revision downgra
   await assert.rejects(M.merge(first.db, [entry('09')], async () => workbook(), parser), /移除/);
   await assert.rejects(M.merge(first.db, [entry('08')], async () => workbook(), parser), /更正版被移除/);
   assert.equal(M.monthInfo('116年 01 月維修報表-更正版2.xlsx').month, '2027-01');
+  assert.equal(M.monthInfo('115年8月整新故障.xlsx').kind, 'refurbishment');
+});
+test('repair and refurbishment workbooks import together from one folder', async () => {
+  const dateCell = new Date(2026, 7, 3);
+  const result = await M.merge({ months: {} }, [entry('08'), refurbEntry('08')],
+    async file => file.kind === 'repair' ? workbook(dateCell, 2) : refurbishmentWorkbook(), parser);
+  assert.equal(result.files, 2);
+  assert.equal(result.db.months['2026-08'].records.length, 2);
+  assert.equal(result.db.months['2026-08'].records[0].date, '2026-08-03');
+  assert.equal(result.db.modelSupplements.TEST01.monthly.length, 2);
+  assert.equal(result.db.modelSupplements.TEST01.monthly.reduce((s, x) => s + x.refurbished, 0), 150);
+  assert.equal(result.db.sourceImport.files['refurbishment:2026-08'].kind, 'refurbishment');
 });
 test('one corrupt month aborts batch without mutating last valid database', async () => {
   const db = { months: {}, marker: 'keep' };

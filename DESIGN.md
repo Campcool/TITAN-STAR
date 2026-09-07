@@ -279,7 +279,7 @@ COPQ)、`scrap`(報廢&重修)、`detail`(明細資料)。
 
 ## 2026-09-07 月報交接設計
 
-日期來源為 Campcool/campcool-website/date，不是 TITAN-STAR/monthly-reports。
+日期來源為 Campcool/campcool-website/date，不是 TITAN-STAR/monthly-reports。date 同時接受月維修報表與當月整新故障矩陣；兩者以檔名類型加月份分別做版本判斷，整批解析成功後才一起套用。
 monthly-source.js 在每次開啟時讀 GitHub contents 清單，使用 blob SHA 識別變更及驗證下載內容。
 本機以 sourceImport.files 保存來源版本；本機已有來源版本時，不可被舊 data.json 月份覆蓋。
 未通過整批驗證不提交本機狀態；空間不足時保留本次記憶體資料。個資遮罩與 CLI 共用 privacy.js。

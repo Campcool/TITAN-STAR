@@ -219,6 +219,13 @@
   // - 115/4/1 → 2026-04-01
   function parseDate(s) {
     if (!s) return null;
+    if (typeof s === 'number' && Number.isFinite(s) && XLSX?.SSF?.parse_date_code) {
+      const d = XLSX.SSF.parse_date_code(s);
+      if (d?.y && d?.m && d?.d) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+    }
+    if (Object.prototype.toString.call(s) === '[object Date]' && Number.isFinite(s.getTime())) {
+      return `${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2,'0')}-${String(s.getDate()).padStart(2,'0')}`;
+    }
     const str = String(s).trim();
     if (!str) return null;
 
@@ -564,6 +571,88 @@
     return { modelSupplements: supplements };
   }
 
+  // Parse the monthly multi-model refurbishment-failure matrix used by the factory.
+  // This format is column-oriented: models are columns and metrics/reasons are rows.
+  function parseWirelessOverviewWorkbook(wb, fileName = '', monthOverride = '') {
+    const str = v => v == null ? '' : String(v).trim();
+    const num = v => {
+      if (v == null || str(v) === '') return null;
+      const n = Number(str(v).replace(/,/g, ''));
+      return Number.isFinite(n) ? n : null;
+    };
+    const baseModel = name => str(name).replace(/\s*[（(].*$/, '').trim();
+    const sectionHeaders = ['電器故障類','通訊故障類','功能故障類','其它類','其他故障類'];
+    const sheetName = (wb.SheetNames || []).find(sn => {
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: '' });
+      return rows.some(r => r.some(c => str(c) === '機器型號'));
+    });
+    if (!sheetName) throw new Error('找不到含「機器型號」表頭的整新故障分頁');
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: '' });
+    const findRow = label => rows.findIndex(r => r.some(c => str(c) === label));
+    let month = monthOverride;
+    if (!month) {
+      for (const row of rows.slice(0, 5)) for (const cell of row) {
+        const m = str(cell).match(/(\d{2,3})\s*年\s*(\d{1,2})\s*月/);
+        if (m) month = `${Number(m[1]) + 1911}-${String(Number(m[2])).padStart(2,'0')}`;
+      }
+    }
+    if (!/^\d{4}-\d{2}$/.test(month)) throw new Error('無法辨識整新故障表月份');
+    const [year, monthNo] = month.split('-').map(Number);
+    const rocMonth = `${year - 1911}/${monthNo}`;
+    const headerIdx = findRow('機器型號');
+    const header = rows[headerIdx] || [];
+    const models = [];
+    header.forEach((cell, col) => {
+      const name = str(cell);
+      if (name && name !== '機器型號' && !/^(總和|合計|小計|total)$/i.test(name)) models.push({ col, name, base: baseModel(name) });
+    });
+    if (!models.length) throw new Error('整新故障表沒有可用的機種欄');
+    const row = label => { const i = findRow(label); return i >= 0 ? rows[i] : null; };
+    const rTest = row('整新測試數'), rPass = row('測試正常數'), rUsable = row('可用率');
+    const rFail = row('整新故障數'), rFaultPct = row('故障比例');
+    if (!rTest) throw new Error('整新故障表缺少「整新測試數」列');
+    const faultStart = Math.max(findRow('故障比例'), findRow('電器故障類'));
+    const reasonRows = [];
+    for (let i = (faultStart >= 0 ? faultStart : headerIdx) + 1; i < rows.length; i++) {
+      const reason = str(rows[i][2]);
+      if (!reason || sectionHeaders.includes(reason) || reason.endsWith('百分比')) continue;
+      if (models.some(m => num(rows[i][m.col]) != null)) reasonRows.push({ code: str(rows[i][1]), reason, row: rows[i] });
+    }
+    const byBase = new Map();
+    const ensure = base => {
+      if (!byBase.has(base)) byBase.set(base, { sourceType:'wireless-overview-v1', model:base, modelDisplay:base,
+        sourceFiles:[fileName], monthly:[], reasons:[], annual:[], updatedAt:null });
+      return byBase.get(base);
+    };
+    for (const model of models) {
+      const refurbished = num(rTest[model.col]);
+      if (refurbished == null) continue;
+      const entry = ensure(model.base);
+      const failedRaw = rFail ? num(rFail[model.col]) : null;
+      const faultPct = rFaultPct ? num(rFaultPct[model.col]) : null;
+      const usable = rUsable ? num(rUsable[model.col]) : null;
+      const passRaw = rPass ? num(rPass[model.col]) : null;
+      const failed = failedRaw != null ? Math.round(failedRaw) : (faultPct != null ? Math.round(refurbished * faultPct) : 0);
+      const passed = passRaw != null ? Math.round(passRaw) : refurbished - failed;
+      entry.monthly.push({ month, rocMonth, model:model.base, modelDisplay:model.name, variant:model.name,
+        refurbished, passed, failed, faultRate:faultPct != null ? faultPct : (refurbished ? failed/refurbished : null),
+        usableRate:usable != null ? usable : (refurbished ? passed/refurbished : null), sourceSheet:sheetName });
+    }
+    for (const reasonRow of reasonRows) for (const model of models) {
+      const count = num(reasonRow.row[model.col]);
+      const entry = byBase.get(model.base);
+      if (count == null || count === 0 || !entry) continue;
+      const metric = entry.monthly.find(x => x.variant === model.name);
+      entry.reasons.push({ month, rocMonth, model:model.base, modelDisplay:model.name, variant:model.name,
+        code:reasonRow.code, reason:reasonRow.reason, count:Math.round(count),
+        rateOfFailures:metric?.failed ? count/metric.failed : null, sourceSheet:sheetName });
+    }
+    const stamp = new Date().toISOString();
+    const supplements = [...byBase.values()].filter(x => x.monthly.length);
+    supplements.forEach(x => { x.updatedAt = stamp; });
+    return { month, rocMonth, sheetName, models:models.map(x => x.name), supplements };
+  }
+
   // Main: parse workbook into a month-record
   function parseWorkbook(wb, fileName) {
     const records = [];
@@ -616,11 +705,12 @@
       if (cols.serial < 0 && cols.prodSerial >= 0) cols.serial = cols.prodSerial;
 
       const get = (r, c) => (c >= 0 && r[c] !== undefined) ? String(r[c]).trim() : '';
+      const getRaw = (r, c) => (c >= 0 && r[c] !== undefined) ? r[c] : '';
 
       let sheetRowCount = 0;
       for (let i = headerIdx + 1; i < raw.length; i++) {
         const r = raw[i];
-        const dateRaw = get(r, cols.date);
+        const dateRaw = getRaw(r, cols.date);
         if (!dateRaw || dateRaw === '0') continue;
 
         const date = parseDate(dateRaw) || dateRaw;
@@ -802,6 +892,7 @@
     parseFile,
     parseWorkbook,
     parseModelSupplementWorkbook,
+    parseWirelessOverviewWorkbook,
     normalizePart,
     parseDate,
     parseMfgMonth,

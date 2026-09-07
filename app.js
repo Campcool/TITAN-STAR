@@ -330,7 +330,7 @@ window.App = (function () {
   }
 
   async function syncMonthlyWorkbook() {
-    state.sourceStatus = { kind: 'checking', message: '正在檢查月份 Excel…' };
+    state.sourceStatus = { kind: 'checking', message: '正在檢查維修與整新故障 Excel…' };
     renderSourceStatus();
     try {
       const result = await RepairMonthlySource.sync(loadBestDb(), {
@@ -341,7 +341,7 @@ window.App = (function () {
       RepairAnalyzer.detectAnomalies(result.db, result.db.sourceImport.latestMonth);
       state.sourceDb = RepairPrivacy.maskData(result.db).masked;
       state.sourceStatus = { kind: 'ok', message: result.updated
-        ? `已更新 ${result.updated} 個月份，最新資料為 ${fmt.monthLabel(result.db.sourceImport.latestMonth)}`
+        ? `已更新 ${result.updated} 份 Excel，最新資料為 ${fmt.monthLabel(result.db.sourceImport.latestMonth)}`
         : '已檢查來源，沒有新檔案或更正版', warnings: result.warnings };
       try { localStorage.setItem('repair_db_v2', JSON.stringify(state.sourceDb)); }
       catch (e) { state.sourceStatus.message += '；本次已更新，但瀏覽器空間不足，重新開啟時會再讀取'; }
@@ -355,7 +355,7 @@ window.App = (function () {
   function renderSourceStatus() {
     const box = $('sourceStatus');
     if (!box) return;
-    const status = state.sourceStatus || { kind: 'checking', message: '正在檢查月份 Excel…' };
+    const status = state.sourceStatus || { kind: 'checking', message: '正在檢查維修與整新故障 Excel…' };
     box.dataset.state = status.kind;
     const label = $('sourceStatusText');
     if (label) label.textContent = status.message;
@@ -6184,7 +6184,7 @@ window.App = (function () {
 
   async function init() {
     syncCloudPromise = (async () => {
-      showLoad('正在載入維修報表…', '每次開啟都會檢查新增與更正版 Excel');
+      showLoad('正在載入維修與整新報表…', '每次開啟都會檢查新增與更正版 Excel');
       const cloud = await syncCloud();
       await syncMonthlyWorkbook();
       hideLoad();

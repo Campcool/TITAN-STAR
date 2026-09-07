@@ -5963,7 +5963,7 @@ body {
             <button type="button" data-period="12" onclick="App.setPeriod(12)" title="合併最近 12 個已有資料的月份進行分析">近 12 個月</button>
             <button type="button" data-period="all" onclick="App.setPeriod('all')" title="分析目前匯入的全部月份">全部歷史</button>
           </div></details>
-          <div class="source-status" id="sourceStatus" data-state="checking"><span id="sourceStatusText" role="status" aria-live="polite">正在檢查月份 Excel…</span><button type="button" id="sourceRefresh" onclick="App.refreshSource()" title="立即重新檢查 date 資料夾是否有新增或更正版 Excel">檢查更新</button></div>
+          <div class="source-status" id="sourceStatus" data-state="checking"><span id="sourceStatusText" role="status" aria-live="polite">正在檢查維修與整新故障 Excel…</span><button type="button" id="sourceRefresh" onclick="App.refreshSource()" title="立即重新檢查 date 資料夾是否有新增或更正版 Excel">檢查更新</button></div>
           <p id="sourceWarnings" class="source-warnings"></p>
           <nav class="report-reading" aria-label="報表閱讀順序"><button onclick="App.switchPage('summary')" title="先看系統整理出的本期優先事項">1 本期重點</button><button onclick="App.switchPage('trend')" title="再確認問題是單月事件或持續趨勢">2 月份趨勢</button><button onclick="App.switchPage('detail')" title="最後下鑽逐筆資料查證型號、原因與零件">3 維修明細</button></nav>
         </section>
@@ -6650,6 +6650,13 @@ body {
   // - 115/4/1 → 2026-04-01
   function parseDate(s) {
     if (!s) return null;
+    if (typeof s === 'number' && Number.isFinite(s) && XLSX?.SSF?.parse_date_code) {
+      const d = XLSX.SSF.parse_date_code(s);
+      if (d?.y && d?.m && d?.d) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+    }
+    if (Object.prototype.toString.call(s) === '[object Date]' && Number.isFinite(s.getTime())) {
+      return `${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2,'0')}-${String(s.getDate()).padStart(2,'0')}`;
+    }
     const str = String(s).trim();
     if (!str) return null;
 
@@ -6995,6 +7002,88 @@ body {
     return { modelSupplements: supplements };
   }
 
+  // Parse the monthly multi-model refurbishment-failure matrix used by the factory.
+  // This format is column-oriented: models are columns and metrics/reasons are rows.
+  function parseWirelessOverviewWorkbook(wb, fileName = '', monthOverride = '') {
+    const str = v => v == null ? '' : String(v).trim();
+    const num = v => {
+      if (v == null || str(v) === '') return null;
+      const n = Number(str(v).replace(/,/g, ''));
+      return Number.isFinite(n) ? n : null;
+    };
+    const baseModel = name => str(name).replace(/\s*[（(].*$/, '').trim();
+    const sectionHeaders = ['電器故障類','通訊故障類','功能故障類','其它類','其他故障類'];
+    const sheetName = (wb.SheetNames || []).find(sn => {
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: '' });
+      return rows.some(r => r.some(c => str(c) === '機器型號'));
+    });
+    if (!sheetName) throw new Error('找不到含「機器型號」表頭的整新故障分頁');
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: '' });
+    const findRow = label => rows.findIndex(r => r.some(c => str(c) === label));
+    let month = monthOverride;
+    if (!month) {
+      for (const row of rows.slice(0, 5)) for (const cell of row) {
+        const m = str(cell).match(/(\d{2,3})\s*年\s*(\d{1,2})\s*月/);
+        if (m) month = `${Number(m[1]) + 1911}-${String(Number(m[2])).padStart(2,'0')}`;
+      }
+    }
+    if (!/^\d{4}-\d{2}$/.test(month)) throw new Error('無法辨識整新故障表月份');
+    const [year, monthNo] = month.split('-').map(Number);
+    const rocMonth = `${year - 1911}/${monthNo}`;
+    const headerIdx = findRow('機器型號');
+    const header = rows[headerIdx] || [];
+    const models = [];
+    header.forEach((cell, col) => {
+      const name = str(cell);
+      if (name && name !== '機器型號' && !/^(總和|合計|小計|total)$/i.test(name)) models.push({ col, name, base: baseModel(name) });
+    });
+    if (!models.length) throw new Error('整新故障表沒有可用的機種欄');
+    const row = label => { const i = findRow(label); return i >= 0 ? rows[i] : null; };
+    const rTest = row('整新測試數'), rPass = row('測試正常數'), rUsable = row('可用率');
+    const rFail = row('整新故障數'), rFaultPct = row('故障比例');
+    if (!rTest) throw new Error('整新故障表缺少「整新測試數」列');
+    const faultStart = Math.max(findRow('故障比例'), findRow('電器故障類'));
+    const reasonRows = [];
+    for (let i = (faultStart >= 0 ? faultStart : headerIdx) + 1; i < rows.length; i++) {
+      const reason = str(rows[i][2]);
+      if (!reason || sectionHeaders.includes(reason) || reason.endsWith('百分比')) continue;
+      if (models.some(m => num(rows[i][m.col]) != null)) reasonRows.push({ code: str(rows[i][1]), reason, row: rows[i] });
+    }
+    const byBase = new Map();
+    const ensure = base => {
+      if (!byBase.has(base)) byBase.set(base, { sourceType:'wireless-overview-v1', model:base, modelDisplay:base,
+        sourceFiles:[fileName], monthly:[], reasons:[], annual:[], updatedAt:null });
+      return byBase.get(base);
+    };
+    for (const model of models) {
+      const refurbished = num(rTest[model.col]);
+      if (refurbished == null) continue;
+      const entry = ensure(model.base);
+      const failedRaw = rFail ? num(rFail[model.col]) : null;
+      const faultPct = rFaultPct ? num(rFaultPct[model.col]) : null;
+      const usable = rUsable ? num(rUsable[model.col]) : null;
+      const passRaw = rPass ? num(rPass[model.col]) : null;
+      const failed = failedRaw != null ? Math.round(failedRaw) : (faultPct != null ? Math.round(refurbished * faultPct) : 0);
+      const passed = passRaw != null ? Math.round(passRaw) : refurbished - failed;
+      entry.monthly.push({ month, rocMonth, model:model.base, modelDisplay:model.name, variant:model.name,
+        refurbished, passed, failed, faultRate:faultPct != null ? faultPct : (refurbished ? failed/refurbished : null),
+        usableRate:usable != null ? usable : (refurbished ? passed/refurbished : null), sourceSheet:sheetName });
+    }
+    for (const reasonRow of reasonRows) for (const model of models) {
+      const count = num(reasonRow.row[model.col]);
+      const entry = byBase.get(model.base);
+      if (count == null || count === 0 || !entry) continue;
+      const metric = entry.monthly.find(x => x.variant === model.name);
+      entry.reasons.push({ month, rocMonth, model:model.base, modelDisplay:model.name, variant:model.name,
+        code:reasonRow.code, reason:reasonRow.reason, count:Math.round(count),
+        rateOfFailures:metric?.failed ? count/metric.failed : null, sourceSheet:sheetName });
+    }
+    const stamp = new Date().toISOString();
+    const supplements = [...byBase.values()].filter(x => x.monthly.length);
+    supplements.forEach(x => { x.updatedAt = stamp; });
+    return { month, rocMonth, sheetName, models:models.map(x => x.name), supplements };
+  }
+
   // Main: parse workbook into a month-record
   function parseWorkbook(wb, fileName) {
     const records = [];
@@ -7047,11 +7136,12 @@ body {
       if (cols.serial < 0 && cols.prodSerial >= 0) cols.serial = cols.prodSerial;
 
       const get = (r, c) => (c >= 0 && r[c] !== undefined) ? String(r[c]).trim() : '';
+      const getRaw = (r, c) => (c >= 0 && r[c] !== undefined) ? r[c] : '';
 
       let sheetRowCount = 0;
       for (let i = headerIdx + 1; i < raw.length; i++) {
         const r = raw[i];
-        const dateRaw = get(r, cols.date);
+        const dateRaw = getRaw(r, cols.date);
         if (!dateRaw || dateRaw === '0') continue;
 
         const date = parseDate(dateRaw) || dateRaw;
@@ -7233,6 +7323,7 @@ body {
     parseFile,
     parseWorkbook,
     parseModelSupplementWorkbook,
+    parseWirelessOverviewWorkbook,
     normalizePart,
     parseDate,
     parseMfgMonth,
@@ -9100,14 +9191,18 @@ body {
   const VERSION = 1;
   const clone = value => JSON.parse(JSON.stringify(value));
   function monthInfo(name) {
-    const m = name.normalize('NFKC').match(/^(\d{2,4})\s*年\s*(\d{1,2})\s*月維修報表(?:[-_\s]*(更正版|修正版|v)(\d*)?)?\.xlsx$/i);
-    if (!m) throw new Error(`檔名無法辨識：${name}。請使用「115年 08 月維修報表.xlsx」或「115年 08 月維修報表-更正版.xlsx」。`);
-    let year = Number(m[1]);
+    const normalized = name.normalize('NFKC');
+    const m = normalized.match(/^(\d{2,4})\s*年\s*(\d{1,2})\s*月維修報表(?:[-_\s]*(更正版|修正版|v)(\d*)?)?\.xlsx$/i);
+    const refurb = normalized.match(/^(\d{2,4})\s*年\s*(\d{1,2})\s*月整新故障(?:[-_\s]*(更正版|修正版|v)(\d*)?)?\.xlsx$/i);
+    const match = m || refurb;
+    if (!match) throw new Error(`檔名無法辨識：${name}。請使用「115年 08 月維修報表.xlsx」或「115年8月整新故障.xlsx」。`);
+    let year = Number(match[1]);
     if (year < 1911) year += 1911;
-    const month = Number(m[2]);
+    const month = Number(match[2]);
     if (year < 2000 || year > 2200 || month < 1 || month > 12) throw new Error(`檔名年月不正確：${name}`);
-    return { month: `${year}-${String(month).padStart(2, '0')}`, revision: m[3] ? Number(m[4] || 1) : 0,
-      parserName: `${year - 1911}年 ${String(month).padStart(2, '0')} 月維修報表.xlsx` };
+    return { kind: refurb ? 'refurbishment' : 'repair', month: `${year}-${String(month).padStart(2, '0')}`,
+      revision: match[3] ? Number(match[4] || 1) : 0,
+      parserName: refurb ? name : `${year - 1911}年 ${String(month).padStart(2, '0')} 月維修報表.xlsx` };
   }
   function selectFiles(entries) {
     if (!Array.isArray(entries) || entries.length >= 1000) throw new Error('無法完整讀取 date 資料夾，請稍後重試或聯絡維護人員。');
@@ -9117,12 +9212,13 @@ body {
       if (entry.type !== 'file' || !/^[a-f0-9]{40}$/.test(entry.sha || '')) throw new Error(`檔案版本不完整：${entry.name}`);
       if (entry.size > 25 * 1024 * 1024) throw new Error(`檔案超過 25 MB：${entry.name}。請移除圖片與多餘格式後再上傳。`);
       const file = { ...entry, ...monthInfo(entry.name) };
-      const old = selected.get(file.month);
-      if (old && old.revision === file.revision) throw new Error(`${file.month} 有兩份相同優先序的報表，請只保留一份或使用「更正版2」標示版本。`);
-      if (!old || file.revision > old.revision) selected.set(file.month, file);
+      const key = `${file.kind}:${file.month}`;
+      const old = selected.get(key);
+      if (old && old.revision === file.revision) throw new Error(`${file.month} 有兩份相同類型與優先序的報表，請只保留一份或使用「更正版2」標示版本。`);
+      if (!old || file.revision > old.revision) selected.set(key, file);
     }
     if (!selected.size) throw new Error('date 資料夾沒有可用的月份 Excel，保留上一版資料。');
-    return [...selected.values()].sort((a, b) => a.month.localeCompare(b.month));
+    return [...selected.values()].sort((a, b) => a.month.localeCompare(b.month) || a.kind.localeCompare(b.kind));
   }
   function validDate(value) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return false;
@@ -9149,7 +9245,7 @@ body {
     const files = selectFiles(entries);
     const previous = db.sourceImport?.version === VERSION ? db.sourceImport.files || {} : {};
     for (const [month, old] of Object.entries(previous)) {
-      const file = files.find(f => f.month === month);
+      const file = files.find(f => (f.kind === 'repair' ? f.month : `refurbishment:${f.month}`) === month);
       if (!file) throw new Error(`${month} 的來源 Excel 被移除。請放回 date 資料夾，避免遺失歷史月份。`);
       if (file.revision < old.revision) throw new Error(`${month} 的更正版被移除，請放回相同或較新的版本。`);
     }
@@ -9159,16 +9255,41 @@ body {
     const warnings = [];
     let updated = 0;
     for (const file of files) {
-      if (!next.months[file.month] || previous[file.month]?.sha !== file.sha) {
+      const manifestKey = file.kind === 'repair' ? file.month : `refurbishment:${file.month}`;
+      const needsUpdate = file.kind === 'repair'
+        ? (!next.months[file.month] || previous[manifestKey]?.sha !== file.sha)
+        : previous[manifestKey]?.sha !== file.sha;
+      if (needsUpdate) {
         onProgress(`正在讀取 ${file.name}`);
         const wb = await readWorkbook(file);
-        const month = parseWorkbook(wb, file.parserName);
-        warnings.push(...validate(month, file));
-        month.fileName = file.name;
-        next.months[file.month] = month;
+        if (file.kind === 'refurbishment') {
+          if (!parseWorkbook.parseRefurbishment) throw new Error('網站版本尚未支援整新故障表，請重新整理後再試。');
+          const parsed = parseWorkbook.parseRefurbishment(wb, file.parserName, file.month);
+          if (parsed.month !== file.month || !parsed.supplements?.length) throw new Error(`${file.name} 沒有解析到正確月份的整新故障資料。`);
+          next.modelSupplements ||= {};
+          for (const sup of parsed.supplements) {
+            const existing = next.modelSupplements[sup.model];
+            if (existing?.sourceType === 'model-supplement-v1') continue;
+            if (existing?.sourceType === 'wireless-overview-v1') {
+              sup.monthly = [...(existing.monthly || []).filter(x => x.month !== file.month), ...sup.monthly]
+                .sort((a,b) => a.month.localeCompare(b.month) || String(a.variant).localeCompare(String(b.variant)));
+              sup.reasons = [...(existing.reasons || []).filter(x => x.month !== file.month), ...sup.reasons]
+                .sort((a,b) => a.month.localeCompare(b.month) || b.count - a.count);
+              sup.annual = existing.annual || [];
+              sup.sourceFiles = [...new Set([...(existing.sourceFiles || []), ...(sup.sourceFiles || [])])];
+            }
+            next.modelSupplements[sup.model] = sup;
+          }
+          next.modelSupplementsUpdatedAt = new Date().toISOString();
+        } else {
+          const month = parseWorkbook(wb, file.parserName);
+          warnings.push(...validate(month, file));
+          month.fileName = file.name;
+          next.months[file.month] = month;
+        }
         updated++;
-      } else warnings.push(...(previous[file.month].warnings || []));
-      manifest[file.month] = { name: file.name, sha: file.sha, revision: file.revision,
+      } else warnings.push(...(previous[manifestKey]?.warnings || []));
+      manifest[manifestKey] = { name: file.name, sha: file.sha, revision: file.revision, kind:file.kind,
         warnings: warnings.filter(w => w.startsWith(file.month)) };
     }
     next.sourceImport = { version: VERSION, files: manifest, checkedAt: new Date().toISOString(),
@@ -9197,7 +9318,9 @@ body {
       const buffer = await (await request(url, fetcher)).arrayBuffer();
       if (await gitHash(buffer) !== file.sha) throw new Error(`${file.name} 正在更新或快取尚未同步，請稍後重新檢查。`);
       return xlsx.read(buffer, { type: 'array', cellDates: true });
-    }, (wb, name) => parser.parseWorkbook(wb, name), onProgress);
+    }, Object.assign((wb, name) => parser.parseWorkbook(wb, name), {
+      parseRefurbishment: (wb, name, month) => parser.parseWirelessOverviewWorkbook(wb, name, month)
+    }), onProgress);
   }
   function calendarPrevious(month) {
     if (!month) return null;
@@ -9549,7 +9672,7 @@ window.App = (function () {
   }
 
   async function syncMonthlyWorkbook() {
-    state.sourceStatus = { kind: 'checking', message: '正在檢查月份 Excel…' };
+    state.sourceStatus = { kind: 'checking', message: '正在檢查維修與整新故障 Excel…' };
     renderSourceStatus();
     try {
       const result = await RepairMonthlySource.sync(loadBestDb(), {
@@ -9560,7 +9683,7 @@ window.App = (function () {
       RepairAnalyzer.detectAnomalies(result.db, result.db.sourceImport.latestMonth);
       state.sourceDb = RepairPrivacy.maskData(result.db).masked;
       state.sourceStatus = { kind: 'ok', message: result.updated
-        ? `已更新 ${result.updated} 個月份，最新資料為 ${fmt.monthLabel(result.db.sourceImport.latestMonth)}`
+        ? `已更新 ${result.updated} 份 Excel，最新資料為 ${fmt.monthLabel(result.db.sourceImport.latestMonth)}`
         : '已檢查來源，沒有新檔案或更正版', warnings: result.warnings };
       try { localStorage.setItem('repair_db_v2', JSON.stringify(state.sourceDb)); }
       catch (e) { state.sourceStatus.message += '；本次已更新，但瀏覽器空間不足，重新開啟時會再讀取'; }
@@ -9574,7 +9697,7 @@ window.App = (function () {
   function renderSourceStatus() {
     const box = $('sourceStatus');
     if (!box) return;
-    const status = state.sourceStatus || { kind: 'checking', message: '正在檢查月份 Excel…' };
+    const status = state.sourceStatus || { kind: 'checking', message: '正在檢查維修與整新故障 Excel…' };
     box.dataset.state = status.kind;
     const label = $('sourceStatusText');
     if (label) label.textContent = status.message;
@@ -15403,7 +15526,7 @@ window.App = (function () {
 
   async function init() {
     syncCloudPromise = (async () => {
-      showLoad('正在載入維修報表…', '每次開啟都會檢查新增與更正版 Excel');
+      showLoad('正在載入維修與整新報表…', '每次開啟都會檢查新增與更正版 Excel');
       const cloud = await syncCloud();
       await syncMonthlyWorkbook();
       hideLoad();
