@@ -8,7 +8,7 @@
 ## 通用操作說明
 
 ### 更新報表
-到 [date/](https://github.com/Campcool/campcool-website/tree/main/date) 上傳 Excel 並完成 Commit changes，再開啟網站。
+到 [date/](https://github.com/Campcool/TITAN-STAR/tree/main/date) 上傳 Excel 並完成 Commit changes，再開啟網站。
 已開啟時按「檢查更新」。成功後預設最新報表月份；失敗會保留原資料並提示修正方法。
 詳細命名與更正版規則見同資料夾 README。
 
