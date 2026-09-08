@@ -183,7 +183,7 @@ meta 標籤，GitHub Pages 也不允許設定 `X-Robots-Tag` 標頭，所以它�
 ## 使用者偏好與重要決策
 
 - 使用者不希望每次登入後還要手動上傳資料。
-- 2026-09-07 使用者更新決策：每次開啟網頁都檢查 Campcool/campcool-website/date，新增／更正版立即讀取；取消每月 1 號限制。
+- 2026-09-07 使用者更新決策：每次開啟網頁都檢查 Campcool/TITAN-STAR/date，新增／更正版立即讀取；取消每月 1 號限制。
 - 型號查詢是最重要入口，必須放在最上面，PC 與手機都一樣。
 - 型號查詢結果要「只針對這個型號」，不要混入其他設備、其他零件或全廠異常卡。
 - 目前已改成型號查詢結果直接顯示在頁面下方，不再依賴彈跳視窗。
@@ -288,11 +288,11 @@ meta 標籤，GitHub Pages 也不允許設定 `X-Robots-Tag` 標頭，所以它�
 
 ## 每月資料更新（2026-09-07 起）
 
-1. 到 [Campcool/campcool-website 的 date 資料夾](https://github.com/Campcool/campcool-website/tree/main/date)，上傳當月維修報表與整新故障 Excel 並 Commit changes。
+1. 到 [Campcool/TITAN-STAR 的 date 資料夾](https://github.com/Campcool/TITAN-STAR/tree/main/date)，上傳當月維修報表與整新故障 Excel 並 Commit changes。
 2. 開啟 https://campcool.github.io/TITAN-STAR/ 。每次開啟都檢查新增／更正版；已開啟時按「檢查更新」。
 3. 確认分析期間與更新狀態；不需要執行程式、改日期、重新部署或等待每月 1 號。
 
-完整檔名規則與排錯步驟見 [接手者操作說明](https://github.com/Campcool/campcool-website/blob/main/date/README.md)。
+完整檔名規則與排錯步驟見 [接手者操作說明](https://github.com/Campcool/TITAN-STAR/blob/main/date/README.md)。
 最新月份取報表月份最大值；同月更正版取代原月份，保留歷史。整批解析、資料驗證與檔案 SHA 比對通過後才套用。
 沒有變更只讀資料夾清單，不重抓 Excel。連線／格式／版本衝突時保留本機上一版，首次使用則保留隨站歷史快照並明示失敗。
 
