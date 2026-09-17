@@ -368,7 +368,7 @@ window.App = (function () {
     const result = await syncMonthlyWorkbook();
     if (result) {
       state.db = loadBestDb();
-      if (result.updated) state.selectedMonths = RepairMonthlySource.range(Object.keys(state.db.months), 1);
+      if (result.updated) state.selectedMonths = RepairMonthlySource.range(Object.keys(state.db.months), 'all');
       renderAll();
     }
   }
@@ -681,8 +681,10 @@ window.App = (function () {
       return;
     }
     // 有資料：登入後直接回到乾淨的主管摘要，不沿用可能卡住的舊篩選。
+    // 預設看全部月份——單月是「刻意縮小的範圍」，應該由使用者主動選，
+    // 而不是一進來就把其他月份藏起來（使用者 2026-09-17 指定）。
     state.currentPage = 'summary';
-    state.selectedMonths = RepairMonthlySource.range(Object.keys(state.db.months), 1);
+    state.selectedMonths = RepairMonthlySource.range(Object.keys(state.db.months), 'all');
     state.selectedCategory = '全部';
     state.selectedModel = '全部';
     renderAnalysisRoleBar();
@@ -723,8 +725,8 @@ window.App = (function () {
         if (miniBtn) miniBtn.textContent = '▷';
       }
     } catch(e) {}
-    // Default: latest report month, all categories
-    state.selectedMonths = RepairMonthlySource.range(Object.keys(state.db.months), 1);
+    // Default: 全部月份、全部大類
+    state.selectedMonths = RepairMonthlySource.range(Object.keys(state.db.months), 'all');
     state.selectedCategory = '全部';
     state.selectedModel = '全部';
     renderAnalysisRoleBar();
@@ -880,11 +882,21 @@ window.App = (function () {
       modelField.style.display = 'none';
     }
 
-    renderSubbarScope(denomAll);
+    renderSubbarScope();
+  }
+
+  // 目前篩選條件下的「正常整新流程」台數。
+  // 選了大類或機種時必須只加總對應的機種，直接把 denominators 全部加總會灌大分母。
+  function currentDenomTotal() {
+    const denomAll = RepairAnalyzer.getDenominators(state.db, { months: state.selectedMonths });
+    const byModel = denomAll.byModel || {};
+    if (state.selectedModel && state.selectedModel !== '全部') return byModel[state.selectedModel] || 0;
+    if (state.selectedCategory === '全部') return denomAll.total;
+    return Object.entries(byModel).reduce((s, [m, n]) => s + (RepairParser.getCategory(m) === state.selectedCategory ? n : 0), 0);
   }
 
   // 抽屜右側：目前分析範圍總結。左邊負責切換，右邊負責「我現在看的是什麼」。
-  function renderSubbarScope(denomAll) {
+  function renderSubbarScope() {
     const el = $('subbarScope');
     if (!el) return;
     // 一定要用真正的篩選條件重算。renderFilters 裡的 records 是「不分大類」的全集，
@@ -896,9 +908,7 @@ window.App = (function () {
       : `${fmt.monthLabel(months[0])} – ${fmt.monthLabel(months[months.length - 1])}`;
     const cat = state.selectedCategory === '全部' ? '全部大類' : state.selectedCategory;
     const model = state.selectedModel && state.selectedModel !== '全部' ? state.selectedModel : null;
-    const den = state.selectedCategory === '全部'
-      ? denomAll.total
-      : Object.entries(denomAll.byModel || {}).reduce((s, [m, n]) => s + (RepairParser.getCategory(m) === state.selectedCategory ? n : 0), 0);
+    const den = currentDenomTotal();
     el.innerHTML = `
       <div class="sb-scope-h">目前分析範圍</div>
       <div class="sb-scope-grid">
@@ -1025,7 +1035,9 @@ window.App = (function () {
     lastAutoModelSearch = fuzzy;
     state.selectedCategory = '全部';
     state.selectedModel = fuzzy;
-    state.selectedMonths = RepairMonthlySource.range(Object.keys(state.db.months), 1);
+    // 型號查詢跨全部月份：限定在最新月會讓只在舊月份出現過的型號查無資料，
+    // 使用者只會看到「找不到型號」而不知道是被月份篩掉的。
+    state.selectedMonths = RepairMonthlySource.range(Object.keys(state.db.months), 'all');
     // 必須真正切換頁面 DOM（.page.active / 導覽高亮），
     // 否則在其他分頁搜尋時結果會渲染進隱藏的摘要頁，看起來像沒反應
     if (state.currentPage !== 'summary') {
@@ -1214,11 +1226,12 @@ window.App = (function () {
 
     // Build stats for current filter
     const filteredRecords = RepairAnalyzer.getRecords(state.db, { months: state.selectedMonths, category: cat === '全部' ? null : cat, model: model === '全部' ? null : model });
-    const filteredRefurb = state.selectedMonths.reduce((s, mk) => s + Object.values((state.db.months[mk] || {}).denominators || {}).reduce((a, b) => a + b, 0), 0);
+    // 分母同樣要跟著大類／機種篩選走，否則收合列的整新數會比展開後的大
+    const filteredRefurb = currentDenomTotal();
 
     // Month label
     const monthLabel = allIsSelected
-      ? `月份(全部)`
+      ? `月份(全部) ${state.selectedMonths.length} 個月`
       : state.selectedMonths.map(m => { const [y, mo] = m.split('-'); return `${parseInt(y)-1911}/${mo}`; }).join('、');
 
     // Category/model label
@@ -1231,16 +1244,14 @@ window.App = (function () {
       catLabel = `大類/${cat}`;
     }
 
-    // Stats line
-    const nMonths = state.selectedMonths.length;
-    const statsLabel = `${nMonths} 個月 · RMA 返維修課 ${filteredRecords.length.toLocaleString()} 台${filteredRefurb > 0 ? ` · 正常整新流程 ${filteredRefurb.toLocaleString()} 台` : ''}`;
-
-    // 展開狀態下，下方控制項已呈現相同資訊，手機版會用 CSS 隱藏 .sbs-detail
-    // 只留「篩選」二字，避免同樣內容佔掉兩行。
+    // 收合狀態是最常看到的樣子，而且那一列很寬——兩個數量都放得下，
+    // 不必為了省空間只顯示 RMA 而讓人以為那就是全部。
     el.innerHTML = `<span class="sbs-label">篩選</span>`
       + `<span class="sbs-detail"><span class="sb-pill">${monthLabel}</span>`
       + `<span class="sb-pill">${catLabel}</span>`
-      + `<span class="sb-pill-stat">RMA 返維修課 ${filteredRecords.length.toLocaleString()} 台</span></span>`;
+      + `<span class="sb-pill-stat">RMA 返維修課 ${filteredRecords.length.toLocaleString()} 台</span>`
+      + (filteredRefurb > 0 ? `<span class="sb-pill-stat">正常整新流程 ${filteredRefurb.toLocaleString()} 台</span>` : '')
+      + `</span>`;
   }
 
   function renderGlobalRoleBanner() {
