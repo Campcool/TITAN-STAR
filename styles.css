@@ -4136,6 +4136,38 @@ body {
 .top-control-model {
   flex: 1.35 1 640px;
   border-left: 4px solid var(--accent);
+  position: relative;   /* 型號建議清單的定位基準 */
+}
+
+/* ══════════ 型號建議清單（取代原生 datalist）══════════
+   原生 datalist 的面板由瀏覽器繪製，CSS 完全無效，會在淺色主題上
+   冒出系統深色面板。自製面板才吃得到主題、字體與大類色點。 */
+.model-drop {
+  position: absolute; left: 0; right: 0; top: calc(100% + 6px);
+  max-height: 60vh; overflow-y: auto; z-index: 600;
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: var(--radius-12); padding: var(--space-6);
+  box-shadow: 0 12px 32px rgba(15,23,42,.18);
+}
+.model-drop[hidden] { display: none; }
+.model-drop-item {
+  display: grid; grid-template-columns: 10px 1fr auto;
+  align-items: center; gap: var(--space-10);
+  width: 100%; min-height: 44px;            /* 觸控目標 */
+  padding: var(--space-8) var(--space-10);
+  background: transparent; border: none; border-radius: var(--radius-8);
+  color: var(--text); font: inherit; text-align: left; cursor: pointer;
+}
+.model-drop-item:hover,
+.model-drop-item.active { background: var(--accent-soft); }
+.model-drop-item .mdi-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.model-drop-item .mdi-name { font-family: var(--mono); font-size: var(--fs-15); font-weight: 600; }
+.model-drop-item .mdi-name b { color: var(--accent); font-weight: 800; }
+.model-drop-item .mdi-meta { color: var(--text3); font-size: var(--fs-13); white-space: nowrap; }
+.model-drop-empty { padding: var(--space-12); color: var(--text3); font-size: var(--fs-14); }
+@media (max-width: 620px) {
+  .model-drop-item { grid-template-columns: 10px 1fr; row-gap: var(--space-3); }
+  .model-drop-item .mdi-meta { grid-column: 2; }
 }
 
 .top-control-role {

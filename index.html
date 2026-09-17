@@ -14,9 +14,9 @@
 <title>TITAN-STAR · 維修分析</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Iansui&family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=20260917-5">
-<link rel="stylesheet" href="rma-styles.css?v=20260917-5">
-<link rel="stylesheet" href="styles-morandi.css?v=20260917-5" id="morandiThemeLink">
+<link rel="stylesheet" href="styles.css?v=20260917-6">
+<link rel="stylesheet" href="rma-styles.css?v=20260917-6">
+<link rel="stylesheet" href="styles-morandi.css?v=20260917-6" id="morandiThemeLink">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
@@ -81,11 +81,15 @@
     <div class="top-control top-control-model" id="topModelLookup">
       <span class="top-control-icon">#</span>
       <label class="top-control-label" for="modelQuickSearch">型號查詢</label>
-      <input class="model-lookup-input top-model-input" id="modelQuickSearch" list="modelLookupList" placeholder="輸入型號，例如 MSM0801 / ZSPMG51"
+      <!-- 自訂建議清單：原生 <datalist> 由瀏覽器繪製，CSS 完全碰不到，
+           在淺色主題上會冒出一塊深色系統面板。改為自製面板才能吃站上的樣式。 -->
+      <input class="model-lookup-input top-model-input" id="modelQuickSearch" placeholder="輸入型號，例如 MSM0801 / ZSPMG51"
+        autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list"
+        aria-controls="modelDrop" aria-haspopup="listbox"
         oninput="App.quickModelSearchInput(this.value)"
-        onchange="App.quickModelSearch(this.value)"
-        onkeydown="if(event.key==='Enter')App.quickModelSearch(this.value)">
-      <datalist id="modelLookupList"></datalist>
+        onfocus="App.openModelSuggest()"
+        onkeydown="App.modelSuggestKey(event)">
+      <div class="model-drop" id="modelDrop" role="listbox" aria-label="型號建議" hidden></div>
     </div>
     <!-- Role selector embedded next to analysis tab -->
     <div class="role-sel top-control top-control-role" id="roleSelWrap" style="display:none">
@@ -747,13 +751,13 @@
 <!-- RMA Modal container -->
 <div id="rmaModal" style="display:none;position:fixed;inset:0;z-index:600;align-items:center;justify-content:center"></div>
 
-<script src="parser.js?v=20260917-5"></script>
-<script src="analyzer.js?v=20260917-5"></script>
-<script src="privacy.js?v=20260917-5"></script>
-<script src="monthly-source.js?v=20260917-5"></script>
-<script src="app.js?v=20260917-5"></script>
-<script src="report.js?v=20260917-5"></script>
-<script src="rma.js?v=20260917-5"></script>
+<script src="parser.js?v=20260917-6"></script>
+<script src="analyzer.js?v=20260917-6"></script>
+<script src="privacy.js?v=20260917-6"></script>
+<script src="monthly-source.js?v=20260917-6"></script>
+<script src="app.js?v=20260917-6"></script>
+<script src="report.js?v=20260917-6"></script>
+<script src="rma.js?v=20260917-6"></script>
 <script>
 // ─── Theme toggle（深色 ↔ 莫蘭迪淺色）───
 const THEME_KEY = 'titan_theme';
