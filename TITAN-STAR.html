@@ -4153,6 +4153,38 @@ body {
 .top-control-model {
   flex: 1.35 1 640px;
   border-left: 4px solid var(--accent);
+  position: relative;   /* 型號建議清單的定位基準 */
+}
+
+/* ══════════ 型號建議清單（取代原生 datalist）══════════
+   原生 datalist 的面板由瀏覽器繪製，CSS 完全無效，會在淺色主題上
+   冒出系統深色面板。自製面板才吃得到主題、字體與大類色點。 */
+.model-drop {
+  position: absolute; left: 0; right: 0; top: calc(100% + 6px);
+  max-height: 60vh; overflow-y: auto; z-index: 600;
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: var(--radius-12); padding: var(--space-6);
+  box-shadow: 0 12px 32px rgba(15,23,42,.18);
+}
+.model-drop[hidden] { display: none; }
+.model-drop-item {
+  display: grid; grid-template-columns: 10px 1fr auto;
+  align-items: center; gap: var(--space-10);
+  width: 100%; min-height: 44px;            /* 觸控目標 */
+  padding: var(--space-8) var(--space-10);
+  background: transparent; border: none; border-radius: var(--radius-8);
+  color: var(--text); font: inherit; text-align: left; cursor: pointer;
+}
+.model-drop-item:hover,
+.model-drop-item.active { background: var(--accent-soft); }
+.model-drop-item .mdi-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.model-drop-item .mdi-name { font-family: var(--mono); font-size: var(--fs-15); font-weight: 600; }
+.model-drop-item .mdi-name b { color: var(--accent); font-weight: 800; }
+.model-drop-item .mdi-meta { color: var(--text3); font-size: var(--fs-13); white-space: nowrap; }
+.model-drop-empty { padding: var(--space-12); color: var(--text3); font-size: var(--fs-14); }
+@media (max-width: 620px) {
+  .model-drop-item { grid-template-columns: 10px 1fr; row-gap: var(--space-3); }
+  .model-drop-item .mdi-meta { grid-column: 2; }
 }
 
 .top-control-role {
@@ -5817,11 +5849,15 @@ body {
     <div class="top-control top-control-model" id="topModelLookup">
       <span class="top-control-icon">#</span>
       <label class="top-control-label" for="modelQuickSearch">型號查詢</label>
-      <input class="model-lookup-input top-model-input" id="modelQuickSearch" list="modelLookupList" placeholder="輸入型號，例如 MSM0801 / ZSPMG51"
+      <!-- 自訂建議清單：原生 <datalist> 由瀏覽器繪製，CSS 完全碰不到，
+           在淺色主題上會冒出一塊深色系統面板。改為自製面板才能吃站上的樣式。 -->
+      <input class="model-lookup-input top-model-input" id="modelQuickSearch" placeholder="輸入型號，例如 MSM0801 / ZSPMG51"
+        autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list"
+        aria-controls="modelDrop" aria-haspopup="listbox"
         oninput="App.quickModelSearchInput(this.value)"
-        onchange="App.quickModelSearch(this.value)"
-        onkeydown="if(event.key==='Enter')App.quickModelSearch(this.value)">
-      <datalist id="modelLookupList"></datalist>
+        onfocus="App.openModelSuggest()"
+        onkeydown="App.modelSuggestKey(event)">
+      <div class="model-drop" id="modelDrop" role="listbox" aria-label="型號建議" hidden></div>
     </div>
     <!-- Role selector embedded next to analysis tab -->
     <div class="role-sel top-control top-control-role" id="roleSelWrap" style="display:none">
@@ -10305,17 +10341,15 @@ window.App = (function () {
     const knownModels = RepairAnalyzer.knownModels ? RepairAnalyzer.knownModels(state.db) : Object.keys(allModelCounts);
     for (const m of knownModels) if (!(m in allModelCounts)) allModelCounts[m] = 0;
     const allModels = Object.entries(allModelCounts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([m]) => m);
-    const modelList = $('modelLookupList');
-    if (modelList) {
-      modelList.innerHTML = allModels.map(m => `<option value="${m}">RMA 返維修課 ${fmt.int(allModelCounts[m])} 台</option>`).join('');
-    }
-    if (modelList) {
-      modelList.innerHTML = allModels.map(m => {
-        const sup = RepairAnalyzer.getModelSupplement ? RepairAnalyzer.getModelSupplement(state.db, m) : null;
-        const label = allModelCounts[m] ? `RMA 返維修課 ${fmt.int(allModelCounts[m])} 台` : (sup ? '補充彙總資料' : 'RMA 返維修課 0 台');
-        return `<option value="${m}">${label}</option>`;
-      }).join('');
-    }
+    // 型號建議清單的資料來源（渲染在 openModelSuggest / renderModelSuggest）。
+    // 已依 RMA 台數由多到少排序，所以建議清單不必再排一次。
+    modelSuggestIndex = allModels.map(m => ({
+      model: m,
+      count: allModelCounts[m] || 0,
+      category: RepairParser.getCategory(m),
+      supplement: !allModelCounts[m] && RepairAnalyzer.getModelSupplement
+        ? !!RepairAnalyzer.getModelSupplement(state.db, m) : false,
+    }));
     const modelInput = $('modelQuickSearch');
     if (modelInput && document.activeElement !== modelInput) {
       modelInput.value = state.selectedModel === '全部' ? '' : state.selectedModel;
@@ -10459,7 +10493,121 @@ window.App = (function () {
     return { q, norm, exact, fuzzy };
   }
 
+  // ─── 型號建議清單（取代原生 datalist）───────────────────────────
+  // 為什麼自己做：原生 <datalist> 的浮出清單由瀏覽器繪製，不在文件樣式範圍內，
+  // CSS 一律無效，在淺色主題上會冒出系統的深色面板，而且無法顯示大類色點等資訊。
+  //
+  // 注意：styles.css 有一條「手機永不用自訂下拉」的規則，那是針對角色選擇器——
+  // 它是靠右對齊的三欄格狀面板，在窄螢幕確實不堪用。這裡不同：輸入框底下的
+  // 全寬建議清單本來就是手機上的標準樣式，所以兩邊共用同一套，只調整寬度與觸控高度。
+  let modelSuggestIndex = [];
+  let modelSuggestItems = [];
+  let modelSuggestActive = -1;
+  const MODEL_SUGGEST_MAX = 12;
+
+  function modelSuggestMatches(raw) {
+    const q = String(raw || '').trim().toUpperCase().replace(/[-_\s]/g, '');
+    if (!q) return modelSuggestIndex.slice(0, MODEL_SUGGEST_MAX);
+    // 開頭符合的排前面，其次才是包含——輸入 MSM 時應該先看到 MSM0801 而不是別的
+    const starts = [], contains = [];
+    for (const it of modelSuggestIndex) {
+      const key = it.model.toUpperCase().replace(/[-_\s]/g, '');
+      if (key.startsWith(q)) starts.push(it);
+      else if (key.includes(q)) contains.push(it);
+    }
+    return starts.concat(contains).slice(0, MODEL_SUGGEST_MAX);
+  }
+
+  function renderModelSuggest(raw) {
+    const drop = $('modelDrop');
+    const input = $('modelQuickSearch');
+    if (!drop || !input) return;
+    modelSuggestItems = modelSuggestMatches(raw);
+    modelSuggestActive = -1;
+    if (!modelSuggestItems.length) {
+      drop.innerHTML = `<div class="model-drop-empty">找不到符合的型號</div>`;
+    } else {
+      const q = String(raw || '').trim().toUpperCase().replace(/[-_\s]/g, '');
+      drop.innerHTML = modelSuggestItems.map((it, i) => {
+        const color = CAT_COLOR[it.category] || COLORS.text3;
+        // 把命中的片段標起來，讓使用者看得出為什麼這筆被列出來
+        let name = escapeHtml(it.model);
+        if (q) {
+          const idx = it.model.toUpperCase().replace(/[-_\s]/g, '').indexOf(q);
+          if (idx >= 0) {
+            name = escapeHtml(it.model.slice(0, idx)) + '<b>' + escapeHtml(it.model.slice(idx, idx + q.length)) + '</b>'
+              + escapeHtml(it.model.slice(idx + q.length));
+          }
+        }
+        const meta = it.count ? `RMA 返維修課 ${fmt.int(it.count)} 台`
+          : it.supplement ? '本期無維修，有補充彙總資料' : '本期無維修紀錄';
+        return `<button type="button" class="model-drop-item" role="option" aria-selected="false" data-i="${i}"
+          onmousedown="event.preventDefault()" onclick="App.pickModelSuggest(${i})">
+          <span class="mdi-dot" style="--c:${color}"></span>
+          <span class="mdi-name">${name}</span>
+          <span class="mdi-meta">${meta}</span>
+        </button>`;
+      }).join('');
+    }
+    drop.hidden = false;
+    input.setAttribute('aria-expanded', 'true');
+  }
+
+  function openModelSuggest() { renderModelSuggest($('modelQuickSearch')?.value || ''); }
+
+  function closeModelSuggest() {
+    const drop = $('modelDrop');
+    const input = $('modelQuickSearch');
+    if (drop) { drop.hidden = true; drop.innerHTML = ''; }
+    if (input) input.setAttribute('aria-expanded', 'false');
+    modelSuggestItems = [];
+    modelSuggestActive = -1;
+  }
+
+  function setModelSuggestActive(next) {
+    const drop = $('modelDrop');
+    if (!drop || !modelSuggestItems.length) return;
+    const items = drop.querySelectorAll('.model-drop-item');
+    if (modelSuggestActive >= 0 && items[modelSuggestActive]) {
+      items[modelSuggestActive].classList.remove('active');
+      items[modelSuggestActive].setAttribute('aria-selected', 'false');
+    }
+    modelSuggestActive = (next + items.length) % items.length;
+    const el = items[modelSuggestActive];
+    if (el) {
+      el.classList.add('active');
+      el.setAttribute('aria-selected', 'true');
+      el.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  function pickModelSuggest(i) {
+    const it = modelSuggestItems[i];
+    if (!it) return;
+    const input = $('modelQuickSearch');
+    if (input) input.value = it.model;
+    closeModelSuggest();
+    quickModelSearch(it.model);
+  }
+
+  function modelSuggestKey(ev) {
+    const open = !$('modelDrop')?.hidden;
+    if (ev.key === 'ArrowDown') { ev.preventDefault(); if (!open) openModelSuggest(); else setModelSuggestActive(modelSuggestActive + 1); return; }
+    if (ev.key === 'ArrowUp')   { ev.preventDefault(); if (open) setModelSuggestActive(modelSuggestActive - 1); return; }
+    if (ev.key === 'Escape')    { closeModelSuggest(); return; }
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      if (open && modelSuggestActive >= 0) pickModelSuggest(modelSuggestActive);
+      else { closeModelSuggest(); quickModelSearch(ev.target.value); }
+    }
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#topModelLookup')) closeModelSuggest();
+  });
+
   function quickModelSearchInput(raw) {
+    renderModelSuggest(raw);
     const { q, exact } = resolveModelQuery(raw);
     clearTimeout(quickModelSearchTimer);
     if (!q || !exact) return;
@@ -15797,6 +15945,7 @@ window.App = (function () {
     setTrendCommonOnly,
     refreshSource, setPeriod,
     setMonth, setMonthDirect, setCategory, setModel, quickModelSearch, quickModelSearchInput,
+    openModelSuggest, pickModelSuggest, modelSuggestKey,
     setAnalysisRole, setSummaryFocus,
     openCapaForm, saveCapaForm, setCapaStatus, deleteCapa,
     openCostConfig, saveCostConfig, quickEstimateCost,
