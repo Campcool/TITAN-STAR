@@ -63,6 +63,7 @@ TITAN-STAR 是電子工廠維修資料分析網站。現在最重要的主流程
   - `20260817-3` 加 noindex（Claude）：`index.html` / `TITAN-STAR.html` /
     `TITAN-STAR-morandi.html` 三個頁面加上 `<meta name="robots" content="noindex,nofollow">`，
     並新增 `internal tool pages carry noindex` 斷言防止被改掉（防假綠已驗）。
+    （`TITAN-STAR-morandi.html` 已於 2026-09-17 移除，該斷言現在掃兩個頁面。）
     **詳細背景與未解決的部分見下方「公開曝光現況」章節——這一步只是止血，不是保護。**
   - `20260817-2` 斷言取樣範圍規則（Claude）：`tests/data-integrity.test.mjs` 檔頭新增
     「取樣範圍必須印出來」規則，各測試改用 `t.diagnostic()` 回報實際驗了幾筆。
@@ -837,17 +838,22 @@ UI 實測（本容器擋外部 CDN，Playwright 需注入 Chart/XLSX 樁再跑�
 |---|---|---|
 | 3.1 部署 | 「從 `main` 分支根目錄直接發佈（無 CI workflow）」 | 有兩個 workflow；Pages 由 Actions 發佈 `_site/`（`prepare-pages-artifact.sh` 產出），**不是分支根目錄** |
 | 3.1 資料 | 「`data.json`（雲端同步的快照）」 | 唯讀快照，前端不回寫；localStorage 純本機不共用 |
-| 8 無障礙 | 「顯示大小切換：標準/大/特大，`html[data-fontscale]`」 | 現行站台**沒有這個功能**，`data-fontscale` 只殘留在舊版單檔 `TITAN-STAR-morandi.html` |
+| 8 無障礙 | 「顯示大小切換：標準/大/特大，`html[data-fontscale]`」 | 現行站台**沒有這個功能**（`data-fontscale` 只殘留在舊版單檔，該檔已於本日移除） |
 
 部署那一條特別值得修：照原文理解會以為推上 main 根目錄就會發佈整個目錄，
 而 `prepare-pages-artifact.sh` 的白名單正是為了**不要**讓 `AI-HANDOFF.md`、
 `scripts/`、`tests/`、Excel 範本被公開出去。文件講錯會誘導接手者繞過這層保護。
 
-### 待業主決定（本輪未動）
+### 修正 8：移除舊版 app 單檔複本（業主同日確認）
 
 `TITAN-STAR-morandi.html`（536 KB，最後更新 2026-08-17）是**整份舊版 app 的單檔複本**，
-而且被 `prepare-pages-artifact.sh` 的 `/*.html` 白名單一起發佈到公開站
-（`https://campcool.github.io/TITAN-STAR/TITAN-STAR-morandi.html`）。
-它有自己一套舊的分析邏輯與 UI（例如已移除的字級切換），使用者若誤開會看到與正式站
-不一致的數字。**沒有自行刪除**——可能是刻意保留的樣式參考。
-要處理的話有兩個選項：從公開白名單排除（留在 repo 供參考），或整個移除。
+被 `prepare-pages-artifact.sh` 的 `/*.html` 白名單一起發佈到公開站，
+使用者誤開會看到與正式站不一致的數字與已移除的功能（字級切換）。
+業主確認用不到，已 `git rm`。
+
+- 連帶修正 `tests/data-integrity.test.mjs` 的 noindex 斷言：掃描清單 3 → 2 個頁面。
+  診斷訊息由 `checked`/`pages` 自動推導，不需另改。
+- **不要誤刪 `styles-morandi.css`**：那是現行站台的莫蘭迪主題檔（`index.html` 載入、
+  `build.js` 內嵌成 `window.__morandiCSS__` 供切換），與這個舊版單檔無關，名字像而已。
+- `sw.js` 的 `APP_SHELL` 沒有快取這個檔，所以不需要為此升版。
+- 公開站上的舊網址 `/TITAN-STAR-morandi.html` 會變成 404，這是預期行為。

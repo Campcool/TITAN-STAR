@@ -34,7 +34,8 @@ const root = path.resolve(import.meta.dirname, '..');
 // 設 X-Robots-Tag 標頭，所以它技術上仍可被抓取。要真正擋住需要換架構
 // （例如 Cloudflare Pages + Access）。詳見 AI-HANDOFF「公開曝光」章節。
 test('internal tool pages carry noindex', (t) => {
-  const pages = ['index.html', 'TITAN-STAR.html', 'TITAN-STAR-morandi.html'];
+  // TITAN-STAR-morandi.html（舊版 app 單檔複本）已於 2026-09-17 移除，不再納入。
+  const pages = ['index.html', 'TITAN-STAR.html'];
   const checked = [];
   for (const page of pages) {
     const p = path.join(root, page);
