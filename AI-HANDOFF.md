@@ -449,7 +449,8 @@ node build.js
 
    修正內容：
    - `parser.js` 明確判斷欄名並寫入 `record.serialKind`，同時保留 `prodSerial`。**不要只靠 `findCol` 的 includes 判斷序號語意**。
-   - 重複維修（單月 `repeatedSerials`、跨月 `crossMonthSerials`、KPI `repeatedSerials`）一律只採計 `serialKind==='machine'`。
+   - 重複維修（單月 `repeatedSerials`、跨月 `crossMonthSerials`、KPI `repeatedSerials`、品質頁 `qualityMetrics` 的重工率）一律只採計 `serialKind==='machine'`，並再排除 `batchSerialModels()` 判定的批號機種。
+     （`qualityMetrics` 這一處在本輪才補上，是 2026-07-17 修正時漏掉的呼叫點，詳見「2026-09-17 修正」。**新增任何以序號聚合的統計時，先確認有沒有套這兩道過濾**。）
    - 舊資料已依 7 月來源檔的分頁欄名回填 `serialKind`（同一份月報模板每月一致）；7 月沒有的分頁用統計推定（重複倍數 <3 者判為 machine，實測 14 個分頁全為 1.0x）。
    - 原本的「序號欄疑似填成批號」異常改為 **info 層級說明性警示**「這些機種用製令批次號」，並指向製造批次頁。
 
@@ -673,3 +674,110 @@ python3 -m http.server 8099 &      # 用 http 而非 file://，SW 與 fetch 才�
 4. `TITAN-STAR.html` 離線單檔存在 repo 內供離線使用，build.js 產出後若內容變更需一併 commit；CI 會直接阻擋不同步的提交。
 5. parser/analyzer 的解析輔助函式（normalizePart 等）在 IIFE 內部 scope 不掛 window，測試用 vm 只能測公開介面——日後若想測內部函式，需在 parser.js 加測試用掛鉤（僅限開發環境）。
 6. data.json 2.6MB 每月成長，tests 裡 partsMaster/modelSupplements 數量下限（8,000 / 12）會隨新匯入自動通過；但若某天**筆數異常下降**（匯入腳本清掉舊月份）測試也會擋，屆時確認是預期行為再調下限。
+
+## 2026-09-17 修正（版本 20260917-1）：指標正確性四項
+
+起因：外部 AI（Codex）對 `86b1e55` 做了一輪程式碼審視，產出《TITAN-STAR 審視與升級規劃 v0.1》。
+本輪先做「不必等訪談、不涉及業務決策、與既有慣例對齊」的四項，其餘（CAPA 分階段流程、
+8D、資訊架構改版、多人協作儲存）依規劃屬於需求核定後才動工，本輪**未**進行。
+
+審視文件提的每一條都對照原始碼查證過，四處全部屬實，不是誤判。
+
+### 修正 1：資料品質熱圖的「零件」欄永遠 0%（純程式錯誤）
+
+- **位置**：`app.js` → `renderDQHeatmap()`
+- **原因**：讀 `r.parts && r.parts.length`，但維修紀錄的零件欄位是 `part1/part2/part3`
+  （見 `parser.js` 的 `COL_ALIASES` 與 `compactRecord`），根本沒有 `parts` 這個欄位。
+  `undefined && ...` 恆為假，所以該欄每個月都顯示 0%，使用者會誤判成「工廠完全沒填零件」。
+  實際上資料一直都在：3–7 月分別是 93 / 96 / 99 / 97 / 97%。
+- **修改方式**：改讀 `r.part1 || r.part2 || r.part3`。同時把該欄語意改清楚——
+  欄名 `零件記錄` → `零件換件`，色階改中性灰（`neutral: true`），不套 95/80/50% 的缺漏門檻，
+  並在表格下方加註。**未換件的維修（軟體重設、僅檢測、判報廢）本來就沒有零件，
+  空白不等於漏填**，用缺漏門檻上色會製造假的資料品質問題。
+- **驗證**：對 data.json 五個月分別跑舊式與新式計算比對（0% → 93–99%）；Playwright 實際登入看畫面。
+
+### 修正 2：重工率沒排除製令批號（與 2026-07-17 修正漏接的呼叫點）
+
+- **位置**：`analyzer.js` → `qualityMetrics()`
+- **原因**：2026-07-17 那輪已經把「同批多台被誤判成同一台重修」修掉，但只改了
+  `computeKPIs` / `repeatedSerials` / `crossMonthSerials` 三處，**品質頁的重工率是第四個
+  呼叫點，當時沒跟著改**，仍然用 `if (!r.serial) continue` 直接依 `model|serial` 聚合。
+  結果同一份資料，首頁 KPI 顯示 50 台重複維修（已修正），品質頁重工率卻還是依 164 台在算。
+- **修改方式**：套上與其他三處相同的兩道過濾 `isMachineSerial(r)` + `batchSerialModels(records)`，
+  並回傳 `reworkExcludedModels` 供 UI 說明「為什麼分母變小」。
+- **效果**（全期間，data.json 3–7 月）：重工台數 164 → **50**，有效台數 1,870 → 1,404，
+  重工率 **8.77% → 3.56%**。舊數字被批號灌水約 2.5 倍。
+  排除的 25 個機種包含 `IOT0600` / `ZSPMG31` / `ZSPMG51`（來源分頁明示為生產序號）
+  與 22 個以年月為代號、序號重複倍數 ≥3 的機種（統計推定）。
+- **驗證**：用 vm 載入 analyzer.js 跑真實 data.json，新舊算法並列輸出比對。
+
+### 修正 3：SPC 不是 p-chart，改為 Laney p′（逐點界限）
+
+- **位置**：`analyzer.js` → `spcAnalysis()`；`app.js` → `renderQuality()` 的圖表與說明列
+- **原因**：原本算的是「各月比率的算術平均 ±3 倍母體標準差」，一條固定界限套用到所有月份。
+  p-chart 的界限必須跟著每期樣本量 n_i 走（樣本大→界限窄），固定界限等於假設每月樣本量相同，
+  那是 individuals chart，不是 p-chart，但畫面與卡片標題都寫 p-chart。
+- **為什麼不是直接套教科書公式**：本站 n≈20,000，二項式 3σ 界限只有 ±0.5%，
+  五個月裡三個月「失控」。實測月間變異是抽樣誤差的 **17.3 倍**（過度離散），
+  原因是每月機種組合不同、分母用整新數代理、進廠與生產有時間落差——
+  母體根本不同質。照抄教科書公式只會製造整排假警報。
+- **修改方式**：改用 Laney p′ chart（Laney 2002），也是 Minitab 對大樣本子組的建議做法：
+  1. 中心線改用合併比率 `p̄ = Σ故障數 / Σ樣本數`（不是各月比率的算術平均）。
+  2. 逐點二項式標準差 `σ_i = √(p̄(1−p̄)/n_i)`。
+  3. 以 z 分數的移動全距求過度離散倍數 `σ_z = MR̄ / 1.128`，下限鎖 1
+     （σ_z<1 是比抽樣誤差還穩，通常是資料有問題，此時退回教科書 p-chart，
+     不讓界限比二項式更窄）。
+  4. 界限 `p̄ ± 3·σ_i·σ_z`，逐月不同，圖上用 `stepped: 'middle'` 畫成階梯線。
+  5. `σ_z ≥ 2` 時信度強制降為「趨勢觀察」，並在圖下顯示警語：界限已被放寬，
+     **「沒有超界」不等於製程穩定**，要做正式管制得先確定同一受檢母體的每期樣本量與不良定義。
+  σ_z 本身就是診斷值：σ_z 大代表該先查分母，不是先查製程。
+- **驗證**：三種算法（原固定界限 / 教科書 p-chart / Laney p′）在真實資料上並列試算，
+  確認 Laney 在 σ_z=1 時退化為教科書公式；Playwright 取出 Chart 設定，確認
+  UCL/LCL 是五個不同值的陣列而非常數。
+
+### 修正 4：代理指標揭露（DPPM / FPY / FMEA）
+
+- **位置**：`index.html`（品質頁 `#qualityProxyNote` 容器、風險頁 FMEA 說明與標題）、
+  `app.js` → `renderQuality()` 與 `HELP` 的 `quality` / `risk` 條目
+- **原因**：DPPM 與 FPY 的分子是 RMA 維修件數、分母是同期整新數，**兩個不同作業的數量**，
+  不是同一批受測品的首測結果；程式註解早就寫了「代理值」，但畫面沒說，
+  KPI 卡片還附「消費電子 <500 為佳」這種對標基準，很容易被當成正式良率往外報。
+  FMEA 的 S/O/D 由報廢率、相對頻率、跨月重複推估，頁面卻寫「做正式 FMEA 風險評估」。
+- **修改方式**（只改標示與說明，不改任何計算）：
+  - 品質頁 KPI 標題加「（代理）」，卡片下方改寫成實際口徑，並在 KPI 上方加常駐警示：
+    分子分母各是什麼、為什麼不能當良率、要產出正式 DPPM/FPY 還缺哪些欄位
+    （首測總台數、首測通過台數、重測標記）。同一則警示說明重工率排除了哪些批號機種。
+  - `HELP.quality` 的 benchmark 改掉業界對標說法（分母是代理值，不能直接對標），
+    SPC 公式改為 Laney p′ 的算式。
+  - 風險頁標題 `FMEA 風險矩陣` → `FMEA 風險初篩`，加警示說明 S/O/D 各自怎麼推估出來的、
+    正式 FMEA 還需要什麼（失效影響、現有控制、評分準則、評審人）。
+- **注意**：`.kpi-d` 是 `white-space: nowrap` 且 `.kpi` 是 `overflow: hidden`
+  （styles.css「Number / percent — never break」那條規則），
+  **KPI 卡片的副標塞不下長句會直接被截掉，`<br>` 在那個 flex 容器裡也不換行**。
+  長說明要放在卡片外的 `.data-notice` 區塊，不要塞進 `.kpi-d`。這是本輪實測踩到的。
+
+### 本輪驗證方式（可重跑）
+
+```bash
+node --check app.js && node --check analyzer.js
+pnpm install --frozen-lockfile --ignore-scripts   # tests 需要 xlsx，否則 4 項會因缺套件而紅
+node --test tests/*.test.mjs                      # 21 pass / 0 fail / 2 skip（2 skip 是既有的）
+node scripts/check-version-anchors.mjs
+node build.js                                     # TITAN-STAR.html 必須一併 commit
+```
+
+UI 實測（本容器擋外部 CDN，Playwright 需注入 Chart/XLSX 樁再跑；
+`waitUntil` 要用 `'commit'`，用 `'load'` 會因外部資源被擋而永遠等不到）：
+登入 → 品質頁 → 風險頁 → 390×844 手機寬度，確認無 pageerror、無水平溢出、文字未被截斷。
+
+### 後續接手注意事項
+
+1. **新增任何以序號聚合的統計，一律先套 `isMachineSerial()` + `batchSerialModels()`**。
+   這個坑已經踩第二次了（2026-07-17 一次、本輪 `qualityMetrics` 一次）。
+2. **DPPM / FPY 的「代理」標示不要拿掉**，除非來源 Excel 真的補上首測台數與重測標記。
+   若哪天補上了，是新增欄位與新指標，不是把現有代理值改名。
+3. **σ_z 是診斷值不是裝飾**：若某次 σ_z 掉到 2 以下，代表母體終於同質了，
+   那時才有資格談「製程受控」；在那之前 SPC 頁只能當趨勢看。
+4. 本輪**沒有**碰 CAPA 的資料模型（仍是單一 `status` 字串、可直接切結案）、
+   沒有做 8D、沒有動資訊架構。這三項依規劃書都要等使用者訪談定案
+   （個人使用 vs 多人協作會決定證據附件存哪裡），先做會重做。

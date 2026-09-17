@@ -14,9 +14,9 @@
 <title>TITAN-STAR · 維修分析</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Iansui&family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=20260908-1">
-<link rel="stylesheet" href="rma-styles.css?v=20260908-1">
-<link rel="stylesheet" href="styles-morandi.css?v=20260908-1" id="morandiThemeLink">
+<link rel="stylesheet" href="styles.css?v=20260917-1">
+<link rel="stylesheet" href="rma-styles.css?v=20260917-1">
+<link rel="stylesheet" href="styles-morandi.css?v=20260917-1" id="morandiThemeLink">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
@@ -500,9 +500,10 @@
             <div class="page-meta" id="qualityMeta"></div>
           </div>
           <div class="page-usage"><span class="pu-ico">💡</span><span><b>使用時機：</b>向上彙報品質績效、或監控製程是否失控時使用 — 看 DPPM、FPY 直通率、重工率，並用 SPC 管制圖判斷故障率是否超出管制界線。</span></div>
+          <div id="qualityProxyNote"></div>
           <div class="kpi-grid" id="qualityKpi"></div>
           <div class="card sec">
-            <div class="card-h"><div class="card-t">SPC 故障率管制圖（p-chart）</div></div>
+            <div class="card-h"><div class="card-t">SPC 故障率管制圖（p-chart · 界限依每月樣本量變動）</div></div>
             <div class="chart-wrap tall"><canvas id="spcChart"></canvas></div>
             <div id="spcNote" class="spc-note"></div>
           </div>
@@ -563,14 +564,17 @@
           <div class="page-h">
             <div>
               <div class="page-t">風險與根因分析</div>
-              <div class="page-d">FMEA / RPN 風險評分 · 故障根因樹 · 下月預測</div>
+              <div class="page-d">FMEA 風險初篩（S/O/D 由系統推估）· 故障根因樹 · 下月預測</div>
             </div>
             <div class="page-meta" id="riskMeta"></div>
           </div>
-          <div class="page-usage"><span class="pu-ico">💡</span><span><b>使用時機：</b>做正式 FMEA 風險評估、排定改善優先序、或預估下月趨勢時使用 — 依 RPN 風險評分排序，並透過根因樹追溯部位 → 故障模式。</span></div>
+          <div class="page-usage"><span class="pu-ico">💡</span><span><b>使用時機：</b>排定改善優先序、或預估下月趨勢時使用 — 依 RPN 風險初篩排序，並透過根因樹追溯部位 → 故障模式。正式 FMEA 評審需另補失效影響、現有控制措施與評分依據。</span></div>
           <div class="card sec" id="forecastCard"></div>
           <div class="sec">
-            <div class="sec-h"><span class="sec-t"><span class="strong">FMEA 風險矩陣</span> 依 RPN 排序</span></div>
+            <div class="sec-h"><span class="sec-t"><span class="strong">FMEA 風險初篩</span> 依 RPN 排序</span></div>
+            <div class="data-notice warn" style="margin:0 0 12px"><span class="dn-ico">⚠</span><div>
+              <strong>這是風險初篩，不是正式 FMEA 評審結果</strong>——S（嚴重度）由該部位報廢率推估、O（發生度）由相對發生頻率推估、D（偵測度）由跨月重複出現推估，三者都是從維修紀錄反推的起始值，不是評分準則下的評審結論。
+              正式 FMEA 需補：功能與失效模式定義、失效影響、現有預防／偵測控制、S/O/D 評分準則與評審人。表中 S/O/D 可直接改寫，改過的列會標記「人工調整」。</div></div>
             <div id="fmeaTable"></div>
           </div>
           <div class="sec">
@@ -739,13 +743,13 @@
 <!-- RMA Modal container -->
 <div id="rmaModal" style="display:none;position:fixed;inset:0;z-index:600;align-items:center;justify-content:center"></div>
 
-<script src="parser.js?v=20260908-1"></script>
-<script src="analyzer.js?v=20260908-1"></script>
-<script src="privacy.js?v=20260908-1"></script>
-<script src="monthly-source.js?v=20260908-1"></script>
-<script src="app.js?v=20260908-1"></script>
-<script src="report.js?v=20260908-1"></script>
-<script src="rma.js?v=20260908-1"></script>
+<script src="parser.js?v=20260917-1"></script>
+<script src="analyzer.js?v=20260917-1"></script>
+<script src="privacy.js?v=20260917-1"></script>
+<script src="monthly-source.js?v=20260917-1"></script>
+<script src="app.js?v=20260917-1"></script>
+<script src="report.js?v=20260917-1"></script>
+<script src="rma.js?v=20260917-1"></script>
 <script>
 // ─── Theme toggle（深色 ↔ 莫蘭迪淺色）───
 const THEME_KEY = 'titan_theme';
