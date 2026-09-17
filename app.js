@@ -1596,6 +1596,8 @@ window.App = (function () {
   // care + a drill-down page; the summary page then filters by role and groups
   // by severity — so each manager sees a clean, prioritised "to-track" list.
   const SEV_RANK = { critical: 0, warn: 1, info: 2 };
+  // 摘要頁最多列出幾項非 critical 的異常偵測項目；critical 不受此限，一律全列
+  const ANOM_SUMMARY_LIMIT = 6;
   const PAGE_NAME = { summary:'主管摘要', overview:'總覽', alerts:'異常偵測', parts:'零件 Pareto', cross:'跨機種矩陣', trend:'月份趨勢', reason:'故障原因', quality:'品質/SPC', batch:'製造批次', risk:'風險/根因', capa:'CAPA', cost:'成本量化', scrap:'報廢/重修', detail:'明細' };
   // 角色洞察摘要卡的標籤 → 最相關分頁，點卡片即下鑽到該頁看完整資料
   const TAG_PAGE = {
@@ -1631,11 +1633,29 @@ window.App = (function () {
       if (t.includes('保固')) ['qa', 'cs'].forEach(r => roles.add(r));
       return Array.from(roles);
     };
-    for (const a of anoms) {
+    // 摘要頁不是異常偵測頁的副本。實測 2026-09：48 張卡片裡 36 張來自異常偵測，
+    // 整份倒出來等於沒有摘要，主管看不出該先處理哪一件。
+    // 因此：critical 一律全列（不能因為版面而藏起嚴重項目），
+    // warn/info 只列最前面幾項（detectAnomalies 已依嚴重度與 metric 排序），
+    // 其餘收合成一張卡並指向異常偵測頁，數量寫清楚，不讓人以為只有這些。
+    const anomCrit = anoms.filter(a => a.severity === 'critical');
+    const anomRest = anoms.filter(a => a.severity !== 'critical');
+    const anomShown = anomRest.slice(0, ANOM_SUMMARY_LIMIT);
+    const anomHidden = anomRest.slice(ANOM_SUMMARY_LIMIT);
+    for (const a of [...anomCrit, ...anomShown]) {
       add({ sev: a.severity === 'critical' ? 'critical' : a.severity === 'warn' ? 'warn' : 'info',
         area: '異常偵測', icon: a.icon || '!', title: a.title,
         detail: `${a.subject || ''}${a.message ? '：' + a.message : ''}`,
         action: '至「異常偵測」查看完整清單與下鑽', page: 'alerts', roles: anomRoles(a) });
+    }
+    if (anomHidden.length) {
+      const warnN = anomHidden.filter(a => a.severity === 'warn').length;
+      const roles = new Set();
+      for (const a of anomHidden) anomRoles(a).forEach(r => roles.add(r));
+      add({ sev: 'info', area: '異常偵測', icon: '⋯',
+        title: `另有 ${anomHidden.length} 項異常未列出`,
+        detail: `已列出最嚴重的 ${anomCrit.length + anomShown.length} 項；其餘 ${anomHidden.length} 項（警示 ${warnN}、提示 ${anomHidden.length - warnN}）在異常偵測頁有完整清單與下鑽`,
+        action: '至「異常偵測」查看完整清單', page: 'alerts', roles: Array.from(roles) });
     }
 
     // (2) Manufacture/origin-batch flags
@@ -2045,12 +2065,13 @@ window.App = (function () {
       ],
     },
     parts: {
-      what: '兩個區塊：① 故障零件大類根因 — 依「元件料號大類」把故障零件歸類（連接器/電源/IC/開關/機構…），看故障的「性質」。② 零件件數 Pareto — 所有更換零件依使用量排序（80/20 法則），含累計佔比折線與影響機種數。點「詳情」可查看使用此零件的所有故障記錄。',
+      what: '兩個區塊：① 故障零件大類根因 — 依「元件料號大類」把故障零件歸類（連接器/電源/IC/開關/機構…），看故障的「性質」。② 零件用量 Pareto — 所有更換零件依使用量排序（80/20 法則），含累計佔比折線與影響機種數。點「詳情」可查看使用此零件的所有故障記錄。',
       meaning: '大類分析回答「壞在哪一類零件」：連接器/排線多→組裝接觸問題；電源/電容多→電性/老化；IC 多→設計/ESD；開關/按鍵多→機構耐用度；面板/塑膠/橡膠多→外觀機構或運輸。Pareto 回答「哪幾顆零件最該管」：前 20% 零件通常佔 80% 用量，累計線 80% 以上就是重點備料清單。',
       who: '採購主管：大類佔比鎖定該找哪一類供應商；前 10 大零件是議價與安全庫存重點。硬體研發：IC/電源/連接器大類偏高 → 設計審查候選。維修主管：備料優先序一目了然。物流主管：包裝/機構類偏高可能是運輸損傷。',
       kpis: [
-        { name:'件數', formula:'選定期間此零件的換件總數量', benchmark:'依機種數量不同，趨勢穩定為正常', tip:'急速上升可能是來料批次問題' },
-        { name:'佔比', formula:'此零件件數 ÷ 所有零件總件數', benchmark:'單一零件佔比 >20% 需特別關注', tip:'單一零件佔比過高代表故障高度集中，是最優先的改善與備料標的' },
+        { name:'用量（個）', formula:'選定期間此零件的換件總「數量」加總', benchmark:'依機種數量不同，趨勢穩定為正常', tip:'這是備料要看的數字。一次維修可能換多顆同料件，所以用量會大於維修筆數' },
+        { name:'維修筆數', formula:'實際有更換此零件的維修「筆數」（同一筆維修只算一次）', benchmark:'與用量落差大 → 單次維修就換掉好幾顆，屬批量性損壞', tip:'排改善優先序要看這個，不是看用量——換 300 顆但只發生在 5 筆維修，影響面其實很小' },
+        { name:'佔比', formula:'此零件用量 ÷ 所有零件總用量', benchmark:'單一零件佔比 >20% 需特別關注', tip:'單一零件佔比過高代表故障高度集中，是最優先的改善與備料標的' },
         { name:'影響機種', formula:'有換用此零件的不同機種數', benchmark:'影響 ≥3 機種代表共用料風險', tip:'點詳情可看每個機種的故障描述' },
       ],
       tips: [
@@ -3236,7 +3257,8 @@ window.App = (function () {
     const pareto = RepairAnalyzer.partPareto(records, { db: state.db });
     renderWorkNotes(records);
     const total = pareto.reduce((s, p) => s + p.count, 0);
-    $('partsMeta').textContent = `${pareto.length} 種零件 · 共 ${total.toLocaleString()} 件`;
+    const totalRepairs = pareto.reduce((s, p) => s + p.repairs, 0);
+    $('partsMeta').textContent = `${pareto.length} 種零件 · 用量 ${total.toLocaleString()} 個 · 換件 ${totalRepairs.toLocaleString()} 筆`;
 
     // ── Component-category root cause (故障零件大類) ──
     renderComponentCategory(f);
@@ -3250,7 +3272,7 @@ window.App = (function () {
         datasets: [
           {
             type: 'bar',
-            label: '件數',
+            label: '用量（個）',
             data: top.map(p => p.count),
             backgroundColor: COLORS.accent + 'cc',
             borderColor: COLORS.accent,
@@ -3314,7 +3336,9 @@ window.App = (function () {
           <span class="tag">${p.models.length} 機種</span>
           <div class="muted" style="font-size:10.5px;font-family:var(--mono);margin-top:3px">${p.models.slice(0, 4).join(', ')}${p.models.length > 4 ? '…' : ''}</div>
         </td>
-        <td class="num" style="text-align:right;font-weight:700">${p.count}</td>
+        <td class="num" style="text-align:right;font-weight:700">${p.count}
+          ${p.repairs !== p.count ? `<div class="muted" style="font-size:10px;font-weight:400" title="實際有更換此零件的維修筆數。用量大於筆數代表單次維修就換掉多顆，排改善優先序要看筆數">${p.repairs} 筆 · 每筆 ${(p.count / p.repairs).toFixed(1)} 顆</div>` : ''}
+        </td>
         <td class="num" style="text-align:right;font-size:11.5px" title="本月 vs 上月用量">${momCell}</td>
         <td>
           <div class="pwrap">
