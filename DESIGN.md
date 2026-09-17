@@ -90,8 +90,14 @@ CAPA、COPQ、批次追溯、預測），並以**「主管角色視角」**把�
 - 圖表：Chart.js 4.4（CDN）。
 - Excel 解析：SheetJS / xlsx 0.18（CDN）。
 - 字型：Inter + Noto Sans TC + JetBrains Mono（Google Fonts）。
-- 資料持久化：`localStorage`（本機）+ `data.json`（雲端同步的快照）。
-- 部署：GitHub Pages，從 `main` 分支根目錄直接發佈（無 CI workflow）。
+- 資料持久化：`localStorage`（**純本機，各裝置各一份，不共用**）+ `data.json`（隨站的唯讀快照，
+  由匯入腳本寫進 repo，前端不回寫）。CAPA 與 RMA 目前都在 localStorage，**不是共用案件平台**；
+  多人協作的規劃見 [`M365-協作整合規劃.md`](M365-協作整合規劃.md)（後續改版建議，尚未實作）。
+- 部署：GitHub Pages，**由 GitHub Actions 發佈**（`.github/workflows/site-check.yml` 的 deploy job），
+  發佈內容是 `scripts/prepare-pages-artifact.sh` 產出的 `_site/`，**不是分支根目錄**——
+  內部文件（`*.md`、`scripts/`、`tests/`、Excel 範本）都被刻意排除在公開站之外。
+- CI：`site-check.yml`（語法檢查、`node --test`、去識別化、版本錨點、離線單檔同步）
+  與 `pages-self-check.yml`（確認 Pages 來源維持 `build_type=workflow`，避免退回分支發佈而繞過門禁）。
 
 ### 3.2 檔案結構與職責
 
@@ -229,9 +235,11 @@ COPQ)、`scrap`(報廢&重修)、`detail`(明細資料)。
 
 ## 8. 無障礙與 RWD（因使用者為長輩）
 
-- **顯示大小切換**（標題列）：標準/大/特大，透過 `html[data-fontscale]` + `body { zoom }`
-  全站等比縮放，**預設「大」**；設定存 `localStorage`，在繪製前套用避免閃爍。
-- 基礎字級 19px，最小字級已整體上調。
+- **沒有字級切換功能**（與 SOP 一致）。早期的 `html[data-fontscale]` + `body { zoom }`
+  三段縮放已移除，目前只殘留在舊版單檔 `TITAN-STAR-morandi.html` 裡，現行站台不使用。
+  改用固定字級 + 響應式版面，使用者需要放大時用瀏覽器縮放。
+- 字級固定 px，**瀏覽器/系統的字級設定對本站無效**，所以最小字級要自己顧；
+  目前手機下限 13.5px（見 AI-HANDOFF「字級策略」）。
 - **行動裝置導覽**：≤1100px 時側欄改為**漢堡選單 + 滑出抽屜 + 遮罩**（修復了先前
   「側欄直接 display:none 導致手機完全無導覽」的重大缺陷）。
 - 手機斷點：KPI 單欄、加大觸控目標、隱藏次要按鈕。

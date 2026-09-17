@@ -14,9 +14,9 @@
 <title>TITAN-STAR · 維修分析</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Iansui&family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=20260917-1">
-<link rel="stylesheet" href="rma-styles.css?v=20260917-1">
-<link rel="stylesheet" href="styles-morandi.css?v=20260917-1" id="morandiThemeLink">
+<link rel="stylesheet" href="styles.css?v=20260917-2">
+<link rel="stylesheet" href="rma-styles.css?v=20260917-2">
+<link rel="stylesheet" href="styles-morandi.css?v=20260917-2" id="morandiThemeLink">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
@@ -355,11 +355,11 @@
           <div class="page-h">
             <div>
               <div class="page-t">零件 Pareto 分析</div>
-              <div class="page-d">依件數排序 · 累計佔比 · 跨機種分布</div>
+              <div class="page-d">依用量排序 · 累計佔比 · 跨機種分布</div>
             </div>
             <div class="page-meta" id="partsMeta"></div>
           </div>
-          <div class="page-usage"><span class="pu-ico">💡</span><span><b>使用時機：</b>規劃備料安全庫存、或要找出「最該優先改善」的關鍵零件時使用 — 依件數排序與累計佔比，鎖定造成多數故障的少數零件。</span></div>
+          <div class="page-usage"><span class="pu-ico">💡</span><span><b>使用時機：</b>規劃備料安全庫存、或要找出「最該優先改善」的關鍵零件時使用 — 依用量排序與累計佔比，鎖定造成多數故障的少數零件。<b>備料看「用量」，排改善優先序看「維修筆數」</b>：一次維修可能換多顆同料件，兩個數字不一樣。</span></div>
           <div class="card sec">
             <div class="card-h"><div class="card-t">🧩 故障零件大類根因</div><div class="card-sub">依元件料號大類歸類 · 看故障性質（連接器 / 電源 / IC / 開關 / 機構…）</div></div>
             <div class="comp-cat-wrap">
@@ -368,7 +368,7 @@
             </div>
           </div>
           <div class="card sec">
-            <div class="card-h"><div class="card-t">📊 零件件數 Pareto</div></div>
+            <div class="card-h"><div class="card-t">📊 零件用量 Pareto</div><div class="card-sub">長條為零件用量（個），不是維修筆數</div></div>
             <div class="chart-wrap tall"><canvas id="paretoChart"></canvas></div>
           </div>
           <div class="tbl-wrap">
@@ -378,7 +378,7 @@
                   <th style="width:36px">#</th>
                   <th>零件名稱</th>
                   <th>影響機種</th>
-                  <th class="right" style="width:80px">件數</th>
+                  <th class="right" style="width:96px" title="零件用量（個）＝各筆維修的更換數量加總。單次維修換多顆時，下方會另標實際維修筆數">用量（個）</th>
                   <th class="right" style="width:100px" title="本月 vs 上月用量環比">較上月</th>
                   <th style="width:220px">佔比 / 累計</th>
                   <th class="right" style="width:90px" title="建議安全庫存量（月均用量×2）">建議備料</th>
@@ -743,13 +743,13 @@
 <!-- RMA Modal container -->
 <div id="rmaModal" style="display:none;position:fixed;inset:0;z-index:600;align-items:center;justify-content:center"></div>
 
-<script src="parser.js?v=20260917-1"></script>
-<script src="analyzer.js?v=20260917-1"></script>
-<script src="privacy.js?v=20260917-1"></script>
-<script src="monthly-source.js?v=20260917-1"></script>
-<script src="app.js?v=20260917-1"></script>
-<script src="report.js?v=20260917-1"></script>
-<script src="rma.js?v=20260917-1"></script>
+<script src="parser.js?v=20260917-2"></script>
+<script src="analyzer.js?v=20260917-2"></script>
+<script src="privacy.js?v=20260917-2"></script>
+<script src="monthly-source.js?v=20260917-2"></script>
+<script src="app.js?v=20260917-2"></script>
+<script src="report.js?v=20260917-2"></script>
+<script src="rma.js?v=20260917-2"></script>
 <script>
 // ─── Theme toggle（深色 ↔ 莫蘭迪淺色）───
 const THEME_KEY = 'titan_theme';
