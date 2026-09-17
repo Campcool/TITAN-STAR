@@ -924,3 +924,26 @@ chartjs-plugin-annotation。實測三種情境（Playwright，攔截外部請求
 **注意**：本容器的對外連線政策會擋掉 jsdelivr、Google Fonts 與 `campcool.github.io`，
 所以 Playwright 測 UI 一律要注入 Chart/XLSX 樁，且 `page.goto` 的 `waitUntil` 必須用
 `'commit'`——用 `'load'` 會因為同樣的原因永遠等不到。這不是站台的問題，是沙箱的網路政策。
+
+### 修正 10b：下拉改直向堆疊，範圍總結放大成說明（版本 20260917-4）
+
+使用者看過 20260917-3 後的第二輪指定：「大類放到月份下面，這樣空間足夠，
+右側的範圍就可以不再是小卡片，可以放大成說明」。
+
+- **位置**：`styles.css` → `.subbar-controls` / `.sb-filters` / `.sb-field` / `.sb-scope*`；
+  `app.js` → `renderSubbarScope()` 與三個下拉的選項文字
+- **修改方式**：
+  - `.subbar-controls` 由 flex 改為 `grid-template-columns: minmax(300px, 420px) 1fr`，
+    左欄三個下拉**直向堆疊**（`.sb-field` 用 `grid-template-columns: 40px 1fr` 讓標籤對齊），
+    省下來的寬度全部給右欄。
+  - 右欄不再是數字小卡：每個數字都加上一行說明
+    （RMA 返維修課＝送回維修課處理的數量、正常整新流程＝同期整新作業的數量），
+    底下補一段「全站每一頁的數字都以這個範圍計算；兩個數量來自不同作業，
+    不能相除當作良率或不良率」。字級由 `--fs-12-5` 提高到 `--fs-14`。
+  - **下拉選項文字改用縮寫**（`RMA 1,179 · 整新 19,545`）。
+    原本寫全名會讓收合狀態的 `<select>` 被截斷，反而看不到月份——
+    native select 的收合顯示就是選項文字，沒辦法只縮短收合時的版本。
+    完整名稱與意義由右側說明負責。
+  - 斷點：≤1100px 改單欄（右欄移到下方），≤820px 標籤改放在下拉上方。
+- **驗證**：Playwright 桌機 1440px 與手機 390×844 各截圖確認；
+  另外斷言三個 `<select>` 的 `scrollWidth` 沒有超過 `clientWidth`（確認文字沒被截斷）。

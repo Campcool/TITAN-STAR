@@ -808,9 +808,11 @@ window.App = (function () {
     // 月份下拉（每個選項帶當月 RMA 與整新數，選之前就看得到量級）
     const ms = $('monthSelect');
     if (ms) {
-      ms.innerHTML = `<option value="__ALL__">全部 ${months.length} 個月${allDenom ? ` · 正常整新流程 ${fmt.int(allDenom)} 台` : ''}</option>`
+      // 選項文字用縮寫（RMA／整新），完整名稱與說明在右側「目前分析範圍」；
+      // 寫全名會讓收合狀態的下拉被截斷，反而看不到月份。
+      ms.innerHTML = `<option value="__ALL__">全部 ${months.length} 個月${allDenom ? ` · 整新 ${fmt.int(allDenom)}` : ''}</option>`
         + (selMonth === '__RANGE__' ? `<option value="__RANGE__" disabled>已選 ${state.selectedMonths.length} 個月</option>` : '')
-        + months.map(mk => `<option value="${mk}">${fmt.monthLabel(mk)} · RMA 返維修課 ${fmt.int(state.db.months[mk].records.length)} 台${monthDenom[mk] ? ` · 正常整新流程 ${fmt.int(monthDenom[mk])} 台` : ''}</option>`).join('');
+        + months.map(mk => `<option value="${mk}">${fmt.monthLabel(mk)} · RMA ${fmt.int(state.db.months[mk].records.length)}${monthDenom[mk] ? ` · 整新 ${fmt.int(monthDenom[mk])}` : ''}</option>`).join('');
       ms.value = selMonth;
     }
 
@@ -836,7 +838,7 @@ window.App = (function () {
         const count = c === '全部' ? records.length : (catCounts[c] || 0);
         const den = catDen(c);
         const label = c === '全部' ? '全部大類' : c;
-        return `<option value="${c}">${label} · RMA 返維修課 ${fmt.int(count)} 台${den ? ` · 正常整新流程 ${fmt.int(den)} 台` : ''}</option>`;
+        return `<option value="${c}">${label} · RMA ${fmt.int(count)}${den ? ` · 整新 ${fmt.int(den)}` : ''}</option>`;
       }).join('');
       cs.value = state.selectedCategory;
     }
@@ -872,7 +874,7 @@ window.App = (function () {
       const models = Object.entries(mCount).sort((a, b) => b[1] - a[1]).map(([m]) => m);
       modelField.style.display = '';
       mdSel.innerHTML = `<option value="全部">全部機種</option>`
-        + models.map(m => `<option value="${m}">${m} · RMA 返維修課 ${fmt.int(mCount[m])} 台</option>`).join('');
+        + models.map(m => `<option value="${m}">${m} · RMA ${fmt.int(mCount[m])}</option>`).join('');
       mdSel.value = models.includes(state.selectedModel) ? state.selectedModel : '全部';
     } else if (modelField) {
       modelField.style.display = 'none';
@@ -899,11 +901,17 @@ window.App = (function () {
       : Object.entries(denomAll.byModel || {}).reduce((s, [m, n]) => s + (RepairParser.getCategory(m) === state.selectedCategory ? n : 0), 0);
     el.innerHTML = `
       <div class="sb-scope-h">目前分析範圍</div>
-      <div class="sb-scope-row"><span class="sb-scope-k">期間</span><span class="sb-scope-v">${escapeHtml(periodLabel)}<span class="muted">（${months.length} 個月）</span></span></div>
-      <div class="sb-scope-row"><span class="sb-scope-k">範圍</span><span class="sb-scope-v">${escapeHtml(cat)}${model ? ` · ${escapeHtml(model)}` : ''}</span></div>
-      <div class="sb-scope-row"><span class="sb-scope-k">RMA 返維修課</span><span class="sb-scope-v">${fmt.int(records.length)} 台</span></div>
-      ${den ? `<div class="sb-scope-row"><span class="sb-scope-k">正常整新流程</span><span class="sb-scope-v">${fmt.int(den)} 台</span></div>` : ''}
-      <div class="sb-scope-note">兩者是不同作業的數量，不能相除當作良率</div>`;
+      <div class="sb-scope-grid">
+        <span class="sb-scope-k">期間</span>
+        <span class="sb-scope-v">${escapeHtml(periodLabel)}<span class="sub">共 ${months.length} 個月</span></span>
+        <span class="sb-scope-k">範圍</span>
+        <span class="sb-scope-v">${escapeHtml(cat)}${model ? ` · ${escapeHtml(model)}` : ''}<span class="sub">${model ? '單一機種' : state.selectedCategory === '全部' ? '未篩選機種' : '此大類全部機種'}</span></span>
+        <span class="sb-scope-k">RMA 返維修課</span>
+        <span class="sb-scope-v"><span class="n">${fmt.int(records.length)}</span> 台<span class="sub">送回維修課處理的數量</span></span>
+        ${den ? `<span class="sb-scope-k">正常整新流程</span>
+        <span class="sb-scope-v"><span class="n">${fmt.int(den)}</span> 台<span class="sub">同期整新作業的數量</span></span>` : ''}
+      </div>
+      <div class="sb-scope-note">全站每一頁的數字都以這個範圍計算。<strong>上面兩個數量來自不同作業，不能相除當作良率或不良率</strong>；要換範圍請用左邊的下拉。</div>`;
   }
 
   function collapseSubbar() {
