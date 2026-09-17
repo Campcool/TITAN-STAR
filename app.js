@@ -404,6 +404,10 @@ window.App = (function () {
     }
     const warnings = state.sourceStatus?.warnings || state.db.sourceImport?.warnings || [];
     $('sourceWarnings').textContent = warnings.join(' ');
+    // 期間與來源資訊在首頁是導覽，在其他頁面只是背景資訊。完整版每頁重複會佔掉
+    // 近 400px 首屏，把該頁真正的內容擠到摺線以下（使用者實測回報）。
+    // 非首頁收成「期間 + 切換範圍」一行；更新失敗的狀態不收，見 styles.css。
+    el.dataset.compact = String(state.currentPage !== 'summary');
   }
 
   // Maintainer action: produce a data.json to commit to the repo.
@@ -801,23 +805,12 @@ window.App = (function () {
       allDenom += d;
     }
 
-    // Month chips（維修件數 + 整新數）
-    const mc = $('monthChips');
-    mc.innerHTML = '<div class="sb-label">月份</div>'
-      + `<button class="chip ${all ? 'active' : ''}" onclick="App.setMonth('__ALL__')">全部月份 <span class="num">${months.length} 個月</span>${allDenom ? `<span class="num-den" title="正常整新流程的作業數量">正常整新流程 ${fmt.int(allDenom)} 台</span>` : ''}</button>`
-      + months.map(mk => {
-        const sel = !all && state.selectedMonths.includes(mk);
-        const m = state.db.months[mk];
-        const den = monthDenom[mk];
-        return `<button class="chip ${sel ? 'active' : ''}" onclick="App.setMonth('${mk}')">${fmt.monthLabel(mk)} <span class="num">RMA 返維修課 ${fmt.int(m.records.length)} 台</span>${den ? `<span class="num-den" title="正常整新流程的作業數量">正常整新流程 ${fmt.int(den)} 台</span>` : ''}</button>`;
-      }).join('');
-
-    // Mobile month select（完整標示維修筆數；窄螢幕由 CSS 改為上下排列）
+    // 月份下拉（每個選項帶當月 RMA 與整新數，選之前就看得到量級）
     const ms = $('monthSelect');
     if (ms) {
-      ms.innerHTML = `<option value="__ALL__">全部 ${months.length} 個月</option>`
+      ms.innerHTML = `<option value="__ALL__">全部 ${months.length} 個月${allDenom ? ` · 正常整新流程 ${fmt.int(allDenom)} 台` : ''}</option>`
         + (selMonth === '__RANGE__' ? `<option value="__RANGE__" disabled>已選 ${state.selectedMonths.length} 個月</option>` : '')
-        + months.map(mk => `<option value="${mk}">${fmt.monthLabel(mk)} · RMA 返維修課 ${fmt.int(state.db.months[mk].records.length)} 台</option>`).join('');
+        + months.map(mk => `<option value="${mk}">${fmt.monthLabel(mk)} · RMA 返維修課 ${fmt.int(state.db.months[mk].records.length)} 台${monthDenom[mk] ? ` · 正常整新流程 ${fmt.int(monthDenom[mk])} 台` : ''}</option>`).join('');
       ms.value = selMonth;
     }
 
@@ -836,25 +829,14 @@ window.App = (function () {
     }
     const catDen = (c) => c === '全部' ? denomAll.total : (catDenom[c] || 0);
 
-    const cc = $('catChips');
-    cc.innerHTML = '<div class="sb-label">大類</div>'
-      + cats.map(c => {
-        const sel = state.selectedCategory === c;
-        const count = c === '全部' ? records.length : (catCounts[c] || 0);
-        const den = catDen(c);
-        const color = c === '全部' ? COLORS.text3 : (CAT_COLOR[c] || COLORS.text3);
-        const categoryLabel = c === '全部' ? '全部大類' : c;
-        return `<button class="chip cat-chip ${sel ? 'active' : ''}" style="--c:${color}" onclick="App.setCategory('${c}')">${categoryLabel} <span class="num">RMA 返維修課 ${fmt.int(count)} 台</span>${den ? `<span class="num-den" title="正常整新流程的作業數量">正常整新流程 ${fmt.int(den)} 台</span>` : ''}</button>`;
-      }).join('');
-
-    // Mobile category select（完整標示大類名稱與維修筆數）
+    // 大類下拉
     const cs = $('catSelect');
     if (cs) {
       cs.innerHTML = cats.map(c => {
         const count = c === '全部' ? records.length : (catCounts[c] || 0);
         const den = catDen(c);
         const label = c === '全部' ? '全部大類' : c;
-        return `<option value="${c}">${label} · RMA 返維修課 ${fmt.int(count)} 台</option>`;
+        return `<option value="${c}">${label} · RMA 返維修課 ${fmt.int(count)} 台${den ? ` · 正常整新流程 ${fmt.int(den)} 台` : ''}</option>`;
       }).join('');
       cs.value = state.selectedCategory;
     }
@@ -880,23 +862,48 @@ window.App = (function () {
       modelInput.value = state.selectedModel === '全部' ? '' : state.selectedModel;
     }
 
-    // Model chips (only when a category is selected)
-    if (state.selectedCategory !== '全部') {
+    // 機種下拉：只在選了大類之後才出現（沒選大類時機種清單太長，沒有篩選意義）
+    const modelField = $('modelField');
+    const mdSel = $('modelSelect');
+    if (state.selectedCategory !== '全部' && modelField && mdSel) {
       const inCat = records.filter(r => r.category === state.selectedCategory);
       const mCount = {};
       for (const r of inCat) mCount[r.model] = (mCount[r.model] || 0) + 1;
       const models = Object.entries(mCount).sort((a, b) => b[1] - a[1]).map(([m]) => m);
-      const md = $('modelChips');
-      md.style.display = 'flex';
-      md.innerHTML = '<div class="sb-label">機種</div>'
-        + `<button class="chip ${state.selectedModel === '全部' ? 'active' : ''}" onclick="App.setModel('全部')">全部</button>`
-        + models.map(m => {
-          const sel = state.selectedModel === m;
-          return `<button class="chip ${sel ? 'active' : ''}" onclick="App.setModel('${m}')">${m} <span class="num">RMA 返維修課 ${fmt.int(mCount[m])} 台</span></button>`;
-        }).join('');
-    } else {
-      $('modelChips').style.display = 'none';
+      modelField.style.display = '';
+      mdSel.innerHTML = `<option value="全部">全部機種</option>`
+        + models.map(m => `<option value="${m}">${m} · RMA 返維修課 ${fmt.int(mCount[m])} 台</option>`).join('');
+      mdSel.value = models.includes(state.selectedModel) ? state.selectedModel : '全部';
+    } else if (modelField) {
+      modelField.style.display = 'none';
     }
+
+    renderSubbarScope(denomAll);
+  }
+
+  // 抽屜右側：目前分析範圍總結。左邊負責切換，右邊負責「我現在看的是什麼」。
+  function renderSubbarScope(denomAll) {
+    const el = $('subbarScope');
+    if (!el) return;
+    // 一定要用真正的篩選條件重算。renderFilters 裡的 records 是「不分大類」的全集，
+    // 拿它來顯示會讓切了大類之後台數紋風不動。
+    const records = RepairAnalyzer.getRecords(state.db, currentFilter());
+    const months = state.selectedMonths.slice().sort();
+    const periodLabel = months.length === 0 ? '—'
+      : months.length === 1 ? fmt.monthLabel(months[0])
+      : `${fmt.monthLabel(months[0])} – ${fmt.monthLabel(months[months.length - 1])}`;
+    const cat = state.selectedCategory === '全部' ? '全部大類' : state.selectedCategory;
+    const model = state.selectedModel && state.selectedModel !== '全部' ? state.selectedModel : null;
+    const den = state.selectedCategory === '全部'
+      ? denomAll.total
+      : Object.entries(denomAll.byModel || {}).reduce((s, [m, n]) => s + (RepairParser.getCategory(m) === state.selectedCategory ? n : 0), 0);
+    el.innerHTML = `
+      <div class="sb-scope-h">目前分析範圍</div>
+      <div class="sb-scope-row"><span class="sb-scope-k">期間</span><span class="sb-scope-v">${escapeHtml(periodLabel)}<span class="muted">（${months.length} 個月）</span></span></div>
+      <div class="sb-scope-row"><span class="sb-scope-k">範圍</span><span class="sb-scope-v">${escapeHtml(cat)}${model ? ` · ${escapeHtml(model)}` : ''}</span></div>
+      <div class="sb-scope-row"><span class="sb-scope-k">RMA 返維修課</span><span class="sb-scope-v">${fmt.int(records.length)} 台</span></div>
+      ${den ? `<div class="sb-scope-row"><span class="sb-scope-k">正常整新流程</span><span class="sb-scope-v">${fmt.int(den)} 台</span></div>` : ''}
+      <div class="sb-scope-note">兩者是不同作業的數量，不能相除當作良率</div>`;
   }
 
   function collapseSubbar() {
@@ -950,7 +957,9 @@ window.App = (function () {
     state.selectedModel = '全部';
     renderAll();
     saveFilterState();
-    collapseSubbar();
+    // 選了具體大類會帶出「機種」下拉，這時收起抽屜等於把剛出現的選項藏起來；
+    // 只有回到「全部」（沒有後續選項）才收合。
+    if (c === '全部') collapseSubbar();
   }
 
   function setModel(m) {

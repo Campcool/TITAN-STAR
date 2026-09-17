@@ -857,3 +857,70 @@ UI 實測（本容器擋外部 CDN，Playwright 需注入 Chart/XLSX 樁再跑�
   `build.js` 內嵌成 `window.__morandiCSS__` 供切換），與這個舊版單檔無關，名字像而已。
 - `sw.js` 的 `APP_SHELL` 沒有快取這個檔，所以不需要為此升版。
 - 公開站上的舊網址 `/TITAN-STAR-morandi.html` 會變成 404，這是預期行為。
+
+## 2026-09-17 第三批（版本 20260917-3）：篩選抽屜改版、期間面板精簡
+
+使用者上線後實測回報：「不管切到哪一頁，期間面板都佔據主要版面，影響閱讀內容」，
+並指定篩選要改成下拉、目前範圍總結放右邊。這一批照使用者指定的版型做。
+
+### 修正 9：期間面板在非首頁收成一行
+
+- **位置**：`app.js` → `renderMonthlyContext()`；`styles.css` → `.monthly-context[data-compact]`
+- **原因**：`#monthlyContext` 在 `.content-inner` 裡、所有 `.page` 之上，所以**每一頁都會顯示**
+  完整面板（標題＋說明＋切換範圍＋來源狀態＋跨月警告＋三步導覽），實測佔掉近 400px 首屏，
+  把該頁真正的內容擠到摺線以下。而且期間與範圍在上方篩選列本來就看得到，是重複資訊。
+- **修改方式**：`el.dataset.compact = String(state.currentPage !== 'summary')`，
+  非首頁只留「分析期間 X ▸ 切換月份與歷史範圍」一行（123px → 實際約 60px，
+  容器有網路時不顯示錯誤列）。
+  **例外：`.source-status[data-state="error"]` 在精簡模式仍然顯示**——
+  更新失敗必須每頁都看得到，不能因為版面而被藏起來。
+
+### 修正 10：篩選列由 chip 牆改為下拉 + 範圍總結
+
+- **位置**：`index.html` `#subbarBody`；`app.js` → `renderFilters()` / 新增 `renderSubbarScope()`；
+  `styles.css` → `.subbar-controls` / `.sb-filters` / `.sb-scope`
+- **原因**：原本桌機把每個月份與每個大類都攤成 chip（兩排大按鈕，含 RMA 與整新台數），
+  展開時吃掉整個首屏；手機另有一套 `<select>`，等於同功能兩套實作。
+  但這些是「偶爾才改一次」的設定，不需要常駐佔版面。
+- **修改方式**（使用者指定的版型）：
+  - 左側三個下拉：月份 / 大類 / 機種（機種只在選了具體大類後出現）。
+    選項文字保留 RMA 與整新台數，所以選之前就看得到量級。
+  - 右側 `#subbarScope`「目前分析範圍」：期間、範圍、RMA 台數、正常整新台數，
+    並附一行「兩者是不同作業的數量，不能相除當作良率」。
+  - 刪掉 `#monthChips` / `#catChips` / `#modelChips` 與 `.subbar-mobile-row`、
+    `.subbar-chips-row`（桌機/手機兩套合而為一），連同已成孤兒的 `.sb-label` 三條 CSS。
+- **兩個實作上踩到的點**（改這裡要注意）：
+  1. `renderFilters` 裡的 `records` 是**不分大類**的全集（用來算各大類筆數）。
+     一開始直接拿它渲染右側總結，導致切了大類之後 RMA 台數紋風不動。
+     `renderSubbarScope` 必須自己用 `currentFilter()` 重算。
+  2. `setCategory()` 原本無條件 `collapseSubbar()`。改版後選具體大類會帶出「機種」下拉，
+     立刻收合等於把剛出現的選項藏起來。改成只有回到「全部」才收合。
+- **驗證**：Playwright 實測展開抽屜、切大類（無線保全 RMA 879 台，與篩選列一致）、
+  機種下拉出現、切到明細頁確認面板為 compact、390×844 無水平溢出、無 pageerror。
+
+### 已診斷但未修：分頁一直轉圈
+
+使用者回報瀏覽器分頁的載入圈圈never停。**已用對照實驗確認成因**，但修法需要決策，本輪未動。
+
+`index.html` head 有 5 個外部資源會擋住 `load` 事件：
+Google Fonts CSS ＋ jsdelivr 的 chart.js / xlsx / hammerjs / chartjs-plugin-zoom /
+chartjs-plugin-annotation。實測三種情境（Playwright，攔截外部請求）：
+
+| 外部資源行為 | `load` 事件 | 分頁圈圈 |
+|---|---|---|
+| 無回應（hang） | **不觸發** | **一直轉** |
+| 立即失敗 | 觸發 | 正常停止 |
+| 正常回應 | 觸發 | 正常停止 |
+
+所以成因是其中某個外部資源在使用者網路上**連得上但不回應**（不是壞掉，是沒有超時）。
+頁面功能看起來正常，因為 `display=swap` 會先用備用字型、而真正要用的腳本有載到。
+
+修法選項（待業主決定）：
+1. **把這 5 個函式庫與字型改為自架**（放進 repo、走同源）。最徹底，順帶解決離線與
+   CI 無法測 UI 的問題；代價是 repo 增加約 1.5MB，要改 `prepare-pages-artifact.sh`
+   白名單、`sw.js` 的 `APP_SHELL` 與 `build.js`。
+2. 先請使用者用 DevTools → Network 找出實際擱置的是哪一個，再針對性處理。
+
+**注意**：本容器的對外連線政策會擋掉 jsdelivr、Google Fonts 與 `campcool.github.io`，
+所以 Playwright 測 UI 一律要注入 Chart/XLSX 樁，且 `page.goto` 的 `waitUntil` 必須用
+`'commit'`——用 `'load'` 會因為同樣的原因永遠等不到。這不是站台的問題，是沙箱的網路政策。
