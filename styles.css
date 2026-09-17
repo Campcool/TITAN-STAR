@@ -3419,11 +3419,20 @@ button, input, select { font-family: inherit; }
 /* 下拉直向堆疊（窄欄），把省下來的寬度讓給右邊的範圍說明。
    下拉本來並排時，右邊只塞得下一張小卡；改成堆疊後右欄夠寬，
    範圍就能寫成看得懂的說明，而不是一串沒有上下文的數字。 */
+/* 兩欄等高：左欄只有 2–3 個下拉、右欄是完整說明，若各自貼齊頂端，
+   左邊下方會空出一大塊。改成兩個同樣款式的面板並 stretch，
+   空白就落在面板內部，讀起來是版面而不是破洞。 */
 .subbar-controls {
-  display: grid; grid-template-columns: minmax(300px, 420px) 1fr;
-  gap: var(--space-20); align-items: start;
+  display: grid; grid-template-columns: minmax(320px, 480px) 1fr;
+  gap: var(--space-20); align-items: stretch;
 }
-.sb-filters { display: flex; flex-direction: column; gap: var(--space-8); min-width: 0; }
+.sb-filters {
+  display: flex; flex-direction: column; gap: var(--space-8); min-width: 0;
+  padding: var(--space-14) var(--space-18);
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-10);
+}
+.sb-filters-h { color: var(--text3); font-size: var(--fs-13); font-weight: 700; letter-spacing: .06em; margin-bottom: var(--space-4); }
 .sb-field { display: grid; grid-template-columns: 40px 1fr; align-items: center; gap: var(--space-10); min-width: 0; }
 .sb-field-l { color: var(--text3); font-size: var(--fs-13); font-weight: 700; white-space: nowrap; }
 .sb-scope {
