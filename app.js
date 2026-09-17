@@ -2098,21 +2098,21 @@ window.App = (function () {
       ],
     },
     quality: {
-      what: '4 個品質指標 KPI + SPC 管制圖。指標：DPPM（整體缺陷率）、報廢 DPPM（僅計報廢）、FPY 直通率（未進維修比例）、重工率（重複進廠率）。SPC 圖顯示各月故障率相對於歷史平均的位置。',
-      meaning: 'DPPM 是國際通用品質語言，方便與業界對標。SPC 圖中：CL（中心線）= 歷史平均；UCL（紅線）= 管制上限（3σ）；超過 UCL 的月份 = 製程失控，需追查特殊原因，而非正常波動。',
-      who: '品檢主管：核心戰場，每月必檢視是否有月份超出 UCL。生產主管：FPY 越高代表製程越好。董事長/財務：DPPM 是對標業界水準的語言。維修主管：重工率反映首修品質。',
+      what: '4 個品質指標 KPI + SPC 管制圖。指標：DPPM（代理）、報廢 DPPM（代理）、FPY 直通率（代理）、重工率（重複進廠率）。SPC 圖顯示各月故障率相對於合併比率的位置，管制界限依每月樣本量變動。',
+      meaning: 'DPPM 與 FPY 在本站是代理指標：分子是 RMA 維修件數，分母是同期整新數，兩者來自不同作業，不是同一批受測品的首測結果，因此只能對內看趨勢，不能當成對外報告的良率。重工率與報廢率的分子分母都在維修紀錄內，不受此限。SPC 圖中：CL（中心線）= 合併比率（總維修 ÷ 總樣本）；UCL/LCL = 逐月界限（樣本量大的月份界限窄）；σ_z = 月間實際變異相對抽樣誤差的倍數，σ_z 偏大代表每月母體不同質，此時只能當趨勢看。',
+      who: '品檢主管：核心戰場，每月檢視趨勢與超界月份。生產主管：FPY 代理值只反映「未進維修的比例」。董事長/財務：對外引用 DPPM 前要先確認分母定義。維修主管：重工率反映首修品質。',
       kpis: [
-        { name:'DPPM', formula:'維修件數 ÷ 整新數 × 1,000,000', benchmark:'消費電子 <500 為佳 · <2,000 可接受 · >10,000 需重點改善', tip:'DPPM 不等於故障率，是把比例放大到百萬基數，方便跨公司比較' },
-        { name:'報廢 DPPM', formula:'報廢件數 ÷ 整新數 × 1,000,000', benchmark:'應遠低於 DPPM；若接近 DPPM 代表大部分維修都無法修復', tip:'高報廢 DPPM 代表設計問題比製程問題更嚴重' },
-        { name:'FPY 直通率', formula:'（整新數 - 維修件數）÷ 整新數 × 100%', benchmark:'>95% 佳 · 90–95% 可接受 · <90% 需改善（本系統以整新數為代理值）', tip:'FPY 是製造業最常用的良率指標；本值為代理估算，非出廠直通率' },
-        { name:'重工率', formula:'重複進廠台數 ÷ 有序號的維修台數 × 100%', benchmark:'<3% 佳 · 3–8% 警戒 · >8% 首修品質有問題', tip:'重工代表同一台機器修了又壞，是維修技師技能或零件品質的指標' },
-        { name:'SPC UCL', formula:'歷史平均故障率 + 3 × 標準差', benchmark:'超出 UCL 的月份 = 製程失控，必須找到特殊原因', tip:'SPC 需至少 2 個月資料才能計算；建議累積 6 個月以上才有意義' },
+        { name:'DPPM（代理）', formula:'維修件數 ÷ 整新數 × 1,000,000', benchmark:'因分母是代理值，不宜直接與業界 DPPM 對標；請看自身月度趨勢', tip:'要產出可對外對標的 DPPM，需要同一母體的總受測台數與不良台數' },
+        { name:'報廢 DPPM（代理）', formula:'報廢件數 ÷ 整新數 × 1,000,000', benchmark:'應遠低於 DPPM；若接近 DPPM 代表大部分維修都無法修復', tip:'高報廢 DPPM 代表設計問題比製程問題更嚴重' },
+        { name:'FPY 直通率（代理）', formula:'（整新數 - 維修件數）÷ 整新數 × 100%', benchmark:'這是「未進維修的比例」，不是首測直通率，不能當出廠 FPY 引用', tip:'真正的 FPY 需要首測總台數、首測通過台數與重測標記（目前 Excel 未提供）' },
+        { name:'重工率', formula:'重複進廠台數 ÷ 有機器序號的維修台數 × 100%', benchmark:'<3% 佳 · 3–8% 警戒 · >8% 首修品質有問題', tip:'只計機器序號；序號其實是製令批號的機種會整個排除，否則同批多台會被誤判成同一台重修' },
+        { name:'SPC 管制界限', formula:'合併比率 p̄ ± 3 × √(p̄(1−p̄)/n_i) × σ_z（Laney p′，n_i 為當月樣本量）', benchmark:'超出界限的月份 = 需追查特殊原因；σ_z ≥ 2 時界限已放寬，不做失控判定', tip:'界限隨每月樣本量變動，所以圖上是階梯線而非直線；至少 2 個月才能計算，建議累積 6 個月以上' },
       ],
       tips: [
         'SPC 圖中，超出紅色 UCL 的月份必須找出「特殊原因」（換供應商？新批次？新操作員？）',
-        'DPPM 持續下降但 FPY 沒有提升 → 可能是整新數計算問題，請確認分母資料正確',
+        'σ_z 很大（月間變異遠大於抽樣誤差）時，先查的不是製程，而是分母：每月機種組合是否不同、整新數是否對得上同一批受測品',
         '重工率高但 DPPM 不高 → 維修品質問題（技師技能）；重工率高且 DPPM 也高 → 零件或設計問題',
-        '品檢主管可將每月 DPPM 截圖，作為每月品質績效報告依據',
+        '把 DPPM 放進對外報告前，先在報告中寫明分母是整新數的代理值，否則會被當成出廠不良率',
         '若 SPC 顯示「需至少 2 個月資料」，請繼續上傳月份資料，圖表會自動啟用',
       ],
     },
@@ -2136,8 +2136,8 @@ window.App = (function () {
       ],
     },
     risk: {
-      what: '三個區塊：① 下月維修量預測（線性回歸 + 3 月移動平均的綜合預測）② FMEA 風險矩陣（8 大部位的 S×O×D=RPN 評分，S/O/D 可手動調整）③ 故障根因樹（每個部位的維修件數、報廢數、Top 5 故障模式）。',
-      meaning: 'RPN（風險優先數）= 嚴重度(S) × 發生度(O) × 偵測度(D)。三個分數各 1–10，RPN 越高越需優先處理。系統會依資料自動計算分數，品檢主管可針對有主觀判斷的部位手動調整 S/O/D 值（調整後會保存並標記「人工調整」）。',
+      what: '三個區塊：① 下月維修量預測（線性回歸 + 3 月移動平均的綜合預測）② FMEA 風險初篩（8 大部位的 S×O×D=RPN 評分，S/O/D 可手動調整）③ 故障根因樹（每個部位的維修件數、報廢數、Top 5 故障模式）。',
+      meaning: 'RPN（風險優先數）= 嚴重度(S) × 發生度(O) × 偵測度(D)。三個分數各 1–10，RPN 越高越需優先處理。系統給的 S/O/D 是從維修紀錄反推的起始值（風險初篩），不是評分準則下的評審結論；正式 FMEA 還需要失效影響、現有控制措施、評分依據與評審人。品檢主管可逐項手動調整 S/O/D（調整後會保存並標記「人工調整」）。',
       who: '品檢主管：依 RPN 排序決定 CAPA 優先序，RPN≥200 的部位應立即開立改善專案。硬體研發：「PCB/電源」部位 RPN 高 → ECO 候選。韌體研發：「韌體/軟體」RPN 高 → 版本審查。採購/財務：預測值用於備料計劃與成本估算。廠長：根因樹中佔比最高的部位需要跨部門協調改善。',
       kpis: [
         { name:'S 嚴重度', formula:'由報廢率自動計算（報廢率越高→S越高）；可手動覆寫', benchmark:'7–10 = 嚴重（可能報廢或安全風險）· 4–6 = 中等 · 1–3 = 輕微', tip:'品檢主管應確認 S 分數符合實際嚴重程度，必要時手動調整' },
@@ -5189,30 +5189,44 @@ window.App = (function () {
 
     $('qualityMeta').textContent = `基數（整新數）${fmt.int(q.base)} · 維修 ${fmt.int(q.total)}`;
 
+    // 代理指標揭露：DPPM/FPY 的分子分母來自兩個不同作業，不是同一批受測品，
+    // 不加註會被當成正式良率往外報。
+    const proxyNote = $('qualityProxyNote');
+    if (proxyNote) {
+      proxyNote.innerHTML = `<div class="data-notice warn" style="margin:0 0 14px"><span class="dn-ico">⚠</span><div>
+        <strong>DPPM 與 FPY 是代理指標，不是正式良率</strong>——分子是 RMA 維修件數，分母是同期「整新數」。
+        兩者是兩個不同作業的數量，不是同一批受測品的首測結果，相除得到的是工作量比值。
+        要產出可對外報告的 DPPM／FPY，需要同一母體的總受測台數、首測通過台數與重測標記（目前 Excel 未提供）。
+        重工率與報廢率不受此限，它們的分子分母都在維修紀錄內。${
+          q.reworkExcludedModels.length
+            ? `<br>重工率只計機器序號：本期有 <strong>${q.reworkExcludedModels.length}</strong> 個機種的序號其實是製令批號（同批多台共用一個號碼），已整批排除，否則同批多台會被誤判成同一台重複維修。<span class="muted" title="${escapeHtml(q.reworkExcludedModels.join('、'))}">（${escapeHtml(q.reworkExcludedModels.slice(0, 6).join('、'))}${q.reworkExcludedModels.length > 6 ? ` 等 ${q.reworkExcludedModels.length} 個` : ''}）</span>`
+            : ''}</div></div>`;
+    }
+
     const dppmClass = q.dppm == null ? '' : q.dppm >= 50000 ? 'k-red' : q.dppm >= 10000 ? 'k-warn' : 'k-info';
     const fpyClass = q.fpy == null ? '' : q.fpy >= 95 ? 'k-info' : q.fpy >= 90 ? 'k-warn' : 'k-red';
     const reworkClass = q.reworkRate >= 10 ? 'k-red' : q.reworkRate >= 5 ? 'k-warn' : 'k-info';
 
     $('qualityKpi').innerHTML = `
       <div class="kpi ${dppmClass}">
-        <div class="kpi-h"><div class="kpi-l">DPPM</div><div class="kpi-ico">‰</div></div>
+        <div class="kpi-h"><div class="kpi-l">DPPM（代理）</div><div class="kpi-ico">‰</div></div>
         <div class="kpi-v">${q.dppm == null ? '—' : fmt.int(q.dppm)}</div>
-        <div class="kpi-d"><span class="muted">每百萬基數缺陷數 · 維修觸發</span></div>
+        <div class="kpi-d"><span class="muted" title="分母是整新數（代理值），不是首測受測台數">每百萬整新數的維修件數</span></div>
       </div>
       <div class="kpi k-red">
-        <div class="kpi-h"><div class="kpi-l">報廢 DPPM</div><div class="kpi-ico">✕</div></div>
+        <div class="kpi-h"><div class="kpi-l">報廢 DPPM（代理）</div><div class="kpi-ico">✕</div></div>
         <div class="kpi-v">${q.scrapDppm == null ? '—' : fmt.int(q.scrapDppm)}</div>
-        <div class="kpi-d"><span class="muted">每百萬基數報廢數</span></div>
+        <div class="kpi-d"><span class="muted">每百萬整新數的報廢件數</span></div>
       </div>
       <div class="kpi ${fpyClass}">
-        <div class="kpi-h"><div class="kpi-l">FPY 直通率</div><div class="kpi-ico">✓</div></div>
+        <div class="kpi-h"><div class="kpi-l">FPY 直通率（代理）</div><div class="kpi-ico">✓</div></div>
         <div class="kpi-v">${q.fpy == null ? '—' : fmt.pct(q.fpy)}</div>
-        <div class="kpi-d"><span class="muted">未進維修比例（代理值）</span></div>
+        <div class="kpi-d"><span class="muted" title="（整新數−維修件數）÷ 整新數；不是首測直通率">未進維修的比例，非首測</span></div>
       </div>
       <div class="kpi ${reworkClass}">
         <div class="kpi-h"><div class="kpi-l">重工率</div><div class="kpi-ico">♺</div></div>
         <div class="kpi-v">${fmt.pct(q.reworkRate)}</div>
-        <div class="kpi-d"><span class="muted">${q.reworkUnits} / ${q.uniqueUnits} 台重複進廠</span></div>
+        <div class="kpi-d"><span class="muted" title="${q.reworkExcludedModels.length ? '已排除序號為製令批號的機種：' + escapeHtml(q.reworkExcludedModels.join('、')) : '只計機器序號'}">${q.reworkUnits} / ${q.uniqueUnits} 台重複進廠</span></div>
       </div>
     `;
 
@@ -5225,9 +5239,17 @@ window.App = (function () {
       return;
     }
     const spcConfColor = { ready: 'var(--ok)', trial: 'var(--warn)', exploratory: 'var(--critical)' }[spc.confidence];
+    // 界限逐月不同（依當月樣本量），所以摘要列標明這是最新月份的界限
     note.innerHTML = `<span style="color:${spcConfColor};font-weight:600">【${spc.confidenceLabel}】</span>　`
-      + `中心線 CL = <strong>${spc.mean.toFixed(2)}%</strong> · UCL(3σ) = <strong style="color:var(--critical)">${spc.ucl.toFixed(2)}%</strong> · σ = ${spc.sigma.toFixed(2)}`
-      + (spc.outCount > 0 ? ` · <strong style="color:var(--critical)">${spc.outCount} 個月超出管制界限 ⚠</strong>` : ` · <span style="color:var(--ok)">製程穩定</span>`);
+      + `中心線 CL = <strong>${spc.mean.toFixed(2)}%</strong> · 最新月 UCL(3σ) = <strong style="color:var(--critical)">${spc.ucl.toFixed(2)}%</strong>`
+      + ` · 界限依每月樣本量變動（Laney p′，σ_z = ${spc.sigmaZ.toFixed(1)}）`
+      + (spc.outCount > 0
+          ? ` · <strong style="color:var(--critical)">${spc.outCount} 個月落在管制界限外 ⚠</strong>`
+          : spc.overdispersed ? ` · <span class="muted">界限內，但不等於製程穩定</span>`
+          : ` · <span style="color:var(--ok)">製程穩定</span>`)
+      + (spc.overdispersed
+          ? `<div class="data-notice warn" style="margin-top:10px"><span class="dn-ico">⚠</span><div><strong>這張圖只能當趨勢看</strong>——月與月之間的變異是抽樣誤差的 <strong>${spc.sigmaZ.toFixed(1)} 倍</strong>，代表每月的分母不是同一個同質母體（機種組合每月不同、分母用整新數代理、進廠與生產時間落差）。界限已依此放寬，所以「沒有超界」只代表落在放寬後的界限內，不能當作製程受控的結論。要做正式管制，需要先確定同一條產線／同一個受檢母體的每期樣本量與不良定義。</div></div>`
+          : '');
 
     const labels = spc.points.map(p => fmt.monthLabel(p.month));
     const data = spc.points.map(p => +p.faultPct.toFixed(2));
@@ -5241,17 +5263,26 @@ window.App = (function () {
           datasets: [
             { label: '故障率%', data, borderColor: COLORS.accent, backgroundColor: 'transparent',
               pointBackgroundColor: ptColors, pointRadius: 6, pointHoverRadius: 8, tension: .2, borderWidth: 2 },
-            { label: 'UCL', data: labels.map(() => +spc.ucl.toFixed(2)), borderColor: COLORS.critical,
-              borderDash: [6, 4], pointRadius: 0, borderWidth: 1.5 },
+            // 逐點界限：樣本量大的月份界限窄、小的寬，所以這三條是階梯狀而非直線
+            { label: 'UCL', data: spc.points.map(p => +p.ucl.toFixed(2)), borderColor: COLORS.critical,
+              borderDash: [6, 4], pointRadius: 0, borderWidth: 1.5, stepped: 'middle' },
             { label: 'CL', data: labels.map(() => +spc.mean.toFixed(2)), borderColor: COLORS.text3,
               borderDash: [3, 3], pointRadius: 0, borderWidth: 1 },
-            { label: 'LCL', data: labels.map(() => +spc.lcl.toFixed(2)), borderColor: COLORS.ok,
-              borderDash: [6, 4], pointRadius: 0, borderWidth: 1.5 },
+            { label: 'LCL', data: spc.points.map(p => +p.lcl.toFixed(2)), borderColor: COLORS.ok,
+              borderDash: [6, 4], pointRadius: 0, borderWidth: 1.5, stepped: 'middle' },
           ],
         },
         options: { responsive: true, maintainAspectRatio: false,
           plugins: {
             legend: { position: 'bottom' },
+            tooltip: { callbacks: {
+              // 逐點界限的前提是樣本量，看圖的人要能直接看到 n
+              afterLabel: (c) => {
+                const p = spc.points[c.dataIndex];
+                if (!p || c.datasetIndex !== 0) return '';
+                return `樣本數 n = ${fmt.int(p.denom)}　維修 ${fmt.int(p.count)} 件`;
+              },
+            } },
             // C3: annotation — mark latest month
             annotation: {
               annotations: labels.length ? {
@@ -5263,7 +5294,7 @@ window.App = (function () {
                 avgLine: {
                   type: 'line', yMin: spc.mean, yMax: spc.mean,
                   borderColor: COLORS.text3 + 'aa', borderWidth: 1, borderDash: [2, 4],
-                  label: { display: true, content: `平均 ${spc.mean.toFixed(1)}%`, position: 'end', color: COLORS.text3, font: { size: 10 } },
+                  label: { display: true, content: `合併比率 ${spc.mean.toFixed(1)}%`, position: 'end', color: COLORS.text3, font: { size: 10 } },
                 },
               } : {},
             },
@@ -5283,7 +5314,10 @@ window.App = (function () {
     const fields = [
       { key: 'date', label: '日期' }, { key: 'model', label: '機種' },
       { key: 'serial', label: '序號' }, { key: 'reason', label: '故障原因' },
-      { key: 'content', label: '故障內容' }, { key: 'part', label: '零件記錄' },
+      { key: 'content', label: '故障內容' },
+      // 換件率不是填寫率：未換件（軟體重設、僅檢測、判報廢）本來就沒有零件，
+      // 空白不等於漏填，所以這一欄用中性色階，不套 95/80/50% 的缺漏門檻。
+      { key: 'part', label: '零件換件', neutral: true },
     ];
     const monthKeys = Object.keys(state.db.months).sort().slice(-12);
     if (!monthKeys.length) { dqEl.innerHTML = ''; return; }
@@ -5298,15 +5332,21 @@ window.App = (function () {
       rates.serial  = m.records.filter(r => r.serial).length / total;
       rates.reason  = m.records.filter(r => r.reason && r.reason !== '未知').length / total;
       rates.content = m.records.filter(r => r.content).length / total;
-      rates.part    = m.records.filter(r => r.parts && r.parts.length > 0).length / total;
+      // 記錄的零件欄位是 part1/part2/part3（見 parser.js COL_ALIASES），不是 parts 陣列。
+      // 原本讀 r.parts 恆為 undefined，這一欄永遠顯示 0%。
+      rates.part    = m.records.filter(r => r.part1 || r.part2 || r.part3).length / total;
       return { month: mk, rates, total };
     });
 
-    const cell = (rate) => {
+    const cell = (rate, total, field) => {
       const pct = Math.round((rate || 0) * 100);
-      const bg = pct >= 95 ? '#22c55e' : pct >= 80 ? '#f59e0b' : pct >= 50 ? '#f97316' : '#ef4444';
-      const fg = pct >= 80 ? '#fff' : '#fff';
-      return `<td title="${pct}% 填寫率" style="padding:5px 8px;text-align:center;background:${bg}${Math.round((rate||0)*0.7*255).toString(16).padStart(2,'0')};color:${fg};font-family:var(--mono);font-size:12px;border-radius:4px">${pct}%</td>`;
+      const n = Math.round((rate || 0) * (total || 0));
+      const bg = field.neutral ? '#64748b'
+        : pct >= 95 ? '#22c55e' : pct >= 80 ? '#f59e0b' : pct >= 50 ? '#f97316' : '#ef4444';
+      const title = field.neutral
+        ? `${n}/${total} 筆有換件紀錄；未換件不等於漏填`
+        : `${pct}% 填寫率（${n}/${total} 筆）`;
+      return `<td title="${title}" style="padding:5px 8px;text-align:center;background:${bg}${Math.round((rate||0)*0.7*255).toString(16).padStart(2,'0')};color:#fff;font-family:var(--mono);font-size:12px;border-radius:4px">${pct}%</td>`;
     };
 
     dqEl.innerHTML = `
@@ -5321,7 +5361,7 @@ window.App = (function () {
         <tbody>
           ${data.map(d => `<tr>
             <td style="padding:5px 8px;font-family:var(--mono);font-size:12px;white-space:nowrap;color:var(--text2)">${fmt.monthLabel(d.month)}</td>
-            ${fields.map(f => cell(d.rates[f.key])).join('')}
+            ${fields.map(f => cell(d.rates[f.key], d.total, f)).join('')}
             <td style="padding:5px 8px;text-align:right;font-family:var(--mono);font-size:12px;color:var(--text3)">${d.total}</td>
           </tr>`).join('')}
         </tbody>
@@ -5332,6 +5372,10 @@ window.App = (function () {
         <span style="background:#f59e0b66;padding:2px 6px;border-radius:3px;margin-right:6px">80–94%</span>
         <span style="background:#f9731666;padding:2px 6px;border-radius:3px;margin-right:6px">50–79%</span>
         <span style="background:#ef444466;padding:2px 6px;border-radius:3px">＜50%</span>
+        <span style="background:#64748b66;padding:2px 6px;border-radius:3px;margin-left:10px">零件換件（中性欄，不適用上述門檻）</span>
+      </div>
+      <div style="margin-top:6px;font-size:11px;color:var(--text3);line-height:1.6">
+        「零件換件」是該月有填任一故障零件（part1/2/3）的比例。未換件的維修（軟體重設、僅檢測、判報廢）本來就沒有零件，比例偏低不代表資料漏填，因此不列入缺漏判讀。
       </div>
     `;
   }
