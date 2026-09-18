@@ -1241,3 +1241,58 @@ localStorage）、把所有非本機請求全部 abort，模擬「另一台沒�
 `vendor/*.js` 但不含 `vendor/README.md`。
 
 已做反向驗證：把其中一支函式庫改回 CDN，第 1、2 項立刻紅燈。
+
+## 2026-09-18（版本 20260918-4）：匯入 115/08，並修掉 CLI 匯入會洗掉歷史月份的 bug
+
+### 做了什麼
+
+把 `date/` 裡的兩份 8 月 Excel 匯進 `data.json`，讓離線複本與線上版一致
+（在此之前 `data.json` 停在 115/07，離線複本比線上版少一個月）：
+
+```bash
+node scripts/import-month.js "date/115年 08 月維修報表.xlsx"
+node scripts/import-wireless-overview.js "date/115年8月整新故障.xlsx"
+```
+
+結果：5 個月 6,587 筆 → **6 個月 7,483 筆**（115/08 新增 896 筆，
+badDates 0、missingModel 0、遮罩 12 個值＋1 個 key）。
+整新故障補充新增 12 個機種的 2026-08 資料，`ZBRT050` 依既有規則保留
+更完整的 `model-supplement-v1` 不被覆蓋。單檔版 4,877 KB → 5,233 KB。
+
+### 順手修掉的 bug：`import-wireless-overview.js` 會洗掉前幾個月
+
+第一次匯入之後檢查 `modelSupplements`，發現每個機種的 `monthly` 只剩
+`['2026-08']`——原本的 `['2026-07']` 不見了。
+
+原因：這支腳本是 `db.modelSupplements[key] = sup;` **整筆覆蓋**，
+而網頁版（`monthly-source.js` 的 `merge()`）處理同一份 Excel 時是
+**跨月合併**的：
+
+```js
+if (existing?.sourceType === 'wireless-overview-v1') {
+  sup.monthly = [...(existing.monthly || []).filter(x => x.month !== file.month), ...sup.monthly] …
+```
+
+也就是說，**用 CLI 匯入和讓網站自己去 `date/` 抓，會得到不同的 `data.json`**。
+已把同一套合併邏輯搬進 CLI（同月重匯＝取代該月，所以可以重跑），
+並把 `written[]` 的統計改成只算當月，另加 `keptEarlierMonths` 讓輸出看得出
+保留了幾個舊月份。先 `git checkout -- data.json` 還原再重匯。
+
+**給後人的教訓：這個專案有兩條匯入路徑（CLI 與瀏覽器），改其中一條時要對照
+另一條。** 目前已知兩者仍有一處不一致：CLI 不寫 `sourceImport` manifest，
+所以網站每次開啟仍會把 `date/` 的檔案重讀一遍（行為正確，只是沒省到）。
+
+### 要讓使用者知道的數字口徑
+
+**115/08 的整體故障率 11.4% 比前幾個月高出一截，是分母變小造成的，不是品質變差。**
+`ZSPMG31` 在 03–07 月的整新數是 13,304–18,497（佔全月分母約 2/3），
+但 **8 月的報表裡沒有這個機種**，所以 8 月整新數只有 7,839（前月 19,545）。
+維修報表的分頁也確實沒有 ZSPMG31，兩邊一致，不是解析錯誤。
+跨月比較故障率時要記得這件事。
+
+### 其他
+
+- `publishedBy` 仍是 `Codex`（前一次匯入留下的）。這是「誰發布這份資料」的
+  欄位，沒有替使用者自作主張改掉；要改用 `--published-by` 帶。
+- `node --test` 29 pass / 0 fail；去識別化、版本錨點、`check-source-dir`、
+  離線可攜 8 項全部通過。離線複本實測 6 個月 7,483 筆、對外請求 0。

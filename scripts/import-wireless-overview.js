@@ -224,13 +224,31 @@ function main() {
       skipped.push({ model: key, reason: 'existing model-supplement-v1 (richer), kept' });
       continue;
     }
+    // 跨月合併，不要整筆覆蓋。這支腳本原本直接 `db.modelSupplements[key] = sup`，
+    // 匯入 8 月就會把同一個機種 7 月的整新數與故障原因洗掉。網頁版
+    // （monthly-source.js 的 merge()）處理同一份 Excel 時是合併的，兩條路徑
+    // 必須一致，否則用 CLI 匯入與讓網站自己抓會得到不同的 data.json。
+    // 同月重匯＝取代該月（先 filter 掉同月再接上新的），所以可以重跑。
+    let kept = 0;
+    if (existing && existing.sourceType === 'wireless-overview-v1') {
+      const before = (existing.monthly || []).filter(x => x.month !== parsed.month);
+      kept = new Set(before.map(x => x.month)).size;
+      sup.monthly = [...before, ...sup.monthly]
+        .sort((a, b) => a.month.localeCompare(b.month) || String(a.variant).localeCompare(String(b.variant)));
+      sup.reasons = [...(existing.reasons || []).filter(x => x.month !== parsed.month), ...sup.reasons]
+        .sort((a, b) => a.month.localeCompare(b.month) || b.count - a.count);
+      sup.annual = existing.annual || [];
+      sup.sourceFiles = [...new Set([...(existing.sourceFiles || []), ...(sup.sourceFiles || [])])];
+    }
     db.modelSupplements[key] = sup;
+    const thisMonth = sup.monthly.filter(x => x.month === parsed.month);
     written.push({
       model: key,
-      variants: sup.monthly.length,
-      refurbished: sup.monthly.reduce((a, x) => a + (x.refurbished || 0), 0),
-      failed: sup.monthly.reduce((a, x) => a + (x.failed || 0), 0),
-      reasonRows: sup.reasons.length,
+      variants: thisMonth.length,
+      refurbished: thisMonth.reduce((a, x) => a + (x.refurbished || 0), 0),
+      failed: thisMonth.reduce((a, x) => a + (x.failed || 0), 0),
+      reasonRows: sup.reasons.filter(x => x.month === parsed.month).length,
+      keptEarlierMonths: kept,
     });
   }
 
