@@ -1076,7 +1076,7 @@ chartjs-plugin-annotation。實測三種情境（Playwright，攔截外部請求
 兩條管線的記錄結構不一致。所以任何「定位到來源工作表第幾列」的功能，
 在現有 `data.json` 上做不到，除非先讓兩條管線輸出對齊。
 
-## 2026-09-18（版本 20260918-1）：異常偵測未套篩選、月份可複選
+## 2026-09-18（版本 20260918-1 → 20260918-2）：異常偵測未套篩選、月份可複選、型號分析視窗關不掉
 
 ### 修正 12：異常偵測不吃大類／機種篩選（使用者實際踩到）
 
@@ -1114,11 +1114,58 @@ chartjs-plugin-annotation。實測三種情境（Playwright，攔截外部請求
   原本一律寫成 `115/03 – 115/05` 會讓人以為包含 04。改成**連續才用破折號**，
   不連續就逐月列出（超過 4 個月則顯示前 3 個加「等 N 個月（不連續）」）。
 
-### 待查：使用者回報「部分視窗點 ✕ 關不掉」
+### 修正 14：型號分析視窗關不掉（桌機限定，版本 20260918-2）
 
-已用 Playwright 掃過主要彈出層，**主抽屜（`.drawer-close`）實測正常關閉**；
-帳號管理與上傳視窗在測試環境開不起來（前者需管理員態、後者 `openUpload()` 實際是
-呼叫 `openDashboardDirect()`，並非顯示 `#uploadZone`），料件編輯的觸發選擇器沒抓對。
-**尚未重現**，需要使用者指出是哪一個視窗。四個關閉函式
-（`App.closeDrawer` / `App.pdbCloseEdit` / `Auth.closeAdminPanel` / `RMA.closeModal`）
-都存在且有掛在對外介面上，所以不是函式不見了，比較可能是點擊被遮蔽或某個路徑沒呼叫到。
+使用者給的重現路徑很關鍵：**異常偵測 → 嚴重 → 後桶 → 點第一個監視器（IP43A3Z）
+→ 跳出「IP43A3Z 型號分析」視窗 → 點 ✕ 沒反應**。
+
+- **根因在 CSS，不在 JS。** `openModelDrawer()` 沿用同一個 `#drawer`，只是加上
+  `model-profile` 變體（置中對話框）。抽屜原本**只靠 `transform` 藏起來**：
+  側邊態關閉是 `translateX(100%)`（滑出畫面外，沒事），但 `model-profile`
+  的關閉態是 `translate(-50%, 24px) scale(.98)` ——**位置就在畫面正中央**，
+  移除 `.open` 之後它原地留著，看起來就是「✕ 點了沒反應」。
+  `domCloseDrawer()` 一直都有正確執行，class 也確實被移掉了。
+- 手機（≤680px）的 `model-profile` 是 `translateY(100%)`，會滑出畫面下緣，
+  所以**這個 bug 只發生在桌機**——這也是為什麼使用者說「部分視窗」關不掉。
+- **修法**：`.drawer` 的關閉態改為 `opacity: 0; visibility: hidden`，
+  `.drawer.open` 才 `visibility: visible`。`visibility` 的 transition 延遲
+  `.25s`（等位移動畫跑完）再切換，滑出動畫不會被截斷。這樣**任何變體、任何斷點
+  都真的會消失**，不再依賴「位移剛好把它推出畫面」這個脆弱前提。
+
+#### 順帶更正一個我自己的假通過
+
+上一輪我回報「主抽屜實測正常關閉」，那個結論是錯的。當時的可見性判斷用了
+`offsetParent !== null`，但 **`position: fixed` 的元素 `offsetParent` 永遠是
+`null`**，所以不論開關都會被判成「不可見」，測試等於沒在測。
+
+現在的判斷方式（`tests` 目錄外的一次性驗證腳本，記錄於此供後人沿用）：
+
+```js
+const cs = getComputedStyle(el), r = el.getBoundingClientRect();
+const inViewport = r.width > 1 && r.height > 1 && r.bottom > 0 && r.right > 0 &&
+                   r.top < innerHeight && r.left < innerWidth;
+const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+const visible = cs.display !== 'none' && cs.visibility !== 'hidden' &&
+                +cs.opacity > 0.01 && inViewport;
+const blocking = !!(hit && (hit === el || el.contains(hit)));  // 還擋不擋得住點擊
+```
+
+**要測「浮層關掉了沒」，就用 computed style ＋ getBoundingClientRect ＋
+elementFromPoint 命中測試，不要用 `offsetParent`。**
+
+#### 驗證結果
+
+同一支腳本先 `git stash` 掉修改跑一次、再套用跑一次，證明因果：
+
+| 情境 | 修正前 | 修正後 |
+| --- | --- | --- |
+| 桌機 型號分析 點 ✕ | `visible: true`、命中自己 → **關不掉** | `visibility: hidden`、不命中 → 關得掉 |
+| 桌機 型號分析 按 Esc | 同上，關不掉 | 關得掉 |
+| 桌機 側邊抽屜 點 ✕ | 正常 | 正常 |
+| 手機（390×844）全部 | 正常 | 正常 |
+| 關閉後畫面中央命中 | 頁面內容（無殘留攔截層） | 同左 |
+
+其餘彈出層一併用正確方法重測：**主抽屜、型號分析、帳號管理、料件編輯
+（`#pdbModal`，走 `display:flex/none`）全部關得掉**；收掉之後全站
+`position: fixed` 且 `z-index > 500` 的浮層**沒有任何一個還留在畫面上**。
+上傳視窗（`#uploadZone`）不是彈出層，是登入後的整頁上傳畫面，沒有 ✕。
