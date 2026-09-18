@@ -1,12 +1,16 @@
-// TITAN-STAR Service Worker - v20260918-2
+// TITAN-STAR Service Worker - v20260918-3
 // Runtime files must stay fresh. Older cache-first behavior could keep mobile
 // browsers on stale app.js/data.json after a deployment.
-const CACHE_NAME = 'titan-star-v20260918-2';
+const CACHE_NAME = 'titan-star-v20260918-3';
+// 函式庫改為自帶（vendor/），不再預快取 jsdelivr 與 Google Fonts：
+// 它們現在是同源檔案，會走下面 isRuntimeFile 的網路優先＋離線退回 cache 流程。
 const APP_SHELL = [
   './manifest.json',
-  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap',
-  'https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js',
-  'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
+  './vendor/chart.umd.js',
+  './vendor/xlsx.full.min.js',
+  './vendor/hammer.min.js',
+  './vendor/chartjs-plugin-zoom.min.js',
+  './vendor/chartjs-plugin-annotation.min.js',
 ];
 
 self.addEventListener('install', event => {
