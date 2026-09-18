@@ -12,16 +12,43 @@
 <meta name="apple-mobile-web-app-title" content="TITAN-STAR">
 <link rel="manifest" href="manifest.json">
 <title>TITAN-STAR · 維修分析</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Iansui&family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=20260918-2">
-<link rel="stylesheet" href="rma-styles.css?v=20260918-2">
-<link rel="stylesheet" href="styles-morandi.css?v=20260918-2" id="morandiThemeLink">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<!-- 離線（file://）直接雙擊開啟時，轉去同資料夾的單檔版 TITAN-STAR.html。
+     原因：瀏覽器禁止 file:// 頁面 fetch 同目錄的 data.json（"URL scheme file
+     is not supported"），所以 index.html 在離線狀態下拿不到任何資料，會是一個
+     空殼。TITAN-STAR.html 由 build.js 把資料與函式庫全部內嵌進去，不需要
+     fetch，複製到任何一台電腦都能開。
+     這段在單檔版裡會被 build.js 移除，所以不會轉址轉不完。
+     放在 <head> 最前面：要在載入 vendor/ 那 1.2MB 之前就決定要不要轉走。 -->
+<script data-file-redirect>
+if (location.protocol === 'file:') location.replace('TITAN-STAR.html');
+</script>
+<!-- Google Fonts 只在有網路的線上版載入。用 JS 動態插入而不是寫死 <link>：
+     離線／file:// 打開時瀏覽器會卡在連線逾時，字體也不會到；直接不要發這個
+     請求，改吃 styles.css 裡的系統字體 fallback（--sans / --mono / --friendly
+     都已經排好 Windows 的微軟正黑體與 macOS 的蘋方）。 -->
+<script>
+(function () {
+  if (location.protocol === 'file:') return;
+  var pre = document.createElement('link');
+  pre.rel = 'preconnect'; pre.href = 'https://fonts.googleapis.com';
+  document.head.appendChild(pre);
+  var l = document.createElement('link');
+  l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?family=Iansui&family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap';
+  document.head.appendChild(l);
+})();
+</script>
+<link rel="stylesheet" href="styles.css?v=20260918-3">
+<link rel="stylesheet" href="rma-styles.css?v=20260918-3">
+<link rel="stylesheet" href="styles-morandi.css?v=20260918-3" id="morandiThemeLink">
+<!-- 第三方函式庫改為自帶（vendor/），不再走 cdn.jsdelivr.net。
+     理由見 vendor/README.md：離線可用、分頁不會卡在 CDN 逾時、
+     不受公司網路擋 CDN 影響。 -->
+<script src="vendor/chart.umd.js?v=20260918-3"></script>
+<script src="vendor/xlsx.full.min.js?v=20260918-3"></script>
+<script src="vendor/hammer.min.js?v=20260918-3"></script>
+<script src="vendor/chartjs-plugin-zoom.min.js?v=20260918-3"></script>
+<script src="vendor/chartjs-plugin-annotation.min.js?v=20260918-3"></script>
 </head>
 <body>
 
@@ -760,13 +787,13 @@
 <!-- RMA Modal container -->
 <div id="rmaModal" style="display:none;position:fixed;inset:0;z-index:600;align-items:center;justify-content:center"></div>
 
-<script src="parser.js?v=20260918-2"></script>
-<script src="analyzer.js?v=20260918-2"></script>
-<script src="privacy.js?v=20260918-2"></script>
-<script src="monthly-source.js?v=20260918-2"></script>
-<script src="app.js?v=20260918-2"></script>
-<script src="report.js?v=20260918-2"></script>
-<script src="rma.js?v=20260918-2"></script>
+<script src="parser.js?v=20260918-3"></script>
+<script src="analyzer.js?v=20260918-3"></script>
+<script src="privacy.js?v=20260918-3"></script>
+<script src="monthly-source.js?v=20260918-3"></script>
+<script src="app.js?v=20260918-3"></script>
+<script src="report.js?v=20260918-3"></script>
+<script src="rma.js?v=20260918-3"></script>
 <script>
 // ─── Theme toggle（深色 ↔ 莫蘭迪淺色）───
 const THEME_KEY = 'titan_theme';
@@ -963,7 +990,10 @@ async function onAuthSuccess() {
 </div>
 <script>
 // Service Worker registration (PWA offline support)
-if ('serviceWorker' in navigator) {
+// file:// 下 navigator.serviceWorker 不存在（或註冊必定失敗），註冊只會在
+// console 留一則沒人看得懂的錯誤。直接跳過——離線可用是靠 vendor/ 自帶函式庫
+// 與 data-embed.js，本來就不需要 SW。
+if (location.protocol !== 'file:' && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').then(reg => {
       reg.addEventListener('updatefound', () => {

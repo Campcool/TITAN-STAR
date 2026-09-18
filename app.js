@@ -264,17 +264,36 @@ window.App = (function () {
     return false;
   }
 
+  // 取得共用資料。兩條路徑：
+  //  - http(s)：fetch ./data.json（線上版與本機 server，行為跟以前一樣）
+  //  - file://：瀏覽器禁止 file:// 頁面 fetch 同目錄檔案（"URL scheme file is
+  //    not supported"），所以 index.html 會在 file:// 時先用 <script> 載入
+  //    data-embed.js，把同一份資料掛成 window.__TITAN_EMBEDDED_DB__。
+  //    這是「整個資料夾複製到別台電腦直接雙擊開啟」能看到資料的關鍵。
+  async function loadCloudPayload() {
+    if (location.protocol === 'file:') {
+      const embedded = window.__TITAN_EMBEDDED_DB__;
+      if (!embedded) {
+        console.warn('離線開啟但找不到 data-embed.js，將只使用這台瀏覽器既有的資料。');
+        return null;
+      }
+      try { localStorage.setItem(CLOUD_CHECK_KEY, currentMonthKey()); } catch (e) {}
+      return embedded;
+    }
+    // 'no-cache'（而非 'no-store'）：一律向伺服器驗證新鮮度，但會帶
+    // If-None-Match/If-Modified-Since。資料沒變時 GitHub Pages 回 304，
+    // 不重傳 body — 省下每次開啟的整包 data.json 流量（目前 2.6MB）。
+    const res = await fetch(CLOUD_URL, { cache: 'no-cache' });
+    if (!res.ok) return null;
+    try { localStorage.setItem(CLOUD_CHECK_KEY, currentMonthKey()); } catch (e) {}
+    return res.json();
+  }
+
   // Load the baseline (parts, supplements, accounts), then check the source folder on every open.
   // If GitHub has newer/more records than this browser, adopt it automatically.
   async function syncCloud() {
     try {
-      // 'no-cache'（而非 'no-store'）：一律向伺服器驗證新鮮度，但會帶
-      // If-None-Match/If-Modified-Since。資料沒變時 GitHub Pages 回 304，
-      // 不重傳 body — 省下每次開啟的整包 data.json 流量（目前 2.6MB）。
-      const res = await fetch(CLOUD_URL, { cache: 'no-cache' });
-      if (!res.ok) return null;
-      try { localStorage.setItem(CLOUD_CHECK_KEY, currentMonthKey()); } catch(e) {}
-      const cloud = await res.json();
+      const cloud = await loadCloudPayload();
       if (!cloud || !cloud.months) return null;
       const cloudStats = dbStats(cloud);
       const localDb = RepairDB.load();
@@ -330,6 +349,16 @@ window.App = (function () {
   }
 
   async function syncMonthlyWorkbook() {
+    // 離線副本（file:// 直接雙擊開啟）不去掃 GitHub 的 date 資料夾：
+    // 那是「有沒有新的月報 Excel」的檢查，離線本來就做不到，硬打會得到一個
+    // 看起來像壞掉的紅色錯誤列。改成明講這是離線副本、資料停在哪個月份。
+    if (location.protocol === 'file:') {
+      const months = Object.keys((loadBestDb() || {}).months || {}).sort();
+      const latest = months.length ? fmt.monthLabel(months[months.length - 1]) : '無';
+      state.sourceStatus = { kind: 'ok', message: `離線副本，資料截止於 ${latest}。要取得新月份請開線上版。` };
+      renderSourceStatus();
+      return null;
+    }
     state.sourceStatus = { kind: 'checking', message: '正在檢查維修與整新故障 Excel…' };
     renderSourceStatus();
     try {

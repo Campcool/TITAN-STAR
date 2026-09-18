@@ -1169,3 +1169,75 @@ elementFromPoint 命中測試，不要用 `offsetParent`。**
 （`#pdbModal`，走 `display:flex/none`）全部關得掉**；收掉之後全站
 `position: fixed` 且 `z-index > 500` 的浮層**沒有任何一個還留在畫面上**。
 上傳視窗（`#uploadZone`）不是彈出層，是登入後的整頁上傳畫面，沒有 ✕。
+
+## 2026-09-18（版本 20260918-3）：離線可攜——複製到別台電腦也能開
+
+### 使用者回報
+
+> 這個檔案如果別人複製過去會無法開啟……是否能修改成整個資料夾搬移到不同電腦去都可以開啟使用
+
+### 實測到的三個原因（不是猜的）
+
+用 Playwright 把整包複製到一個全新資料夾、開全新瀏覽器 profile（＝空的
+localStorage）、把所有非本機請求全部 abort，模擬「另一台沒有網路的電腦」。
+結果與 console 訊息：
+
+1. **資料拿不到。** `fetch('./data.json')` 在 `file://` 下被瀏覽器直接拒絕：
+   `Fetch API cannot load file:///…/data.json. URL scheme "file" is not supported.`
+   原本的機器看得到資料，只是因為 localStorage 早就被線上版填過了；
+   換一台電腦就是一個空殼。**這是主因。**
+2. **圖表與 Excel 匯入不見。** Chart.js、SheetJS、hammer、兩個 Chart 外掛
+   全部從 `cdn.jsdelivr.net` 載，離線或公司網路擋 CDN 就沒有
+   （`window.Chart` / `window.XLSX` 皆 undefined）。
+3. **字體與 SW 只會拖慢與噴錯。** Google Fonts 的 `<link>` 在離線時要等連線
+   逾時；`navigator.serviceWorker.register()` 在 `file://` 必定失敗。
+
+### 修法
+
+| 問題 | 作法 |
+| --- | --- |
+| 函式庫走 CDN | 五支全部自帶在 `vendor/`（1.2 MB，來源與版本見 `vendor/README.md`） |
+| `file://` 讀不到 data.json | `build.js` 把 `data.json` 內嵌進單檔版成 `window.__TITAN_EMBEDDED_DB__`；`app.js` 新增 `loadCloudPayload()`，`file:` 時讀內嵌、`http(s)` 時照舊 fetch |
+| 雙擊 index.html 是空殼 | `index.html` 在 `file:` 時 `location.replace('TITAN-STAR.html')`，且這段排在 `<head>` 最前面（在讀那 1.2 MB 之前就轉走）。`build.js` 會把這段從單檔版移除，不會轉址轉不完 |
+| 字體 | Google Fonts 改由 JS 判斷協定後動態插入；`styles.css` 新增 `--cjk-fallback`（微軟正黑體／蘋方／Noto Sans CJK），離線不會掉成細明體 |
+| SW | `location.protocol !== 'file:'` 才註冊 |
+| 每次開啟去掃 GitHub 的 `date/` | `syncMonthlyWorkbook()` 在 `file:` 時直接回傳，狀態列改寫「離線副本，資料截止於 115/0X」，不再顯示紅色的「更新未完成」 |
+
+**沒有新增 `data-embed.js` 這種與 `data.json` 平行的第二份資料檔。**
+一開始的設計是那樣，但那等於每次更新月報都要同步兩份 2.6 MB、還要加一個
+防走鐘的 CI 檢查。改成「離線一律走單檔版」之後，資料只有 `data.json`
+一個來源，`build.js` 是唯一的複製點。
+
+### 實測結果（模擬另一台沒有網路的電腦）
+
+| 情境 | 月份 | 紀錄數 | 圖表 | 對外請求 | JS 錯誤 |
+| --- | --- | --- | --- | --- | --- |
+| 複製整個資料夾，雙擊 `index.html` | 5（115/03–115/07） | 6,587 | 11 | **0** | 無 |
+| 只複製 `TITAN-STAR.html` 一個檔 | 5（同上） | 6,587 | 11 | **0** | 無 |
+| 線上版（本機 server） | 同上 | 6,587 | 11 | 只剩字體與 date 資料夾檢查 | 無 |
+
+單檔版 911 KB → **4,877 KB**（＋1.2 MB 函式庫 ＋2.6 MB 資料）。
+
+### 副作用：分頁轉圈的問題一併解決
+
+先前使用者問「為什麼上面的分頁會一直轉」，當時查到是 CDN 連不上時瀏覽器要等
+到 timeout。函式庫改成同源自帶之後，這條路徑就不存在了。原本列的方案 A–D
+不必再選。
+
+### 已知限制（要讓使用者知道）
+
+**離線複本是快照，不會自己更新。** 線上版每次開啟都會去 `date/` 撈新的月報並
+合併，離線版做不到。目前 `data.json` 停在 **115/07**，而 `date/` 裡已經有
+115/08 的 Excel——所以現在打包出來的離線複本會比線上版少一個月。
+要讓離線複本跟上，得先 `npm run import:month` 把 08 匯進 `data.json`
+再 `node build.js`。這會同時更新公開的線上資料，屬於每月匯入流程的一部分，
+**沒有在這次改動裡順手做掉**。
+
+### 防回歸
+
+新增 `tests/offline-portable.test.mjs`（8 項）：外部 script 為零、vendor 檔案
+存在且非空、轉址排在 vendor 之前、字體與 SW 的協定判斷、`--cjk-fallback`、
+`app.js` 兩處離線分支、單檔版內嵌資料且零 `<script src>`、Pages 發布清單含
+`vendor/*.js` 但不含 `vendor/README.md`。
+
+已做反向驗證：把其中一支函式庫改回 CDN，第 1、2 項立刻紅燈。

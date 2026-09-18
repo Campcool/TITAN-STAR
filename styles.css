@@ -171,10 +171,15 @@
   --header: 52px;   /* 對齊上方 mode-bar 高度 */
   --subbar: 56px;
 
-  /* Type */
-  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-  --sans: 'Inter', 'Noto Sans TC', system-ui, -apple-system, sans-serif;
-  --friendly: 'Iansui', 'Noto Sans TC', system-ui, -apple-system, sans-serif;
+  /* Type
+     離線／file:// 開啟時 Google Fonts 不會載入（index.html 刻意不發那個請求），
+     所以每一組都要排到系統內建的中文字體才不會掉成細明體：
+     Windows 走「微軟正黑體」，macOS/iOS 走「蘋方」，Android 走 Noto Sans CJK。 */
+  --cjk-fallback: 'Microsoft JhengHei', '微軟正黑體', 'PingFang TC', 'Heiti TC',
+                  'Noto Sans CJK TC', 'Source Han Sans TC';
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --sans: 'Inter', 'Noto Sans TC', var(--cjk-fallback), system-ui, -apple-system, sans-serif;
+  --friendly: 'Iansui', 'Noto Sans TC', var(--cjk-fallback), system-ui, -apple-system, sans-serif;
 }
 
 /* 20260722: model supplemental summary workbook support */

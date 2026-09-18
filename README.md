@@ -5,6 +5,23 @@
 - 線上版：https://campcool.github.io/TITAN-STAR/
 - 離線單檔版：`TITAN-STAR.html`（由 `node build.js` 打包產生）
 
+## 給同事一份可以離線用的複本
+
+把 **`TITAN-STAR.html` 一個檔案**傳給對方（Teams、隨身碟、共用資料夾都行），
+對方雙擊就能開，**不需要網路、不需要安裝任何東西、不需要登入公司系統**。
+圖表、Excel 匯入、全部月份資料都已經包在這個檔案裡（約 4.8 MB）。
+
+整個資料夾複製過去也可以：雙擊 `index.html` 時會自動轉到同資料夾的
+`TITAN-STAR.html`（離線狀態下瀏覽器禁止 `file://` 頁面讀取同目錄的
+`data.json`，所以一定要走內嵌資料的單檔版）。
+
+**離線複本是一份快照**：資料停在打包當下 `data.json` 的月份，狀態列會寫
+「離線副本，資料截止於 115/0X」。要拿到後續月份，重新從線上版下載一份新的
+`TITAN-STAR.html`，或直接開線上版。
+
+要做出含最新月份的複本，先把 `date/` 的 Excel 匯進 `data.json`
+（`npm run import:month`），再 `node build.js`。
+
 ## 文件
 
 AI 與 AI 之間的進度交接、目前狀態、修改注意事項請見 **[AI-HANDOFF.md](./AI-HANDOFF.md)**。
@@ -33,3 +50,7 @@ AI 與 AI 之間的進度交接、目前狀態、修改注意事項請見 **[AI-
 使用 Node 22、pnpm 10.4.1；執行 `pnpm install --frozen-lockfile`、`node --test tests/*.test.mjs`。
 檢查來源資料夾：`node scripts/check-source-dir.cjs <Excel資料夾>`，唯讀，不寫入 data.json。
 改網頁後執行 `node scripts/build-version.mjs YYYYMMDD-N`、`node build.js`，提交離線單檔並通過 Pages CI。
+
+第三方函式庫自帶在 `vendor/`（不走 CDN），來源、版本與升版方式見
+[vendor/README.md](./vendor/README.md)。`tests/offline-portable.test.mjs`
+會擋住「又把某支函式庫改回 CDN」「單檔版忘了重新打包」這類回歸。
