@@ -810,12 +810,13 @@ window.App = (function () {
     // 月份下拉（每個選項帶當月 RMA 與整新數，選之前就看得到量級）
     const ms = $('monthSelect');
     if (ms) {
-      // 選項文字用縮寫（RMA／整新），完整名稱與說明在右側「目前分析範圍」；
-      // 寫全名會讓收合狀態的下拉被截斷，反而看不到月份。
-      ms.innerHTML = `<option value="__ALL__">全部 ${months.length} 個月${allDenom ? ` · 整新 ${fmt.int(allDenom)}` : ''}</option>`
-        + (selMonth === '__RANGE__' ? `<option value="__RANGE__" disabled>已選 ${state.selectedMonths.length} 個月</option>` : '')
-        + months.map(mk => `<option value="${mk}">${fmt.monthLabel(mk)} · RMA ${fmt.int(state.db.months[mk].records.length)}${monthDenom[mk] ? ` · 整新 ${fmt.int(monthDenom[mk])}` : ''}</option>`).join('');
-      ms.value = selMonth;
+      // 選項文字用縮寫（RMA／整新），完整名稱與說明在右側「目前分析範圍」。
+      // 多選清單沒有「全部」這個選項——全部＝每一列都選中，另有「全選」按鈕。
+      const chosen = new Set(state.selectedMonths);
+      ms.size = Math.min(Math.max(months.length, 3), 8);
+      ms.innerHTML = months.map(mk =>
+        `<option value="${mk}"${chosen.has(mk) ? ' selected' : ''}>${fmt.monthLabel(mk)} · RMA ${fmt.int(state.db.months[mk].records.length)}${monthDenom[mk] ? ` · 整新 ${fmt.int(monthDenom[mk])}` : ''}</option>`
+      ).join('');
     }
 
     // Category chips
@@ -901,9 +902,17 @@ window.App = (function () {
     // 拿它來顯示會讓切了大類之後台數紋風不動。
     const records = RepairAnalyzer.getRecords(state.db, currentFilter());
     const months = state.selectedMonths.slice().sort();
+    // 可以複選之後，選取不一定連續。連續才用破折號寫成區間，
+    // 不連續還寫「03 – 05」會讓人以為包含 04，所以改成逐月列出。
+    const allMonths = Object.keys(state.db.months).sort();
+    const firstIdx = allMonths.indexOf(months[0]);
+    const contiguous = months.length > 0
+      && months.every((mk, i) => allMonths[firstIdx + i] === mk);
     const periodLabel = months.length === 0 ? '—'
       : months.length === 1 ? fmt.monthLabel(months[0])
-      : `${fmt.monthLabel(months[0])} – ${fmt.monthLabel(months[months.length - 1])}`;
+      : contiguous ? `${fmt.monthLabel(months[0])} – ${fmt.monthLabel(months[months.length - 1])}`
+      : months.length <= 4 ? months.map(fmt.monthLabel).join('、')
+      : `${months.slice(0, 3).map(fmt.monthLabel).join('、')} 等 ${months.length} 個月（不連續）`;
     const cat = state.selectedCategory === '全部' ? '全部大類' : state.selectedCategory;
     const model = state.selectedModel && state.selectedModel !== '全部' ? state.selectedModel : null;
     const den = currentDenomTotal();
@@ -966,6 +975,17 @@ window.App = (function () {
     state.selectedMonths = mk === '__ALL__' ? allMonths.slice() : [mk];
     renderAll();
     collapseSubbar();
+  }
+
+  // 多選月份。一個都沒選＝退回全部：空集合會讓全站每個數字都變 0，
+  // 那不是使用者想表達的意思，多半只是點掉了最後一個。
+  function setMonthsFromSelect(sel) {
+    const picked = [...sel.selectedOptions].map(o => o.value).sort();
+    const allMonths = Object.keys(state.db.months).sort();
+    state.selectedMonths = picked.length ? picked : allMonths.slice();
+    renderAll();
+    saveFilterState();
+    // 這裡刻意不收合抽屜——複選常常要連點好幾次，收起來會很難用
   }
 
   function setCategory(c) {
@@ -1723,6 +1743,12 @@ window.App = (function () {
     `;
   }
 
+  // 異常偵測的篩選範圍：只取大類／機種（月份由呼叫端的 lastMonth 決定）。
+  // 六個呼叫點共用，避免有人漏帶而讓某一頁的異常又變回全廠。
+  function anomalyScope() {
+    return { category: state.selectedCategory, model: state.selectedModel };
+  }
+
   function currentFilter() {
     return {
       months: state.selectedMonths,
@@ -1922,7 +1948,7 @@ window.App = (function () {
       const denom = RepairAnalyzer.getDenominators(state.db, f);
       const kpis = RepairAnalyzer.computeKPIs(records, denom);
       const lastMonth = state.selectedMonths.slice().sort().pop();
-      const anoms = RepairAnalyzer.detectAnomalies(state.db, lastMonth);
+      const anoms = RepairAnalyzer.detectAnomalies(state.db, lastMonth, anomalyScope());
       const mine = summaryForRole(state.analysisRole, records, kpis, anoms);
       const crit = mine.filter(x => x.sev === 'critical').length;
       const sb = $('summaryBadge');
@@ -1950,7 +1976,7 @@ window.App = (function () {
     const denom = RepairAnalyzer.getDenominators(state.db, f);
     const kpis = RepairAnalyzer.computeKPIs(records, denom);
     const lastMonth = state.selectedMonths.slice().sort().pop();
-    const anoms = RepairAnalyzer.detectAnomalies(state.db, lastMonth);
+    const anoms = RepairAnalyzer.detectAnomalies(state.db, lastMonth, anomalyScope());
     if (f.model && f.model !== '全部') {
       renderModelSummary(f.model, records, kpis);
       return;
@@ -2115,7 +2141,7 @@ window.App = (function () {
 
   function updateAlertBadge() {
     const lastMonth = state.selectedMonths.slice().sort().pop();
-    const anoms = RepairAnalyzer.detectAnomalies(state.db, lastMonth);
+    const anoms = RepairAnalyzer.detectAnomalies(state.db, lastMonth, anomalyScope());
     const total = anoms.length;
     const badge = $('alertBadge');
 
@@ -2756,7 +2782,7 @@ window.App = (function () {
 
     // Role-specific insight panel
     const lastMonth = state.selectedMonths.slice().sort().pop();
-    const anoms = RepairAnalyzer.detectAnomalies(state.db, lastMonth);
+    const anoms = RepairAnalyzer.detectAnomalies(state.db, lastMonth, anomalyScope());
     state.currentAnomalies = anoms;
     renderRoleInsights(state.analysisRole, records, kpis, anoms);
 
@@ -3043,7 +3069,7 @@ window.App = (function () {
   // ─────────────── Alerts (full page) ───────────────
   function renderAlerts() {
     const lastMonth = state.selectedMonths.slice().sort().pop();
-    const anoms = RepairAnalyzer.detectAnomalies(state.db, lastMonth);
+    const anoms = RepairAnalyzer.detectAnomalies(state.db, lastMonth, anomalyScope());
     state.currentAnomalies = anoms;
 
     const groups = {
@@ -6437,7 +6463,7 @@ window.App = (function () {
     const denom = RepairAnalyzer.getDenominators(state.db, f);
     const kpis = RepairAnalyzer.computeKPIs(records, denom);
     const lastMonth = state.selectedMonths.slice().sort().pop();
-    const anoms = RepairAnalyzer.detectAnomalies(state.db, lastMonth);
+    const anoms = RepairAnalyzer.detectAnomalies(state.db, lastMonth, anomalyScope());
     const items = summaryForRole(role, records, kpis, anoms);
     RepairReport.generate(state.db, { role, roleInfo, items });
   }
@@ -6453,7 +6479,7 @@ window.App = (function () {
     pdbSearch: pdbSearchRender, pdbOpenEdit, pdbCloseEdit, pdbSaveEdit, pdbDelete,
     setTrendCommonOnly,
     refreshSource, setPeriod,
-    setMonth, setMonthDirect, setCategory, setModel, quickModelSearch, quickModelSearchInput,
+    setMonth, setMonthDirect, setMonthsFromSelect, setCategory, setModel, quickModelSearch, quickModelSearchInput,
     openModelSuggest, pickModelSuggest, modelSuggestKey,
     setAnalysisRole, setSummaryFocus,
     openCapaForm, saveCapaForm, setCapaStatus, deleteCapa,

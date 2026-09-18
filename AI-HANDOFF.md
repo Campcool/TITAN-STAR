@@ -1075,3 +1075,50 @@ chartjs-plugin-annotation。實測三種情境（Playwright，攔截外部請求
 因為 `data.json` 是由 `scripts/import-month.js`（Node 呼叫 Python／openpyxl）產出的，
 兩條管線的記錄結構不一致。所以任何「定位到來源工作表第幾列」的功能，
 在現有 `data.json` 上做不到，除非先讓兩條管線輸出對齊。
+
+## 2026-09-18（版本 20260918-1）：異常偵測未套篩選、月份可複選
+
+### 修正 12：異常偵測不吃大類／機種篩選（使用者實際踩到）
+
+- **症狀**：大類選「無線保全」，異常偵測仍列出「後桶」——那個零件只出現在監視器機種
+  （`IP43A3Z` / `IPC3A36` / `IPC3A3Z` 等）。點進去下鑽顯示「本月無此零件紀錄」、
+  各月都是 0 件。
+- **原因**：`detectAnomaliesUncached()` 內部一律用 `getRecords(db, { months: [curMonth] })`，
+  **完全沒有帶 category／model**，所以異常卡永遠是全廠的；而下鑽抽屜用的是
+  `currentFilter()`（有篩選）。偵測與下鑽算在不同母體上，交集為空就變成空畫面。
+  這同時讓 20260917-3 加在範圍面板的那句「全站每一頁的數字都以這個範圍計算」變成假的。
+- **修改方式**：`detectAnomalies(db, currentMonth, filter)` 多收一個 filter（只取
+  category／model，月份由 currentMonth 決定），快取 key 併入 scope；
+  `detectAnomaliesUncached` 內部**六個取數點**全部帶上同一組 scope：
+  `curRecs` / `curDenom` / `prevRecs` / 基準月 `partPareto(getRecords(...))` /
+  `batchSerialModels(getRecords(db, scope))` / `crossMonthSerials(db, scope)`。
+  app.js 新增 `anomalyScope()` 給**六個呼叫點**共用，避免日後有人漏帶又變回全廠。
+  - `app.js:315`、`app.js:341`（匯入後的驗證性呼叫）與 `report.js` 刻意不帶 filter＝全廠，
+    因為那兩處不是畫面上的檢視。
+- **實測**（data.json 3–7 月，最新月）：全部大類 36 筆異常（含後桶）、
+  無線保全 13 筆（**後桶消失**）、監視器 10 筆（後桶仍在）。UI 層也驗過同樣結果。
+- **這一條要記住**：`getRecords`／`getDenominators` 已經正確處理 `category: '全部'`
+  （視同不篩選），所以呼叫端直接把 `state.selectedCategory` 丟進去即可，不用先轉 null。
+
+### 修正 13：月份可複選（Ctrl／⌘）
+
+- 使用者要求「按著 Ctrl 應該要可以複選月份」。
+- **作法**：`#monthSelect` 改成 native `<select multiple>`。原生就支援
+  Ctrl／⌘ 點選複選與 Shift 選範圍，**不需要自己寫鍵盤邏輯或 a11y**；
+  手機上點擊即切換，也不必按鍵。旁邊補一個「全選」按鈕與操作提示。
+  `size` 依月份數自動調整（3–8 列）。它在收合的篩選抽屜裡，平常不佔版面。
+- 新增 `setMonthsFromSelect(sel)`：**一個都沒選時退回全部**——空集合會讓全站每個數字
+  變 0，那不是使用者的本意，多半只是點掉了最後一個。此處刻意**不收合抽屜**，
+  因為複選常常要連點好幾次。
+- 連帶修 `renderSubbarScope()` 的期間標籤：可以複選之後選取不一定連續，
+  原本一律寫成 `115/03 – 115/05` 會讓人以為包含 04。改成**連續才用破折號**，
+  不連續就逐月列出（超過 4 個月則顯示前 3 個加「等 N 個月（不連續）」）。
+
+### 待查：使用者回報「部分視窗點 ✕ 關不掉」
+
+已用 Playwright 掃過主要彈出層，**主抽屜（`.drawer-close`）實測正常關閉**；
+帳號管理與上傳視窗在測試環境開不起來（前者需管理員態、後者 `openUpload()` 實際是
+呼叫 `openDashboardDirect()`，並非顯示 `#uploadZone`），料件編輯的觸發選擇器沒抓對。
+**尚未重現**，需要使用者指出是哪一個視窗。四個關閉函式
+（`App.closeDrawer` / `App.pdbCloseEdit` / `Auth.closeAdminPanel` / `RMA.closeModal`）
+都存在且有掛在對外介面上，所以不是函式不見了，比較可能是點擊被遮蔽或某個路徑沒呼叫到。

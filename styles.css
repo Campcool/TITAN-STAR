@@ -3434,6 +3434,23 @@ button, input, select { font-family: inherit; }
 }
 .sb-filters-h { color: var(--text3); font-size: var(--fs-13); font-weight: 700; letter-spacing: .06em; margin-bottom: var(--space-4); }
 .sb-field { display: grid; grid-template-columns: 40px 1fr; align-items: center; gap: var(--space-10); min-width: 0; }
+.sb-field-months { align-items: start; }
+.sb-field-months .sb-field-l { padding-top: var(--space-8); }
+.sb-months { display: flex; flex-direction: column; gap: var(--space-6); min-width: 0; }
+/* 多選清單：原生 multiple 就支援 Ctrl／⌘ 與 Shift，不自己造輪子 */
+.sb-multi { height: auto; padding: var(--space-4); cursor: default; }
+.sb-multi option { padding: var(--space-6) var(--space-8); border-radius: var(--radius-8); }
+.sb-multi option:checked { background: var(--accent-soft); color: var(--text); font-weight: 700; }
+.sb-months-hint {
+  display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap;
+  color: var(--text3); font-size: var(--fs-12);
+}
+.sb-mini-btn {
+  padding: var(--space-3) var(--space-8); border: 1px solid var(--border2);
+  border-radius: var(--radius-8); background: var(--surface); color: var(--text2);
+  font: inherit; font-size: var(--fs-12); cursor: pointer;
+}
+.sb-mini-btn:hover { border-color: var(--accent); color: var(--text); }
 .sb-field-l { color: var(--text3); font-size: var(--fs-13); font-weight: 700; white-space: nowrap; }
 .sb-scope {
   min-width: 0;
