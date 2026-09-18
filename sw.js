@@ -1,7 +1,7 @@
-// TITAN-STAR Service Worker - v20260918-3
+// TITAN-STAR Service Worker - v20260918-4
 // Runtime files must stay fresh. Older cache-first behavior could keep mobile
 // browsers on stale app.js/data.json after a deployment.
-const CACHE_NAME = 'titan-star-v20260918-3';
+const CACHE_NAME = 'titan-star-v20260918-4';
 // 函式庫改為自帶（vendor/），不再預快取 jsdelivr 與 Google Fonts：
 // 它們現在是同源檔案，會走下面 isRuntimeFile 的網路優先＋離線退回 cache 流程。
 const APP_SHELL = [
