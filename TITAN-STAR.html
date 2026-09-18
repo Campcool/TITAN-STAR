@@ -1768,11 +1768,23 @@ button, input, select { font-family: inherit; }
   border-left: 1px solid var(--border);
   z-index: 2510;
   transform: translateX(100%);
-  transition: transform .25s cubic-bezier(.4,0,.2,1);
+  /* 只靠 transform 藏抽屜是不夠的：model-profile 變體是置中對話框，
+     它「關閉」時的 transform 是 translate(-50%, 24px)，位置就在畫面正中央，
+     移除 .open 之後會原地留著關不掉（桌機限定，手機版是 translateY(100%) 才沒事）。
+     改用 visibility + opacity 收尾，任何變體、任何斷點都真的會消失。
+     visibility 延遲到位移動畫結束才切換，滑出動畫才不會被截斷。 */
+  opacity: 0;
+  visibility: hidden;
+  transition: transform .25s cubic-bezier(.4,0,.2,1), opacity .2s ease, visibility 0s .25s;
   display: flex; flex-direction: column;
   box-shadow: -8px 0 32px rgba(0,0,0,.4);
 }
-.drawer.open { transform: translateX(0); }
+.drawer.open {
+  transform: translateX(0);
+  opacity: 1;
+  visibility: visible;
+  transition: transform .25s cubic-bezier(.4,0,.2,1), opacity .2s ease, visibility 0s;
+}
 .drawer.model-profile {
   top: 4dvh;
   left: 50%;
