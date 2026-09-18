@@ -14,9 +14,9 @@
 <title>TITAN-STAR · 維修分析</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Iansui&family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=20260917-6">
-<link rel="stylesheet" href="rma-styles.css?v=20260917-6">
-<link rel="stylesheet" href="styles-morandi.css?v=20260917-6" id="morandiThemeLink">
+<link rel="stylesheet" href="styles.css?v=20260918-1">
+<link rel="stylesheet" href="rma-styles.css?v=20260918-1">
+<link rel="stylesheet" href="styles-morandi.css?v=20260918-1" id="morandiThemeLink">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
@@ -191,8 +191,17 @@
       <div class="subbar-controls">
         <div class="sb-filters" id="subbarFilters">
           <div class="sb-filters-h">切換分析範圍</div>
-          <label class="sb-field"><span class="sb-field-l">月份</span>
-            <select class="sb-select" id="monthSelect" onchange="App.setMonthDirect(this.value)"></select></label>
+          <!-- 多選：native multiple 原生就支援 Ctrl／⌘ 點選複選、Shift 選範圍，
+               不用自己寫鍵盤邏輯；手機上點擊即切換，也不需要按鍵。 -->
+          <label class="sb-field sb-field-months"><span class="sb-field-l">月份</span>
+            <span class="sb-months">
+              <select class="sb-select sb-multi" id="monthSelect" multiple
+                onchange="App.setMonthsFromSelect(this)"></select>
+              <span class="sb-months-hint">
+                <button type="button" class="sb-mini-btn" onclick="App.setPeriod('all')">全選</button>
+                <span>按住 Ctrl（Mac ⌘）複選 · Shift 選範圍</span>
+              </span>
+            </span></label>
           <label class="sb-field"><span class="sb-field-l">大類</span>
             <select class="sb-select" id="catSelect" onchange="App.setCategory(this.value)"></select></label>
           <label class="sb-field" id="modelField" style="display:none"><span class="sb-field-l">機種</span>
@@ -751,13 +760,13 @@
 <!-- RMA Modal container -->
 <div id="rmaModal" style="display:none;position:fixed;inset:0;z-index:600;align-items:center;justify-content:center"></div>
 
-<script src="parser.js?v=20260917-6"></script>
-<script src="analyzer.js?v=20260917-6"></script>
-<script src="privacy.js?v=20260917-6"></script>
-<script src="monthly-source.js?v=20260917-6"></script>
-<script src="app.js?v=20260917-6"></script>
-<script src="report.js?v=20260917-6"></script>
-<script src="rma.js?v=20260917-6"></script>
+<script src="parser.js?v=20260918-1"></script>
+<script src="analyzer.js?v=20260918-1"></script>
+<script src="privacy.js?v=20260918-1"></script>
+<script src="monthly-source.js?v=20260918-1"></script>
+<script src="app.js?v=20260918-1"></script>
+<script src="report.js?v=20260918-1"></script>
+<script src="rma.js?v=20260918-1"></script>
 <script>
 // ─── Theme toggle（深色 ↔ 莫蘭迪淺色）───
 const THEME_KEY = 'titan_theme';
