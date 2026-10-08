@@ -1296,3 +1296,25 @@ if (existing?.sourceType === 'wireless-overview-v1') {
   欄位，沒有替使用者自作主張改掉；要改用 `--published-by` 帶。
 - `node --test` 29 pass / 0 fail；去識別化、版本錨點、`check-source-dir`、
   離線可攜 8 項全部通過。離線複本實測 6 個月 7,483 筆、對外請求 0。
+
+## 2026-10-08（版本 20261008-1）：匯入 115/09
+
+把使用者上傳的兩份 9 月 Excel 放進 `date/`（`115年 09 月維修報表.xlsx`、
+`115年9月整新故障.xlsx`），並照上一次的流程匯進 `data.json`、重打包離線複本：
+
+```bash
+node scripts/check-source-dir.cjs date
+node scripts/import-month.js "date/115年 09 月維修報表.xlsx"
+node scripts/import-wireless-overview.js "date/115年9月整新故障.xlsx"
+node scripts/build-version.mjs 20261008-1 && node build.js
+```
+
+結果：6 個月 7,483 筆 → **7 個月 8,242 筆**（115/09 新增 759 筆，
+badDates 0、missingModel 0、遮罩 12 個值＋1 個 key）。各分頁筆數已對照 Excel
+非空列數（ZSPMG51 187、ZBDIO90 202、客戶分頁 12 等，分頁列數多是空白格式列）。
+整新故障補充有 12 個機種寫入 2026-09，`ZBRT050` 依既有規則保留
+`model-supplement-v1`。9 月分母合計 11,950（8 月 7,839），一樣沒有 ZSPMG31。
+
+驗證：`node --test` 29 pass / 0 fail；去識別化、版本錨點、`check-source-dir` 通過。
+另用 Playwright 模擬 GitHub `date/` 清單與 raw 下載，在**未匯入 9 月的舊
+`data.json`** 上開啟網頁，確認網站自行讀到兩份 9 月 Excel 並切到 115/09。
