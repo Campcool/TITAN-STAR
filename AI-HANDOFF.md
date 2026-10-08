@@ -1311,7 +1311,7 @@ node scripts/build-version.mjs 20261008-1 && node build.js
 
 結果：6 個月 7,483 筆 → **7 個月 8,242 筆**（115/09 新增 759 筆，
 badDates 0、missingModel 0、遮罩 12 個值＋1 個 key）。各分頁筆數已對照 Excel
-非空列數（ZSPMG51 187、ZBDIO90 202、立保保全 12 等，分頁列數多是空白格式列）。
+非空列數（ZSPMG51 187、ZBDIO90 202、客戶分頁 12 等，分頁列數多是空白格式列）。
 整新故障補充有 12 個機種寫入 2026-09，`ZBRT050` 依既有規則保留
 `model-supplement-v1`。9 月分母合計 11,950（8 月 7,839），一樣沒有 ZSPMG31。
 
